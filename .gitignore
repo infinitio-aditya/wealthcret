@@ -1,0 +1,93 @@
+# OSX
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+project.xcworkspace
+**/.xcode.env.local
+
+# Gradle
+/build/
+/android/app/build/
+/android/build/
+/android/.gradle
+/android/app/.cxx/
+/android/app/gradle/
+/android/gradlew
+/android/gradlew.bat
+
+# Buck
+buck-out/
+.buckd/
+.buckconfig.local
+.buckversion
+.fakebuckversion
+
+# Android Studio/IntelliJ
+.idea
+.gradle
+local.properties
+*.iml
+*.hprof
+.externalNativeBuild
+.navigation/
+captures/
+freeline.py
+freeline/
+freeline_project_description.json
+
+# Node
+node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.nvm
+.npm
+.eslintcache
+
+# Environment variables
+.env
+.env.*
+
+# Metro
+.watchman/
+.watchmanconfig
+
+# CocoaPods
+/ios/Pods/
+/ios/Podfile.lock
+
+# Hermes
+*.jsbundle
+*.jsbundle.meta
+
+# Code coverage
+/coverage
+.nyc_output
+
+# Temporary files
+*~
+# VSCode files (optional, can be committed if shared settings are desired)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
