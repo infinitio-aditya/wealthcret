@@ -52,6 +52,11 @@ export type TeamMembersStackParamList = {
   TeamMembers: undefined;
 };
 
+export type ProfileStackParamList = {
+  Profile: undefined;
+  Settings: undefined;
+};
+
 export type MainDrawerParamList = {
   MainTabs: undefined;
   DashboardStack: undefined;
@@ -77,5 +82,6 @@ export type MainDrawerParamList = {
   ContactSupport: undefined;
   ThemeSelection: undefined;
   RiskProfileStack: undefined;
+  ProfileStack: undefined;
   TeamMembersStack: undefined;
 };

@@ -229,3 +229,22 @@ export interface DashboardMetric {
     change?: number;
     icon: string;
 }
+
+export interface Payout {
+    id: string;
+    amount: number;
+    status: 'pending' | 'approved' | 'rejected' | 'completed' | 'processing';
+    requestDate: string;
+    partnerId: string;
+    partnerName: string;
+    payoutDate: string;
+}
+
+export interface Assessment {
+    id: string;
+    score: number;
+    date: string;
+    status: 'low' | 'medium' | 'high';
+    assessedBy: string;
+    notes: string;
+}

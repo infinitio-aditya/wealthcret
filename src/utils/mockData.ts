@@ -1,4 +1,4 @@
-import { Ticket, TicketMessage, TeamMember, Client, RiskProfile, NewsItem, OrganizationRequest, ServiceRequest, CustomerMapping, License } from '../types';
+import { Ticket, TicketMessage, TeamMember, Client, RiskProfile, NewsItem, OrganizationRequest, ServiceRequest, CustomerMapping, License, Activity } from '../types';
 
 export const mockServiceProviders = [
     { id: '1', name: 'John Smith' },
@@ -404,13 +404,13 @@ export const mockTeamMembers: TeamMember[] = [
     { id: '5', name: 'Emily Brown', email: 'emily.brown@wealthcret.com', role: 'Admin Assistant', roles: ['1'], joinDate: '2023-09-05' },
 ];
 
-export const mockDocuments = [
-    { id: '1', clientId: '1', name: 'Investment Agreement 2025', type: 'Agreement', status: 'approved', uploadDate: '2025-11-15' },
-    { id: '2', clientId: '1', name: 'Tax Documents Q4 2024', type: 'Tax', status: 'approved', uploadDate: '2025-11-20' },
-    { id: '3', clientId: '2', name: 'Onboarding Forms', type: 'Legal', status: 'pending', uploadDate: '2025-12-01' },
+export const mockDocuments: Document[] = [
+    { id: '1', clientId: '1', name: 'Investment Agreement 2025', type: 'Agreement', status: 'approved', uploadDate: '2025-11-15',url:'' },
+    { id: '2', clientId: '1', name: 'Tax Documents Q4 2024', type: 'Tax', status: 'approved', uploadDate: '2025-11-20',url:'' },
+    { id: '3', clientId: '2', name: 'Onboarding Forms', type: 'Legal', status: 'pending', uploadDate: '2025-12-01',url:'' },
 ];
 
-export const mockActivities = [
+export const mockActivities: Activity[] = [
     { id: '1', clientId: '1', title: 'Portfolio Review Meeting', description: 'Discussed Q4 performance and rebalancing strategy', meetType: 'physical', date: '2025-12-05', createdBy: 'Sarah Mitchell' },
     { id: '2', clientId: '1', title: 'Follow-up Call', description: 'Quick check-in regarding recent market movements', meetType: 'call', date: '2025-12-08', createdBy: 'Sarah Mitchell' },
     { id: '3', clientId: '2', title: 'Onboarding Session', description: 'Introductory session with new client', meetType: 'physical', date: '2025-12-10', createdBy: 'John Smith' },

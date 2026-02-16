@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,14 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-} from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Feather';
-import { useTheme } from '../../../hooks/useTheme';
-import { mockTickets, mockServiceProviders } from '../../../utils/mockData';
-import { TicketMessage } from '../../../types';
-import LinearGradient from 'react-native-linear-gradient';
-import ThemeDropdown from '../../../components/ui/ThemeDropdown';
+} from "react-native";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import Icon from "react-native-vector-icons/Feather";
+import { useTheme } from "../../../hooks/useTheme";
+import { mockTickets, mockServiceProviders } from "../../../utils/mockData";
+import { TicketMessage } from "../../../types";
+import LinearGradient from "react-native-linear-gradient";
+import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 
 const TicketDetailsScreen = () => {
   const theme = useTheme();
@@ -25,31 +25,31 @@ const TicketDetailsScreen = () => {
   const { ticketId } = route.params;
 
   // In real app, we would fetch or select from store. Here we find in mockData.
-  const ticket = mockTickets.find(t => t.id === ticketId);
+  const ticket = mockTickets.find((t) => t.id === ticketId);
 
-  const [messageText, setMessageText] = useState('');
+  const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState<TicketMessage[]>(
     ticket?.messages || [],
   );
-  const [assignedSP, setAssignedSP] = useState(ticket?.assignedTo || '');
+  const [assignedSP, setAssignedSP] = useState(ticket?.assignedTo || "");
   const [ticketStatus, setTicketStatus] = useState<
-    'open' | 'in-progress' | 'resolved' | 'closed'
-  >(ticket?.status || 'open');
+    "open" | "in-progress" | "resolved" | "closed"
+  >(ticket?.status || "open");
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Mock current user
-  const currentUser = { name: 'Admin User', role: 'admin' };
-  const isAdmin = currentUser.role === 'admin'; // Logic for user role check
+  const currentUser = { name: "Admin User", role: "admin" };
+  const isAdmin = currentUser.role === "admin"; // Logic for user role check
 
-  const STATUSES = ['open', 'in-progress', 'resolved', 'closed'];
+  const STATUSES = ["open", "in-progress", "resolved", "closed"];
 
-  const spOptions = mockServiceProviders.map(sp => ({
+  const spOptions = mockServiceProviders.map((sp) => ({
     label: sp.name,
     value: sp.name,
   }));
 
-  const statusOptions = STATUSES.map(status => ({
-    label: status.replace('-', ' '),
+  const statusOptions = STATUSES.map((status) => ({
+    label: status.replace("-", " "),
     value: status,
   }));
 
@@ -71,8 +71,8 @@ const TicketDetailsScreen = () => {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
+              flexDirection: "row",
+              alignItems: "center",
               paddingHorizontal: 16,
               paddingVertical: 10,
               borderRadius: 12,
@@ -81,7 +81,7 @@ const TicketDetailsScreen = () => {
             }}
           >
             <Icon name="arrow-left" size={20} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '600' }}>Go Back</Text>
+            <Text style={{ color: "#fff", fontWeight: "600" }}>Go Back</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -90,13 +90,13 @@ const TicketDetailsScreen = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open':
+      case "open":
         return theme.colors.info;
-      case 'in-progress':
+      case "in-progress":
         return theme.colors.warning;
-      case 'resolved':
+      case "resolved":
         return theme.colors.success;
-      case 'closed':
+      case "closed":
         return theme.colors.textSecondary;
       default:
         return theme.colors.textSecondary;
@@ -115,7 +115,7 @@ const TicketDetailsScreen = () => {
     };
 
     setMessages([...messages, newMessage]);
-    setMessageText('');
+    setMessageText("");
     setTimeout(
       () => scrollViewRef.current?.scrollToEnd({ animated: true }),
       100,
@@ -126,24 +126,24 @@ const TicketDetailsScreen = () => {
     setTicketStatus(newStatus as any);
     // In a real app, you would send this update to your backend
     Alert.alert(
-      'Status Updated',
-      `Ticket status changed to ${newStatus.replace('-', ' ')}`,
+      "Status Updated",
+      `Ticket status changed to ${newStatus.replace("-", " ")}`,
     );
   };
 
   const handleCloseTicket = () => {
     Alert.alert(
-      'Close Ticket',
-      'Are you sure you want to close this ticket?',
+      "Close Ticket",
+      "Are you sure you want to close this ticket?",
       [
         {
-          text: 'Cancel',
-          style: 'cancel',
+          text: "Cancel",
+          style: "cancel",
         },
         {
-          text: 'Close',
-          onPress: () => handleStatusChange('closed'),
-          style: 'destructive',
+          text: "Close",
+          onPress: () => handleStatusChange("closed"),
+          style: "destructive",
         },
       ],
       { cancelable: true },
@@ -160,9 +160,9 @@ const TicketDetailsScreen = () => {
       <View style={styles.card}>
         <View
           style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
             marginBottom: 16,
           }}
         >
@@ -172,7 +172,7 @@ const TicketDetailsScreen = () => {
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: getStatusColor(ticketStatus) + '20' },
+              { backgroundColor: getStatusColor(ticketStatus) + "20" },
             ]}
           >
             <Text
@@ -181,7 +181,7 @@ const TicketDetailsScreen = () => {
                 { color: getStatusColor(ticketStatus) },
               ]}
             >
-              {ticketStatus.replace('-', ' ')}
+              {ticketStatus.replace("-", " ")}
             </Text>
           </View>
         </View>
@@ -228,11 +228,11 @@ const TicketDetailsScreen = () => {
                         color: isCurrent
                           ? theme.colors.text
                           : theme.colors.textSecondary,
-                        fontWeight: isCurrent ? '600' : '400',
+                        fontWeight: isCurrent ? "600" : "400",
                       },
                     ]}
                   >
-                    {status.replace('-', ' ')}
+                    {status.replace("-", " ")}
                   </Text>
                 </View>
               );
@@ -249,13 +249,13 @@ const TicketDetailsScreen = () => {
       backgroundColor: theme.colors.background,
     },
     centered: {
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
     header: {
       padding: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 16,
       backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
@@ -263,7 +263,7 @@ const TicketDetailsScreen = () => {
     },
     headerTitle: {
       fontSize: 20,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
       flex: 1,
     },
@@ -285,7 +285,7 @@ const TicketDetailsScreen = () => {
     },
     cardTitle: {
       fontSize: 16,
-      fontWeight: '600',
+      fontWeight: "600",
       color: theme.colors.text,
       marginBottom: 16,
     },
@@ -297,37 +297,37 @@ const TicketDetailsScreen = () => {
       height: 4,
       backgroundColor: theme.effects.cardBorder,
       borderRadius: 2,
-      position: 'absolute',
+      position: "absolute",
       top: 12, // Half of circle height (24/2)
       left: 0,
       right: 0,
     },
     progressBarFill: {
-      height: '100%',
+      height: "100%",
       borderRadius: 2,
     },
     stepsContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+      flexDirection: "row",
+      justifyContent: "space-between",
     },
     stepWrapper: {
-      alignItems: 'center',
+      alignItems: "center",
       width: 60,
     },
     stepCircle: {
       width: 24,
       height: 24,
       borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
       marginBottom: 8,
       backgroundColor: theme.colors.surface,
       zIndex: 1,
     },
     stepLabel: {
       fontSize: 10,
-      textTransform: 'capitalize',
-      textAlign: 'center',
+      textTransform: "capitalize",
+      textAlign: "center",
     },
     // Info Styles
     detailRow: {
@@ -346,29 +346,29 @@ const TicketDetailsScreen = () => {
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: 12,
-      alignSelf: 'flex-start',
+      alignSelf: "flex-start",
     },
     priorityText: {
       fontSize: 12,
-      fontWeight: '600',
-      textTransform: 'capitalize',
+      fontWeight: "600",
+      textTransform: "capitalize",
     },
     // Chat Styles
     messageList: {
       maxHeight: 400,
     },
     messageBubble: {
-      maxWidth: '80%',
+      maxWidth: "80%",
       padding: 12,
       borderRadius: 16,
       marginBottom: 12,
     },
     ownMessage: {
-      alignSelf: 'flex-end',
+      alignSelf: "flex-end",
       borderBottomRightRadius: 4,
     },
     otherMessage: {
-      alignSelf: 'flex-start',
+      alignSelf: "flex-start",
       backgroundColor: theme.effects.glassBackground, // or surface
       borderWidth: 1,
       borderColor: theme.effects.cardBorder,
@@ -377,7 +377,7 @@ const TicketDetailsScreen = () => {
     senderName: {
       fontSize: 12,
       marginBottom: 4,
-      fontWeight: '600',
+      fontWeight: "600",
     },
     messageText: {
       fontSize: 14,
@@ -387,15 +387,15 @@ const TicketDetailsScreen = () => {
       fontSize: 10,
       marginTop: 4,
       opacity: 0.7,
-      alignSelf: 'flex-end',
+      alignSelf: "flex-end",
     },
     inputContainer: {
-      flexDirection: 'row',
+      flexDirection: "row",
       padding: 12,
       backgroundColor: theme.colors.surface,
       borderTopWidth: 1,
       borderTopColor: theme.effects.cardBorder,
-      alignItems: 'center',
+      alignItems: "center",
       gap: 12,
     },
     input: {
@@ -411,8 +411,8 @@ const TicketDetailsScreen = () => {
       width: 40,
       height: 40,
       borderRadius: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
     statusBadge: {
       paddingHorizontal: 8,
@@ -421,11 +421,11 @@ const TicketDetailsScreen = () => {
     },
     statusText: {
       fontSize: 10,
-      fontWeight: 'bold',
-      textTransform: 'uppercase',
+      fontWeight: "bold",
+      textTransform: "uppercase",
     },
     actionRow: {
-      flexDirection: 'row',
+      flexDirection: "row",
       gap: 12,
       marginTop: 12,
     },
@@ -434,21 +434,21 @@ const TicketDetailsScreen = () => {
       borderRadius: 12,
       borderWidth: 1,
       borderColor: theme.colors.error,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
       paddingHorizontal: 16,
     },
     closeButtonText: {
       color: theme.colors.error,
-      fontWeight: '600',
+      fontWeight: "600",
       fontSize: 14,
     },
   });
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       style={styles.container}
     >
       <ScrollView>
@@ -464,17 +464,17 @@ const TicketDetailsScreen = () => {
         <View style={styles.content}>
           {renderStatusProgress()}
 
-          {(currentUser.role === 'admin' ||
-            currentUser.role === 'service_provider') && (
+          {(currentUser.role === "admin" ||
+            currentUser.role === "service_provider") && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Ticket Management</Text>
               <ThemeDropdown
                 label="Assign Service Provider"
                 options={spOptions}
                 selectedValue={assignedSP}
-                onValueChange={value => {
+                onValueChange={(value) => {
                   setAssignedSP(value);
-                  Alert.alert('Success', `Ticket assigned to ${value}`);
+                  Alert.alert("Success", `Ticket assigned to ${value}`);
                 }}
                 placeholder="Select Service Provider"
               />
@@ -483,31 +483,31 @@ const TicketDetailsScreen = () => {
                   label="Update Status"
                   options={statusOptions}
                   selectedValue={ticketStatus}
-                  onValueChange={value => {
+                  onValueChange={(value) => {
                     setTicketStatus(value as any);
                     Alert.alert(
-                      'Success',
-                      `Status updated to ${value.replace('-', ' ')}`,
+                      "Success",
+                      `Status updated to ${value.replace("-", " ")}`,
                     );
                   }}
                   placeholder="Select Status"
                 />
               </View>
-              {ticketStatus !== 'closed' && (
+              {ticketStatus !== "closed" && (
                 <TouchableOpacity
                   style={styles.closeButton}
                   onPress={() => {
                     Alert.alert(
-                      'Close Ticket',
-                      'Are you sure you want to close this ticket?',
+                      "Close Ticket",
+                      "Are you sure you want to close this ticket?",
                       [
-                        { text: 'Cancel', style: 'cancel' },
+                        { text: "Cancel", style: "cancel" },
                         {
-                          text: 'Close',
-                          style: 'destructive',
+                          text: "Close",
+                          style: "destructive",
                           onPress: () => {
-                            setTicketStatus('closed');
-                            Alert.alert('Success', 'Ticket has been closed');
+                            setTicketStatus("closed");
+                            Alert.alert("Success", "Ticket has been closed");
                           },
                         },
                       ],
@@ -521,48 +521,48 @@ const TicketDetailsScreen = () => {
           )}
 
           <View
-            style={[styles.card, { flexDirection: 'row', flexWrap: 'wrap' }]}
+            style={[styles.card, { flexDirection: "row", flexWrap: "wrap" }]}
           >
-            <View style={{ width: '100%' }}>
+            <View style={{ width: "100%" }}>
               <Text style={styles.cardTitle}>Ticket Details</Text>
             </View>
 
-            <View style={[styles.detailRow, { width: '100%' }]}>
+            <View style={[styles.detailRow, { width: "100%" }]}>
               <Text style={styles.detailLabel}>Description</Text>
               <Text style={styles.detailValue}>{ticket.description}</Text>
             </View>
 
-            <View style={[styles.detailRow, { width: '50%' }]}>
+            <View style={[styles.detailRow, { width: "50%" }]}>
               <Text style={styles.detailLabel}>Created By</Text>
               <Text style={styles.detailValue}>{ticket.createdBy}</Text>
             </View>
 
-            <View style={[styles.detailRow, { width: '50%' }]}>
+            <View style={[styles.detailRow, { width: "50%" }]}>
               <Text style={styles.detailLabel}>Assigned To</Text>
               <Text style={styles.detailValue}>
-                {assignedSP || 'Unassigned'}
+                {assignedSP || "Unassigned"}
               </Text>
             </View>
 
-            <View style={[styles.detailRow, { width: '50%' }]}>
+            <View style={[styles.detailRow, { width: "50%" }]}>
               <Text style={styles.detailLabel}>Created Date</Text>
               <Text style={styles.detailValue}>
                 {new Date(ticket.createdAt).toLocaleString()}
               </Text>
             </View>
 
-            <View style={[styles.detailRow, { width: '50%' }]}>
+            <View style={[styles.detailRow, { width: "50%" }]}>
               <Text style={styles.detailLabel}>Priority</Text>
               <View
                 style={[
                   styles.priorityBadge,
                   {
                     backgroundColor:
-                      (ticket.priority === 'high'
+                      (ticket.priority === "high"
                         ? theme.colors.error
-                        : ticket.priority === 'medium'
+                        : ticket.priority === "medium"
                           ? theme.colors.warning
-                          : theme.colors.success) + '20',
+                          : theme.colors.success) + "20",
                   },
                 ]}
               >
@@ -571,9 +571,9 @@ const TicketDetailsScreen = () => {
                     styles.priorityText,
                     {
                       color:
-                        ticket.priority === 'high'
+                        ticket.priority === "high"
                           ? theme.colors.error
-                          : ticket.priority === 'medium'
+                          : ticket.priority === "medium"
                             ? theme.colors.warning
                             : theme.colors.success,
                     },
@@ -607,22 +607,22 @@ const TicketDetailsScreen = () => {
                       colors={
                         isOwn
                           ? theme.effects.buttonGradient
-                          : ['transparent', 'transparent']
+                          : ["transparent", "transparent"]
                       }
                       style={{ borderRadius: 16, padding: 12 }}
                     >
                       <View
                         style={{
-                          flexDirection: 'row',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
                           marginBottom: 4,
                         }}
                       >
                         <Text
                           style={[
                             styles.senderName,
-                            { color: isOwn ? '#fff' : theme.colors.text },
+                            { color: isOwn ? "#fff" : theme.colors.text },
                           ]}
                         >
                           {msg.sender}
@@ -631,7 +631,7 @@ const TicketDetailsScreen = () => {
                       <Text
                         style={[
                           styles.messageText,
-                          { color: isOwn ? '#fff' : theme.colors.text },
+                          { color: isOwn ? "#fff" : theme.colors.text },
                         ]}
                       >
                         {msg.message}
@@ -641,14 +641,14 @@ const TicketDetailsScreen = () => {
                           styles.timestamp,
                           {
                             color: isOwn
-                              ? 'rgba(255,255,255,0.7)'
+                              ? "rgba(255,255,255,0.7)"
                               : theme.colors.textSecondary,
                           },
                         ]}
                       >
                         {new Date(msg.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
+                          hour: "2-digit",
+                          minute: "2-digit",
                         })}
                       </Text>
                     </LinearGradient>

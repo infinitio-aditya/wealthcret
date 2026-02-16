@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,19 +6,19 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
-} from 'react-native';
+} from "react-native";
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
-} from '@react-navigation/drawer';
-import { useSelector, useDispatch } from 'react-redux';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { RootState } from '../store';
-import { useTheme } from '../hooks/useTheme';
-import { logout } from '../store/slices/authSlice';
-import LinearGradient from 'react-native-linear-gradient';
+} from "@react-navigation/drawer";
+import { useSelector, useDispatch } from "react-redux";
+import Icon from "react-native-vector-icons/Ionicons";
+import { RootState } from "../store";
+import { useTheme } from "../hooks/useTheme";
+import { logout } from "../store/slices/authSlice";
+import LinearGradient from "react-native-linear-gradient";
 
-import { UserRole } from '../types';
+import { UserRole } from "../types";
 
 interface SubMenuItem {
   label: string;
@@ -36,82 +36,87 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    icon: 'home-outline',
-    label: 'Dashboard',
-    path: 'DashboardStack',
-    roles: ['admin', 'service_provider', 'referral_partner', 'client'],
+    icon: "home-outline",
+    label: "Dashboard",
+    path: "DashboardStack",
+    roles: ["admin", "service_provider", "referral_partner", "client"],
   },
   {
-    icon: 'shield-checkmark-outline',
-    label: 'Admin',
-    roles: ['admin'],
+    icon: "shield-checkmark-outline",
+    label: "Admin",
+    roles: ["admin"],
     children: [
-      { label: 'Invite', path: 'Invite', roles: ['admin'] },
-      // { label: 'Organization Requests', path: 'OrganizationRequests', roles: ['admin'] },
-      // { label: 'Service Request', path: 'ServiceRequests', roles: ['admin'] },
-      // { label: 'Licensing', path: 'AdminLicensingStack', roles: ['admin'] },
-      // { label: 'Payout', path: 'PayoutStack', roles: ['admin'] },
+      { label: "Invite", path: "Invite", roles: ["admin"] },
+      {
+        label: "Organization Requests",
+        path: "OrganizationRequests",
+        roles: ["admin"],
+      },
+      { label: "Service Request", path: "ServiceRequests", roles: ["admin"] },
+      { label: "Licensing", path: "AdminLicensingStack", roles: ["admin"] },
+      { label: "Payout", path: "PayoutStack", roles: ["admin"] },
+      { label: "Billing", path: "Billing", roles: ["admin"] },
     ],
   },
   {
-    icon: 'people-outline',
-    label: 'People',
-    roles: ['service_provider', 'referral_partner'],
+    icon: "people-outline",
+    label: "People",
+    roles: ["service_provider", "referral_partner"],
     children: [
       {
-        label: 'Prospect/Client',
-        path: 'ClientStack',
-        roles: ['service_provider', 'referral_partner'],
+        label: "Prospect/Client",
+        path: "ClientStack",
+        roles: ["service_provider", "referral_partner"],
       },
       {
-        label: 'Team Members',
-        path: 'TeamMembersStack',
-        roles: ['service_provider', 'referral_partner'],
+        label: "Team Members",
+        path: "TeamMembersStack",
+        roles: ["service_provider", "referral_partner"],
       }, // Mapping web 'team' to RN MemberRoles or similar
     ],
   },
   {
-    icon: 'shield-outline',
-    label: 'Compliance',
-    roles: ['service_provider', 'referral_partner', 'client'],
+    icon: "shield-outline",
+    label: "Compliance",
+    roles: ["service_provider", "referral_partner", "client"],
     children: [
       {
-        label: 'Risk Profile',
-        path: 'RiskProfileStack',
-        roles: ['service_provider', 'referral_partner', 'client'],
+        label: "Risk Profile",
+        path: "RiskProfileStack",
+        roles: ["service_provider", "referral_partner", "client"],
       }, // Risk Profile is under SupportStack in RN
       {
-        label: 'Documents',
-        path: 'DocumentStack',
-        roles: ['service_provider', 'referral_partner'],
+        label: "Documents",
+        path: "DocumentStack",
+        roles: ["service_provider", "referral_partner"],
       },
     ],
   },
   {
-    icon: 'business-outline',
-    label: 'Backoffice',
-    roles: ['service_provider', 'referral_partner', 'client'],
+    icon: "business-outline",
+    label: "Backoffice",
+    roles: ["service_provider", "referral_partner", "client"],
     children: [
       {
-        label: 'Support',
-        path: 'SupportStack',
-        roles: ['service_provider', 'referral_partner', 'client'],
+        label: "Support",
+        path: "SupportStack",
+        roles: ["service_provider", "referral_partner", "client"],
       },
       // { label: 'Bulk Upload', path: 'BulkUploads', roles: ['service_provider', 'referral_partner'] },
       {
-        label: 'Licensing',
-        path: 'BackofficeLicensing',
-        roles: ['service_provider', 'referral_partner'],
+        label: "Licensing",
+        path: "BackofficeLicensing",
+        roles: ["service_provider", "referral_partner"],
       },
       {
-        label: 'Member Roles',
-        path: 'MemberRoles',
-        roles: ['service_provider', 'referral_partner'],
+        label: "Member Roles",
+        path: "MemberRoles",
+        roles: ["service_provider", "referral_partner"],
       },
       {
-        label: 'Customer Mapping',
-        path: 'CustomerMapping',
-        roles: ['service_provider', 'referral_partner'],
+        label: "Customer Mapping",
+        path: "CustomerMapping",
+        roles: ["service_provider", "referral_partner"],
       },
     ],
   },
@@ -136,9 +141,9 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
   const toggleMenu = (label: string) => {
-    setExpandedMenus(prev =>
+    setExpandedMenus((prev) =>
       prev.includes(label)
-        ? prev.filter(item => item !== label)
+        ? prev.filter((item) => item !== label)
         : [...prev, label],
     );
   };
@@ -147,8 +152,8 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
     dispatch(logout());
   };
 
-  const userRole = user?.role || 'client';
-  const filteredMenuItems = menuItems.filter(item =>
+  const userRole = user?.role || "client";
+  const filteredMenuItems = menuItems.filter((item) =>
     item.roles.includes(userRole as UserRole),
   );
 
@@ -163,8 +168,8 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
       borderBottomColor: theme.effects.cardBorder,
     },
     logoSection: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 12,
       marginBottom: 24,
     },
@@ -172,12 +177,12 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
       width: 48,
       height: 48,
       borderRadius: 14,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
     logoUpperText: {
       fontSize: 18,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
     },
     logoLowerText: {
@@ -186,8 +191,8 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
       marginTop: 2,
     },
     userInfo: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 12,
       paddingTop: 12,
     },
@@ -195,20 +200,20 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: theme.colors.primary + '20',
-      justifyContent: 'center',
-      alignItems: 'center',
+      backgroundColor: theme.colors.primary + "20",
+      justifyContent: "center",
+      alignItems: "center",
       borderWidth: 1,
-      borderColor: theme.colors.primary + '40',
+      borderColor: theme.colors.primary + "40",
     },
     avatarText: {
       color: theme.colors.primary,
       fontSize: 16,
-      fontWeight: 'bold',
+      fontWeight: "bold",
     },
     userName: {
       fontSize: 14,
-      fontWeight: '600',
+      fontWeight: "600",
       color: theme.colors.text,
     },
     userRoleTag: {
@@ -219,8 +224,8 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
       padding: 12,
     },
     menuItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       paddingVertical: 14,
       paddingHorizontal: 16,
       borderRadius: 12,
@@ -229,7 +234,7 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
     menuLabel: {
       flex: 1,
       fontSize: 15,
-      fontWeight: '500',
+      fontWeight: "500",
       color: theme.colors.text,
       marginLeft: 12,
     },
@@ -249,7 +254,7 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
     },
     activeSubmenuLabel: {
       color: theme.colors.primary,
-      fontWeight: '600',
+      fontWeight: "600",
     },
     footer: {
       padding: 20,
@@ -257,8 +262,8 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
       borderTopColor: theme.effects.cardBorder,
     },
     logoutButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 12,
       paddingVertical: 12,
       paddingHorizontal: 16,
@@ -266,7 +271,7 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
     logoutText: {
       fontSize: 15,
       color: theme.colors.error,
-      fontWeight: '600',
+      fontWeight: "600",
     },
   });
 
@@ -278,7 +283,7 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
             colors={theme.effects.buttonGradient}
             style={styles.logoIconSquare}
           >
-            <Text style={{ fontSize: 24, color: '#FFF', fontWeight: 'bold' }}>
+            <Text style={{ fontSize: 24, color: "#FFF", fontWeight: "bold" }}>
               W
             </Text>
           </LinearGradient>
@@ -295,7 +300,7 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
           <View>
             <Text style={styles.userName}>{user?.name}</Text>
             <Text style={styles.userRoleTag}>
-              {user?.role?.replace('_', ' ').toUpperCase()}
+              {user?.role?.replace("_", " ").toUpperCase()}
             </Text>
           </View>
         </View>
@@ -305,11 +310,11 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
         {...props}
         contentContainerStyle={styles.menuContainer}
       >
-        {filteredMenuItems.map(item => {
+        {filteredMenuItems.map((item) => {
           const isExpanded = expandedMenus.includes(item.label);
           const hasChildren = item.children && item.children.length > 0;
           const filteredChildren =
-            item.children?.filter(child =>
+            item.children?.filter((child) =>
               child.roles.includes(userRole as UserRole),
             ) || [];
 
@@ -321,7 +326,7 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
                 style={[
                   styles.menuItem,
                   isExpanded && hasChildren
-                    ? { backgroundColor: theme.colors.primary + '10' }
+                    ? { backgroundColor: theme.colors.primary + "10" }
                     : {},
                 ]}
                 onPress={() => {
@@ -353,7 +358,7 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
                 </Text>
                 {hasChildren && (
                   <Icon
-                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
                     size={18}
                     color={
                       isExpanded
@@ -366,7 +371,7 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
 
               {hasChildren && isExpanded && (
                 <View style={styles.submenu}>
-                  {filteredChildren.map(child => (
+                  {filteredChildren.map((child) => (
                     <TouchableOpacity
                       key={child.path}
                       style={styles.submenuItem}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,15 +9,15 @@ import {
   Modal,
   FlatList,
   SafeAreaView,
-} from 'react-native';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
-import { useTheme } from '../../../hooks/useTheme';
-import Icon from 'react-native-vector-icons/Ionicons';
-import Card from '../../../components/ui/Card';
-import Button from '../../../components/ui/Button';
-import { Payout } from '../../../types';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { PayoutStackParamList } from '../../../navigation/NavigationParams';
+} from "react-native";
+import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
+import { useTheme } from "../../../hooks/useTheme";
+import Icon from "react-native-vector-icons/Ionicons";
+import Card from "../../../components/ui/Card";
+import Button from "../../../components/ui/Button";
+import { Payout } from "../../../types";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { PayoutStackParamList } from "../../../navigation/NavigationParams";
 
 type RouteParams = {
   PayoutEdit: {
@@ -25,7 +25,7 @@ type RouteParams = {
   };
 };
 
-type NavigationProp = StackNavigationProp<PayoutStackParamList, 'PayoutEdit'>;
+type NavigationProp = StackNavigationProp<PayoutStackParamList, "PayoutEdit">;
 
 interface Service {
   id: string;
@@ -35,7 +35,7 @@ interface Service {
 
 const PayoutEditScreen = () => {
   const theme = useTheme();
-  const route = useRoute<RouteProp<RouteParams, 'PayoutEdit'>>();
+  const route = useRoute<RouteProp<RouteParams, "PayoutEdit">>();
   const navigation = useNavigation<NavigationProp>();
 
   // State
@@ -45,17 +45,17 @@ const PayoutEditScreen = () => {
 
   // Services State
   const [selectedServices, setSelectedServices] = useState<Service[]>([
-    { id: '1', name: 'Wealth Management', amount: 5000 },
-    { id: '2', name: 'Investment Advisory', amount: 3500 },
+    { id: "1", name: "Wealth Management", amount: 5000 },
+    { id: "2", name: "Investment Advisory", amount: 3500 },
   ]);
 
   const availableServices: Service[] = [
-    { id: '3', name: 'Portfolio Management', amount: 4200 },
-    { id: '4', name: 'Financial Planning', amount: 2800 },
-    { id: '5', name: 'Tax Consulting', amount: 1500 },
-    { id: '6', name: 'Estate Planning', amount: 3000 },
-    { id: '7', name: 'Risk Assessment', amount: 2200 },
-    { id: '8', name: 'Retirement Planning', amount: 4500 },
+    { id: "3", name: "Portfolio Management", amount: 4200 },
+    { id: "4", name: "Financial Planning", amount: 2800 },
+    { id: "5", name: "Tax Consulting", amount: 1500 },
+    { id: "6", name: "Estate Planning", amount: 3000 },
+    { id: "7", name: "Risk Assessment", amount: 2200 },
+    { id: "8", name: "Retirement Planning", amount: 4500 },
   ];
 
   const [tempSelectedServices, setTempSelectedServices] = useState<string[]>(
@@ -67,20 +67,20 @@ const PayoutEditScreen = () => {
     // In real app, fetch from API
     setTimeout(() => {
       setPayout({
-        id: route.params?.payoutId || '1',
-        partnerId: 'p1',
-        partnerName: 'Elite Financial Services',
+        id: route.params?.payoutId || "1",
+        partnerId: "p1",
+        partnerName: "Elite Financial Services",
         amount: 2500.0,
-        status: 'pending',
-        requestDate: '2023-11-15',
-        payoutDate: '2023-11-25',
+        status: "pending",
+        requestDate: "2023-11-15",
+        payoutDate: "2023-11-25",
       });
       setLoading(false);
     }, 500);
   }, [route.params?.payoutId]);
 
   const handleAddServices = () => {
-    const newServices = availableServices.filter(service =>
+    const newServices = availableServices.filter((service) =>
       tempSelectedServices.includes(service.id),
     );
     setSelectedServices([...selectedServices, ...newServices]);
@@ -90,16 +90,16 @@ const PayoutEditScreen = () => {
 
   const handleRemoveService = (serviceId: string) => {
     Alert.alert(
-      'Remove Service',
-      'Are you sure you want to remove this service?',
+      "Remove Service",
+      "Are you sure you want to remove this service?",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Remove',
-          style: 'destructive',
+          text: "Remove",
+          style: "destructive",
           onPress: () =>
             setSelectedServices(
-              selectedServices.filter(s => s.id !== serviceId),
+              selectedServices.filter((s) => s.id !== serviceId),
             ),
         },
       ],
@@ -109,7 +109,7 @@ const PayoutEditScreen = () => {
   const toggleServiceSelection = (serviceId: string) => {
     if (tempSelectedServices.includes(serviceId)) {
       setTempSelectedServices(
-        tempSelectedServices.filter(id => id !== serviceId),
+        tempSelectedServices.filter((id) => id !== serviceId),
       );
     } else {
       setTempSelectedServices([...tempSelectedServices, serviceId]);
@@ -123,13 +123,13 @@ const PayoutEditScreen = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return theme.colors.success;
-      case 'pending':
+      case "pending":
         return theme.colors.warning;
-      case 'processing':
+      case "processing":
         return theme.colors.info;
-      case 'failed':
+      case "failed":
         return theme.colors.error;
       default:
         return theme.colors.textSecondary;
@@ -142,8 +142,8 @@ const PayoutEditScreen = () => {
       backgroundColor: theme.colors.background,
     },
     header: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       padding: 16,
       backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
@@ -154,7 +154,7 @@ const PayoutEditScreen = () => {
     },
     headerTitle: {
       fontSize: 20,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
     },
     content: {
@@ -164,19 +164,19 @@ const PayoutEditScreen = () => {
       marginBottom: 24,
     },
     sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       marginBottom: 12,
     },
     sectionTitle: {
       fontSize: 18,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
     },
     infoRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+      flexDirection: "row",
+      justifyContent: "space-between",
       paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: theme.effects.cardBorder,
@@ -187,7 +187,7 @@ const PayoutEditScreen = () => {
     },
     infoValue: {
       fontSize: 14,
-      fontWeight: '600',
+      fontWeight: "600",
       color: theme.colors.text,
     },
     statusBadge: {
@@ -197,13 +197,13 @@ const PayoutEditScreen = () => {
     },
     statusText: {
       fontSize: 12,
-      fontWeight: 'bold',
-      textTransform: 'uppercase',
+      fontWeight: "bold",
+      textTransform: "uppercase",
     },
     serviceItem: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       backgroundColor: theme.colors.surface,
       padding: 16,
       borderRadius: 12,
@@ -213,62 +213,62 @@ const PayoutEditScreen = () => {
     },
     serviceName: {
       fontSize: 16,
-      fontWeight: '600',
+      fontWeight: "600",
       color: theme.colors.text,
       marginBottom: 4,
     },
     serviceAmount: {
       fontSize: 14,
       color: theme.colors.primary,
-      fontWeight: '600',
+      fontWeight: "600",
     },
     totalCard: {
       marginTop: 12,
-      backgroundColor: theme.colors.primary + '10',
+      backgroundColor: theme.colors.primary + "10",
       borderColor: theme.colors.primary,
       borderWidth: 1,
       padding: 16,
       borderRadius: 12,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
     },
     totalLabel: {
       fontSize: 16,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
     },
     totalValue: {
       fontSize: 20,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.primary,
     },
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'flex-end',
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
     },
     modalContent: {
       backgroundColor: theme.colors.surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      height: '80%',
+      height: "80%",
       padding: 20,
     },
     modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       marginBottom: 20,
     },
     modalTitle: {
       fontSize: 20,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
     },
     serviceOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       padding: 16,
       borderRadius: 12,
       marginBottom: 12,
@@ -280,22 +280,28 @@ const PayoutEditScreen = () => {
       borderRadius: 6,
       borderWidth: 2,
       marginRight: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
     addServicesButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       paddingHorizontal: 12,
       paddingVertical: 6,
-      backgroundColor: theme.colors.primary + '20',
+      backgroundColor: theme.colors.primary + "20",
       borderRadius: 8,
     },
     addServicesText: {
       color: theme.colors.primary,
-      fontWeight: '600',
+      fontWeight: "600",
       fontSize: 14,
       marginLeft: 4,
+    },
+    modalButtons: {
+      flexDirection: "row",
+      gap: 12,
+      marginTop: 32,
+      marginBottom: 16,
     },
   });
 
@@ -326,7 +332,7 @@ const PayoutEditScreen = () => {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Service Provider</Text>
               <Text style={styles.infoValue}>
-                {payout?.partnerName || '...'}
+                {payout?.partnerName || "..."}
               </Text>
             </View>
             <View style={styles.infoRow}>
@@ -340,17 +346,17 @@ const PayoutEditScreen = () => {
                   styles.statusBadge,
                   {
                     backgroundColor:
-                      getStatusColor(payout?.status || '') + '20',
+                      getStatusColor(payout?.status || "") + "20",
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.statusText,
-                    { color: getStatusColor(payout?.status || '') },
+                    { color: getStatusColor(payout?.status || "") },
                   ]}
                 >
-                  {payout?.status || 'Loading...'}
+                  {payout?.status || "Loading..."}
                 </Text>
               </View>
             </View>
@@ -360,10 +366,10 @@ const PayoutEditScreen = () => {
             <Button
               title="Calculate Payout"
               onPress={() =>
-                Alert.alert('Calculate', 'Running calculation logic...')
+                Alert.alert("Calculate", "Running calculation logic...")
               }
               variant="primary"
-              icon="calculator-outline"
+              // icon="calculator-outline"
             />
           </View>
         </View>
@@ -388,7 +394,7 @@ const PayoutEditScreen = () => {
 
           {selectedServices.length > 0 ? (
             <View>
-              {selectedServices.map(service => (
+              {selectedServices.map((service) => (
                 <View key={service.id} style={styles.serviceItem}>
                   <View>
                     <Text style={styles.serviceName}>{service.name}</Text>
@@ -400,7 +406,7 @@ const PayoutEditScreen = () => {
                     onPress={() => handleRemoveService(service.id)}
                     style={{
                       padding: 8,
-                      backgroundColor: theme.colors.error + '10',
+                      backgroundColor: theme.colors.error + "10",
                       borderRadius: 8,
                     }}
                   >
@@ -421,7 +427,7 @@ const PayoutEditScreen = () => {
               </View>
             </View>
           ) : (
-            <Card style={{ alignItems: 'center', padding: 24 }}>
+            <Card style={{ alignItems: "center", padding: 24 }}>
               <Text
                 style={{ color: theme.colors.textSecondary, marginBottom: 12 }}
               >
@@ -462,9 +468,10 @@ const PayoutEditScreen = () => {
             <ScrollView style={{ marginBottom: 16 }}>
               {availableServices
                 .filter(
-                  service => !selectedServices.find(s => s.id === service.id),
+                  (service) =>
+                    !selectedServices.find((s) => s.id === service.id),
                 )
-                .map(service => {
+                .map((service) => {
                   const isSelected = tempSelectedServices.includes(service.id);
                   return (
                     <TouchableOpacity
@@ -476,7 +483,7 @@ const PayoutEditScreen = () => {
                             ? theme.colors.primary
                             : theme.effects.cardBorder,
                           backgroundColor: isSelected
-                            ? theme.colors.primary + '10'
+                            ? theme.colors.primary + "10"
                             : theme.colors.surface,
                         },
                       ]}
@@ -491,7 +498,7 @@ const PayoutEditScreen = () => {
                               : theme.colors.textSecondary,
                             backgroundColor: isSelected
                               ? theme.colors.primary
-                              : 'transparent',
+                              : "transparent",
                           },
                         ]}
                       >
@@ -512,11 +519,11 @@ const PayoutEditScreen = () => {
                 })}
 
               {availableServices.filter(
-                service => !selectedServices.find(s => s.id === service.id),
+                (service) => !selectedServices.find((s) => s.id === service.id),
               ).length === 0 && (
                 <Text
                   style={{
-                    textAlign: 'center',
+                    textAlign: "center",
                     color: theme.colors.textSecondary,
                     marginTop: 20,
                   }}
@@ -526,7 +533,7 @@ const PayoutEditScreen = () => {
               )}
             </ScrollView>
 
-            <View style={{ gap: 12 }}>
+            {/* <View style={{ gap: 12 }}>
               <Button
                 title={`Add Selected (${tempSelectedServices.length})`}
                 onPress={handleAddServices}
@@ -537,6 +544,20 @@ const PayoutEditScreen = () => {
                 title="Cancel"
                 onPress={() => setShowServiceSelector(false)}
                 variant="ghost"
+              />
+            </View> */}
+
+            <View style={[styles.modalButtons, { marginBottom: 20 }]}>
+              <Button
+                title="Cancel"
+                variant="outline"
+                onPress={() => setShowServiceSelector(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title={`Add Selected (${tempSelectedServices.length})`}
+                onPress={handleAddServices}
+                style={{ flex: 1 }}
               />
             </View>
           </View>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
-} from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
-import { useTheme } from '../../../hooks/useTheme';
-import Card from '../../../components/ui/Card';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { RiskProfile, Assessment } from '../../../types';
-import Svg, { Path, Circle, Line, G, Text as SvgText } from 'react-native-svg';
+} from "react-native";
+import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
+import { useTheme } from "../../../hooks/useTheme";
+import Card from "../../../components/ui/Card";
+import Icon from "react-native-vector-icons/Ionicons";
+import { RiskProfile, Assessment } from "../../../types";
+import Svg, { Path, Circle, Line, G, Text as SvgText } from "react-native-svg";
 
 type RouteParams = {
   RiskProfileDetails: {
@@ -23,99 +23,99 @@ type RouteParams = {
 
 // Mock Assessment History
 const mockAssessments: { [key: string]: Assessment[] } = {
-  '1': [
+  "1": [
     {
-      id: '1',
-      date: '2025-11-15',
+      id: "1",
+      date: "2025-11-15",
       score: 35,
-      status: 'low',
-      assessedBy: 'Sarah Mitchell',
-      notes: 'Conservative investment approach confirmed.',
+      status: "low",
+      assessedBy: "Sarah Mitchell",
+      notes: "Conservative investment approach confirmed.",
     },
     {
-      id: '2',
-      date: '2025-08-22',
+      id: "2",
+      date: "2025-08-22",
       score: 32,
-      status: 'low',
-      assessedBy: 'Sarah Mitchell',
-      notes: 'Initial risk assessment.',
+      status: "low",
+      assessedBy: "Sarah Mitchell",
+      notes: "Initial risk assessment.",
     },
   ],
-  '2': [
+  "2": [
     {
-      id: '1',
-      date: '2025-11-20',
+      id: "1",
+      date: "2025-11-20",
       score: 65,
-      status: 'medium',
-      assessedBy: 'Michael Roberts',
-      notes: 'Balanced risk appetite.',
+      status: "medium",
+      assessedBy: "Michael Roberts",
+      notes: "Balanced risk appetite.",
     },
   ],
-  '3': [
+  "3": [
     {
-      id: '1',
-      date: '2025-11-10',
+      id: "1",
+      date: "2025-11-10",
       score: 85,
-      status: 'high',
-      assessedBy: 'Sarah Mitchell',
-      notes: 'Aggressive growth strategy.',
+      status: "high",
+      assessedBy: "Sarah Mitchell",
+      notes: "Aggressive growth strategy.",
     },
   ],
-  '4': [],
-  '5': [],
+  "4": [],
+  "5": [],
 };
 
 const mockProfiles: RiskProfile[] = [
   {
-    id: '1',
-    clientId: '1',
-    clientName: 'John Anderson',
+    id: "1",
+    clientId: "1",
+    clientName: "John Anderson",
     score: 35,
-    status: 'low',
-    lastAssessmentDate: '2025-11-15',
-    nextReviewDate: '2026-11-15',
+    status: "low",
+    lastAssessmentDate: "2025-11-15",
+    nextReviewDate: "2026-11-15",
   },
   {
-    id: '2',
-    clientId: '2',
-    clientName: 'Emily Chen',
+    id: "2",
+    clientId: "2",
+    clientName: "Emily Chen",
     score: 65,
-    status: 'medium',
-    lastAssessmentDate: '2025-11-20',
-    nextReviewDate: '2026-11-20',
+    status: "medium",
+    lastAssessmentDate: "2025-11-20",
+    nextReviewDate: "2026-11-20",
   },
   {
-    id: '3',
-    clientId: '3',
-    clientName: 'Robert Martinez',
+    id: "3",
+    clientId: "3",
+    clientName: "Robert Martinez",
     score: 85,
-    status: 'high',
-    lastAssessmentDate: '2025-11-10',
-    nextReviewDate: '2026-11-10',
+    status: "high",
+    lastAssessmentDate: "2025-11-10",
+    nextReviewDate: "2026-11-10",
   },
   {
-    id: '4',
-    clientId: '4',
-    clientName: 'Sarah Wilson',
+    id: "4",
+    clientId: "4",
+    clientName: "Sarah Wilson",
     score: 45,
-    status: 'medium',
-    lastAssessmentDate: '2025-10-05',
-    nextReviewDate: '2026-10-05',
+    status: "medium",
+    lastAssessmentDate: "2025-10-05",
+    nextReviewDate: "2026-10-05",
   },
   {
-    id: '5',
-    clientId: '5',
-    clientName: 'David Lee',
+    id: "5",
+    clientId: "5",
+    clientName: "David Lee",
     score: 20,
-    status: 'low',
-    lastAssessmentDate: '2025-09-12',
-    nextReviewDate: '2026-09-12',
+    status: "low",
+    lastAssessmentDate: "2025-09-12",
+    nextReviewDate: "2026-09-12",
   },
 ];
 
 const RiskProfileDetailsScreen = () => {
   const theme = useTheme();
-  const route = useRoute<RouteProp<RouteParams, 'RiskProfileDetails'>>();
+  const route = useRoute<RouteProp<RouteParams, "RiskProfileDetails">>();
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<RiskProfile | null>(null);
@@ -124,7 +124,7 @@ const RiskProfileDetailsScreen = () => {
   useEffect(() => {
     setTimeout(() => {
       const foundProfile = mockProfiles.find(
-        p => p.id === route.params?.profileId,
+        (p) => p.id === route.params?.profileId,
       );
       setProfile(foundProfile || null);
       setAssessments(mockAssessments[route.params?.profileId] || []);
@@ -150,7 +150,7 @@ const RiskProfileDetailsScreen = () => {
     const rotation = (score / 100) * 180 - 90;
 
     return (
-      <View style={{ alignItems: 'center', marginVertical: 20 }}>
+      <View style={{ alignItems: "center", marginVertical: 20 }}>
         <Svg width={width} height={height}>
           {/* Background Arcs */}
           <Path
@@ -195,14 +195,14 @@ const RiskProfileDetailsScreen = () => {
             />
           </G>
         </Svg>
-        <View style={{ alignItems: 'center', marginTop: -20 }}>
+        <View style={{ alignItems: "center", marginTop: -20 }}>
           <Text style={[styles.gaugeScore, { color: getScoreColor(score) }]}>
             {score}
           </Text>
           <View
             style={[
               styles.gaugeBadge,
-              { backgroundColor: getScoreColor(score) + '20' },
+              { backgroundColor: getScoreColor(score) + "20" },
             ]}
           >
             <Text
@@ -223,7 +223,7 @@ const RiskProfileDetailsScreen = () => {
           styles.container,
           {
             backgroundColor: theme.colors.background,
-            justifyContent: 'center',
+            justifyContent: "center",
           },
         ]}
       >
@@ -239,8 +239,8 @@ const RiskProfileDetailsScreen = () => {
           styles.container,
           {
             backgroundColor: theme.colors.background,
-            alignItems: 'center',
-            justifyContent: 'center',
+            alignItems: "center",
+            justifyContent: "center",
           },
         ]}
       >
@@ -287,7 +287,7 @@ const RiskProfileDetailsScreen = () => {
             <View
               style={[
                 styles.iconBox,
-                { backgroundColor: theme.colors.primary + '20' },
+                { backgroundColor: theme.colors.primary + "20" },
               ]}
             >
               <Icon name="person" size={20} color={theme.colors.primary} />
@@ -303,7 +303,7 @@ const RiskProfileDetailsScreen = () => {
             <View
               style={[
                 styles.iconBox,
-                { backgroundColor: theme.colors.info + '20' },
+                { backgroundColor: theme.colors.info + "20" },
               ]}
             >
               <Icon name="calendar" size={20} color={theme.colors.info} />
@@ -319,7 +319,7 @@ const RiskProfileDetailsScreen = () => {
             <View
               style={[
                 styles.iconBox,
-                { backgroundColor: theme.colors.warning + '20' },
+                { backgroundColor: theme.colors.warning + "20" },
               ]}
             >
               <Icon name="time" size={20} color={theme.colors.warning} />
@@ -337,13 +337,13 @@ const RiskProfileDetailsScreen = () => {
         <Card
           style={[
             styles.sectionCard,
-            { borderColor: theme.effects.cardBorder, alignItems: 'center' },
+            { borderColor: theme.effects.cardBorder, alignItems: "center" },
           ]}
         >
           <Text
             style={[
               styles.cardTitle,
-              { color: theme.colors.text, alignSelf: 'flex-start' },
+              { color: theme.colors.text, alignSelf: "flex-start" },
             ]}
           >
             Risk Score
@@ -360,8 +360,8 @@ const RiskProfileDetailsScreen = () => {
         >
           <View
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
+              flexDirection: "row",
+              alignItems: "center",
               marginBottom: 16,
             }}
           >
@@ -390,28 +390,28 @@ const RiskProfileDetailsScreen = () => {
               >
                 <View
                   style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
                   }}
                 >
-                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={{ flexDirection: "row", gap: 12 }}>
                     <View
                       style={[
                         styles.historyScoreBox,
                         {
                           backgroundColor:
-                            getScoreColor(assessment.score) + '20',
+                            getScoreColor(assessment.score) + "20",
                         },
                       ]}
                     >
                       <Icon
                         name={
-                          assessment.status === 'low'
-                            ? 'checkmark-circle'
-                            : assessment.status === 'medium'
-                              ? 'alert-circle'
-                              : 'shield'
+                          assessment.status === "low"
+                            ? "checkmark-circle"
+                            : assessment.status === "medium"
+                              ? "alert-circle"
+                              : "shield"
                         }
                         size={16}
                         color={getScoreColor(assessment.score)}
@@ -420,8 +420,8 @@ const RiskProfileDetailsScreen = () => {
                     <View>
                       <View
                         style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
+                          flexDirection: "row",
+                          alignItems: "center",
                           gap: 8,
                         }}
                       >
@@ -438,7 +438,7 @@ const RiskProfileDetailsScreen = () => {
                             styles.miniBadge,
                             {
                               backgroundColor:
-                                getScoreColor(assessment.score) + '20',
+                                getScoreColor(assessment.score) + "20",
                             },
                           ]}
                         >
@@ -464,7 +464,7 @@ const RiskProfileDetailsScreen = () => {
           ) : (
             <Text
               style={{
-                textAlign: 'center',
+                textAlign: "center",
                 color: theme.colors.textSecondary,
                 padding: 20,
               }}
@@ -481,54 +481,54 @@ const RiskProfileDetailsScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
   },
   backButton: { padding: 8, marginRight: 8 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold' },
-  headerSubtitle: { fontSize: 13, color: '#6A6D70' },
+  headerTitle: { fontSize: 20, fontWeight: "bold" },
+  headerSubtitle: { fontSize: 13, color: "#6A6D70" },
   content: { padding: 16, gap: 16 },
   sectionCard: { padding: 16, borderRadius: 16, borderWidth: 1 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  cardTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 16 },
+  infoRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
   iconBox: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   infoText: { flex: 1 },
-  infoLabel: { fontSize: 12, color: '#6A6D70', marginBottom: 2 },
-  infoValue: { fontSize: 15, fontWeight: '500' },
+  infoLabel: { fontSize: 12, color: "#6A6D70", marginBottom: 2 },
+  infoValue: { fontSize: 15, fontWeight: "500" },
 
   // Gauge
-  gaugeScore: { fontSize: 40, fontWeight: 'bold', marginTop: 10 },
+  gaugeScore: { fontSize: 40, fontWeight: "bold", marginTop: 10 },
   gaugeBadge: {
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
     marginTop: 4,
   },
-  gaugeBadgeText: { fontSize: 12, fontWeight: 'bold' },
+  gaugeBadgeText: { fontSize: 12, fontWeight: "bold" },
 
   // History
   historyItem: { paddingVertical: 16 },
   historyScoreBox: { padding: 8, borderRadius: 8 },
-  historyScore: { fontSize: 18, fontWeight: 'bold' },
+  historyScore: { fontSize: 18, fontWeight: "bold" },
   miniBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   miniBadgeText: {
     fontSize: 10,
-    fontWeight: 'bold',
-    textTransform: 'capitalize',
+    fontWeight: "bold",
+    textTransform: "capitalize",
   },
-  historyDate: { fontSize: 12, color: '#6A6D70', marginTop: 4 },
+  historyDate: { fontSize: 12, color: "#6A6D70", marginTop: 4 },
   historyNotes: {
     fontSize: 13,
-    color: '#6A6D70',
+    color: "#6A6D70",
     marginTop: 8,
     lineHeight: 18,
   },

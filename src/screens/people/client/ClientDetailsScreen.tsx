@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,18 +10,18 @@ import {
   Modal,
   TextInput,
   Platform,
-} from 'react-native';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
-import { useTheme } from '../../../hooks/useTheme';
+} from "react-native";
+import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
+import { useTheme } from "../../../hooks/useTheme";
 import {
   mockClients,
   mockActivities,
   mockDocuments,
-} from '../../../utils/mockData';
-import Card from '../../../components/ui/Card';
-import Button from '../../../components/ui/Button';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { Client, Activity, Document, FamilyMember } from '../../../types';
+} from "../../../utils/mockData";
+import Card from "../../../components/ui/Card";
+import Button from "../../../components/ui/Button";
+import Icon from "react-native-vector-icons/Ionicons";
+import { Client, Activity, Document, FamilyMember } from "../../../types";
 
 type RouteParams = {
   ClientDetails: {
@@ -32,7 +32,7 @@ type RouteParams = {
 const ClientDetailsScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<any>();
-  const route = useRoute<RouteProp<RouteParams, 'ClientDetails'>>();
+  const route = useRoute<RouteProp<RouteParams, "ClientDetails">>();
   const [client, setClient] = useState<Client | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -40,8 +40,8 @@ const ClientDetailsScreen = () => {
   const [services, setServices] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'services' | 'family' | 'activities' | 'documents'
-  >('overview');
+    "overview" | "services" | "family" | "activities" | "documents"
+  >("overview");
 
   // Modal States
   const [showAddActivity, setShowAddActivity] = useState(false);
@@ -50,25 +50,25 @@ const ClientDetailsScreen = () => {
 
   // Form States
   const [activityForm, setActivityForm] = useState({
-    title: '',
-    description: '',
-    type: 'call',
+    title: "",
+    description: "",
+    type: "call",
   });
   const [familyForm, setFamilyForm] = useState({
-    name: '',
-    relation: '',
-    email: '',
+    name: "",
+    relation: "",
+    email: "",
   });
   const [tempSelectedServices, setTempSelectedServices] = useState<string[]>(
     [],
   );
 
   const availableServices = [
-    { id: '1', name: 'Wealth Management', category: 'Advisory' },
-    { id: '2', name: 'Investment Advisory', category: 'Advisory' },
-    { id: '3', name: 'Portfolio Management', category: 'Management' },
-    { id: '4', name: 'Tax Planning', category: 'Planning' },
-    { id: '5', name: 'Estate Planning', category: 'Planning' },
+    { id: "1", name: "Wealth Management", category: "Advisory" },
+    { id: "2", name: "Investment Advisory", category: "Advisory" },
+    { id: "3", name: "Portfolio Management", category: "Management" },
+    { id: "4", name: "Tax Planning", category: "Planning" },
+    { id: "5", name: "Estate Planning", category: "Planning" },
   ];
 
   useEffect(() => {
@@ -78,35 +78,35 @@ const ClientDetailsScreen = () => {
   const loadClientDetails = () => {
     setTimeout(() => {
       const clientData =
-        mockClients.find(c => c.id === route.params?.clientId) ||
+        mockClients.find((c) => c.id === route.params?.clientId) ||
         mockClients[0];
       setClient(clientData);
-      setActivities(mockActivities.filter(a => a.clientId === clientData.id));
-      setDocuments(mockDocuments.filter(d => d.clientId === clientData.id));
+      setActivities(mockActivities.filter((a) => a.clientId === clientData.id));
+      setDocuments(mockDocuments.filter((d) => d.clientId === clientData.id));
       setFamilyMembers([
         {
-          id: '1',
+          id: "1",
           clientId: clientData.id,
-          name: 'Jane Smith',
-          relation: 'Spouse',
-          email: 'jane.smith@email.com',
+          name: "Jane Smith",
+          relation: "Spouse",
+          email: "jane.smith@email.com",
         },
         {
-          id: '2',
+          id: "2",
           clientId: clientData.id,
-          name: 'Tom Smith',
-          relation: 'Son',
-          email: 'tom.smith@email.com',
+          name: "Tom Smith",
+          relation: "Son",
+          email: "tom.smith@email.com",
         },
       ]);
-      setServices(['1', '3', '5']);
+      setServices(["1", "3", "5"]);
       setLoading(false);
     }, 500);
   };
 
   const handleAddActivity = () => {
     if (!activityForm.title || !activityForm.description) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert("Error", "Please fill in all fields");
       return;
     }
     const newActivity: Activity = {
@@ -114,21 +114,21 @@ const ClientDetailsScreen = () => {
       clientId: client!.id,
       title: activityForm.title,
       description: activityForm.description,
-      date: new Date().toISOString().split('T')[0],
-      createdAt: new Date().toISOString(),
-      type: 'system',
+      date: new Date().toISOString().split("T")[0],
+      // createdAt: new Date().toISOString(),
+      // type: 'system',
       meetType: activityForm.type as any,
-      createdBy: 'Admin',
+      createdBy: "Admin",
     };
     setActivities([newActivity, ...activities]);
     setShowAddActivity(false);
-    setActivityForm({ title: '', description: '', type: 'call' });
-    Alert.alert('Success', 'Activity added successfully');
+    setActivityForm({ title: "", description: "", type: "call" });
+    Alert.alert("Success", "Activity added successfully");
   };
 
   const handleAddFamily = () => {
     if (!familyForm.name || !familyForm.relation) {
-      Alert.alert('Error', 'Name and Relation are required');
+      Alert.alert("Error", "Name and Relation are required");
       return;
     }
     const newMember: FamilyMember = {
@@ -140,8 +140,8 @@ const ClientDetailsScreen = () => {
     };
     setFamilyMembers([...familyMembers, newMember]);
     setShowAddFamily(false);
-    setFamilyForm({ name: '', relation: '', email: '' });
-    Alert.alert('Success', 'Family member added successfully');
+    setFamilyForm({ name: "", relation: "", email: "" });
+    Alert.alert("Success", "Family member added successfully");
   };
 
   const handleSaveServices = () => {
@@ -151,21 +151,21 @@ const ClientDetailsScreen = () => {
     setServices(uniqueServices);
     setShowAddServices(false);
     setTempSelectedServices([]);
-    Alert.alert('Success', 'Services updated successfully');
+    Alert.alert("Success", "Services updated successfully");
   };
 
   const toggleServiceSelection = (id: string) => {
     if (tempSelectedServices.includes(id)) {
-      setTempSelectedServices(tempSelectedServices.filter(s => s !== id));
+      setTempSelectedServices(tempSelectedServices.filter((s) => s !== id));
     } else {
       setTempSelectedServices([...tempSelectedServices, id]);
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -173,11 +173,11 @@ const ClientDetailsScreen = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
+      case "active":
         return theme.colors.success;
-      case 'inactive':
+      case "inactive":
         return theme.colors.textSecondary;
-      case 'pending':
+      case "pending":
         return theme.colors.warning;
       default:
         return theme.colors.textSecondary;
@@ -191,11 +191,11 @@ const ClientDetailsScreen = () => {
     header: { marginBottom: 24 },
     clientName: {
       fontSize: 28,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
       marginBottom: 8,
     },
-    clientInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    clientInfo: { flexDirection: "row", alignItems: "center", gap: 12 },
     statusBadge: {
       paddingHorizontal: 12,
       paddingVertical: 4,
@@ -203,12 +203,12 @@ const ClientDetailsScreen = () => {
     },
     statusText: {
       fontSize: 12,
-      fontWeight: '600',
-      textTransform: 'capitalize',
+      fontWeight: "600",
+      textTransform: "capitalize",
     },
     clientRole: { fontSize: 14, color: theme.colors.textSecondary },
     tabContainer: {
-      flexDirection: 'row',
+      flexDirection: "row",
       marginBottom: 24,
       paddingRight: 16,
       gap: 8,
@@ -219,42 +219,42 @@ const ClientDetailsScreen = () => {
       borderRadius: 20,
       borderWidth: 1,
       marginRight: 8,
-      alignItems: 'center',
+      alignItems: "center",
       minWidth: 90,
     },
-    tabText: { fontSize: 14, fontWeight: '600' },
+    tabText: { fontSize: 14, fontWeight: "600" },
     section: { marginBottom: 24 },
     sectionTitle: {
       fontSize: 18,
-      fontWeight: '600',
+      fontWeight: "600",
       color: theme.colors.text,
       marginBottom: 12,
     },
     sectionHeaderBtn: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       marginBottom: 12,
     },
     infoRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+      flexDirection: "row",
+      justifyContent: "space-between",
       paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: theme.effects.cardBorder,
     },
     infoLabel: { fontSize: 14, color: theme.colors.textSecondary },
-    infoValue: { fontSize: 14, fontWeight: '600', color: theme.colors.text },
+    infoValue: { fontSize: 14, fontWeight: "600", color: theme.colors.text },
     activityItem: { marginBottom: 12 },
     activityHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       marginBottom: 8,
     },
     activityTitle: {
       fontSize: 16,
-      fontWeight: '600',
+      fontWeight: "600",
       color: theme.colors.text,
     },
     activityDate: { fontSize: 12, color: theme.colors.textSecondary },
@@ -262,21 +262,21 @@ const ClientDetailsScreen = () => {
     documentItem: { marginBottom: 12 },
     documentName: {
       fontSize: 16,
-      fontWeight: '600',
+      fontWeight: "600",
       color: theme.colors.text,
       marginBottom: 4,
     },
     documentType: { fontSize: 14, color: theme.colors.textSecondary },
     loadingContainer: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
-    actionButtons: { flexDirection: 'row', gap: 12, marginTop: 16 },
+    actionButtons: { flexDirection: "row", gap: 12, marginTop: 16 },
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'flex-end',
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
     },
     modalContent: {
       backgroundColor: theme.colors.surface,
@@ -286,12 +286,12 @@ const ClientDetailsScreen = () => {
       minHeight: 400,
     },
     modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       marginBottom: 20,
     },
-    modalTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text },
+    modalTitle: { fontSize: 20, fontWeight: "bold", color: theme.colors.text },
     input: {
       backgroundColor: theme.colors.background,
       borderWidth: 1,
@@ -305,19 +305,19 @@ const ClientDetailsScreen = () => {
       fontSize: 14,
       color: theme.colors.textSecondary,
       marginBottom: 8,
-      fontWeight: '600',
+      fontWeight: "600",
     },
-    typeSelector: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+    typeSelector: { flexDirection: "row", gap: 8, marginBottom: 16 },
     typeButton: {
       flex: 1,
       padding: 12,
       borderRadius: 8,
       borderWidth: 1,
-      alignItems: 'center',
+      alignItems: "center",
     },
     serviceOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       padding: 16,
       borderRadius: 12,
       marginBottom: 8,
@@ -329,8 +329,8 @@ const ClientDetailsScreen = () => {
       borderRadius: 6,
       borderWidth: 2,
       marginRight: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
   });
 
@@ -355,7 +355,7 @@ const ClientDetailsScreen = () => {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: getStatusColor(client.status) + '20' },
+                { backgroundColor: getStatusColor(client.status) + "20" },
               ]}
             >
               <Text
@@ -377,7 +377,7 @@ const ClientDetailsScreen = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabContainer}
         >
-          {['overview', 'services', 'family', 'activities'].map(tab => (
+          {["overview", "services", "family", "activities"].map((tab) => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab as any)}
@@ -390,8 +390,8 @@ const ClientDetailsScreen = () => {
                       : theme.effects.cardBorder,
                   backgroundColor:
                     activeTab === tab
-                      ? theme.colors.primary + '20'
-                      : 'transparent',
+                      ? theme.colors.primary + "20"
+                      : "transparent",
                 },
               ]}
             >
@@ -413,7 +413,7 @@ const ClientDetailsScreen = () => {
         </ScrollView>
 
         {/* Overview Tab */}
-        {activeTab === 'overview' && (
+        {activeTab === "overview" && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Client Information</Text>
             <Card>
@@ -436,7 +436,7 @@ const ClientDetailsScreen = () => {
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Assigned SP</Text>
                 <Text style={styles.infoValue}>
-                  {client.assignedSP || 'None'}
+                  {client.assignedSP || "None"}
                 </Text>
               </View>
             </Card>
@@ -448,7 +448,7 @@ const ClientDetailsScreen = () => {
         )}
 
         {/* Services Tab */}
-        {activeTab === 'services' && (
+        {activeTab === "services" && (
           <View style={styles.section}>
             <View style={styles.sectionHeaderBtn}>
               <Text style={styles.sectionTitle}>Assigned Services</Text>
@@ -461,15 +461,17 @@ const ClientDetailsScreen = () => {
               </TouchableOpacity>
             </View>
             {services.length > 0 ? (
-              services.map(serviceId => {
-                const service = availableServices.find(s => s.id === serviceId);
+              services.map((serviceId) => {
+                const service = availableServices.find(
+                  (s) => s.id === serviceId,
+                );
                 if (!service) return null;
                 return (
                   <Card key={serviceId} style={{ marginBottom: 12 }}>
                     <View
                       style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
+                        flexDirection: "row",
+                        alignItems: "center",
                         gap: 12,
                       }}
                     >
@@ -478,9 +480,9 @@ const ClientDetailsScreen = () => {
                           width: 40,
                           height: 40,
                           borderRadius: 20,
-                          backgroundColor: theme.colors.secondary + '20',
-                          justifyContent: 'center',
-                          alignItems: 'center',
+                          backgroundColor: theme.colors.secondary + "20",
+                          justifyContent: "center",
+                          alignItems: "center",
                         }}
                       >
                         <Icon
@@ -493,7 +495,7 @@ const ClientDetailsScreen = () => {
                         <Text
                           style={{
                             fontSize: 16,
-                            fontWeight: 'bold',
+                            fontWeight: "bold",
                             color: theme.colors.text,
                           }}
                         >
@@ -515,7 +517,7 @@ const ClientDetailsScreen = () => {
             ) : (
               <Text
                 style={{
-                  textAlign: 'center',
+                  textAlign: "center",
                   color: theme.colors.textSecondary,
                 }}
               >
@@ -526,7 +528,7 @@ const ClientDetailsScreen = () => {
         )}
 
         {/* Family Tab */}
-        {activeTab === 'family' && (
+        {activeTab === "family" && (
           <View style={styles.section}>
             <View style={styles.sectionHeaderBtn}>
               <Text style={styles.sectionTitle}>Family Members</Text>
@@ -538,12 +540,12 @@ const ClientDetailsScreen = () => {
                 />
               </TouchableOpacity>
             </View>
-            {familyMembers.map(member => (
+            {familyMembers.map((member) => (
               <Card key={member.id} style={{ marginBottom: 12 }}>
                 <View
                   style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
+                    flexDirection: "row",
+                    alignItems: "center",
                     gap: 12,
                   }}
                 >
@@ -552,9 +554,9 @@ const ClientDetailsScreen = () => {
                       width: 40,
                       height: 40,
                       borderRadius: 20,
-                      backgroundColor: theme.colors.success + '20',
-                      justifyContent: 'center',
-                      alignItems: 'center',
+                      backgroundColor: theme.colors.success + "20",
+                      justifyContent: "center",
+                      alignItems: "center",
                     }}
                   >
                     <Icon
@@ -567,7 +569,7 @@ const ClientDetailsScreen = () => {
                     <Text
                       style={{
                         fontSize: 16,
-                        fontWeight: 'bold',
+                        fontWeight: "bold",
                         color: theme.colors.text,
                       }}
                     >
@@ -589,7 +591,7 @@ const ClientDetailsScreen = () => {
         )}
 
         {/* Activities Tab */}
-        {activeTab === 'activities' && (
+        {activeTab === "activities" && (
           <View style={styles.section}>
             <View style={styles.sectionHeaderBtn}>
               <Text style={styles.sectionTitle}>Recent Activities</Text>
@@ -601,7 +603,7 @@ const ClientDetailsScreen = () => {
                 />
               </TouchableOpacity>
             </View>
-            {activities.map(activity => (
+            {activities.map((activity) => (
               <Card key={activity.id} style={styles.activityItem}>
                 <View style={styles.activityHeader}>
                   <Text style={styles.activityTitle}>{activity.title}</Text>
@@ -615,7 +617,7 @@ const ClientDetailsScreen = () => {
                     style={{
                       fontSize: 10,
                       color: theme.colors.primary,
-                      textTransform: 'uppercase',
+                      textTransform: "uppercase",
                     }}
                   >
                     {activity.meetType}
@@ -627,10 +629,10 @@ const ClientDetailsScreen = () => {
         )}
 
         {/* Documents Tab */}
-        {activeTab === 'documents' && (
+        {activeTab === "documents" && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Documents</Text>
-            {documents.map(doc => (
+            {documents.map((doc) => (
               <Card key={doc.id} style={styles.documentItem}>
                 <Text style={styles.documentName}>{doc.name}</Text>
                 <Text style={styles.documentType}>{doc.type}</Text>
@@ -639,7 +641,7 @@ const ClientDetailsScreen = () => {
             <Button
               title="View All Documents"
               onPress={() =>
-                navigation.navigate('ClientDocuments', { clientId: client.id })
+                navigation.navigate("ClientDocuments", { clientId: client.id })
               }
               variant="secondary"
               style={{ marginTop: 12 }}
@@ -667,7 +669,7 @@ const ClientDetailsScreen = () => {
             <TextInput
               style={styles.input}
               value={activityForm.title}
-              onChangeText={text =>
+              onChangeText={(text) =>
                 setActivityForm({ ...activityForm, title: text })
               }
               placeholder="Meeting title"
@@ -676,7 +678,7 @@ const ClientDetailsScreen = () => {
             <TextInput
               style={[styles.input, { height: 100 }]}
               value={activityForm.description}
-              onChangeText={text =>
+              onChangeText={(text) =>
                 setActivityForm({ ...activityForm, description: text })
               }
               placeholder="Meeting notes..."
@@ -684,7 +686,7 @@ const ClientDetailsScreen = () => {
             />
             <Text style={styles.label}>Type</Text>
             <View style={styles.typeSelector}>
-              {['call', 'email', 'physical'].map(type => (
+              {["call", "email", "physical"].map((type) => (
                 <TouchableOpacity
                   key={type}
                   style={[
@@ -692,8 +694,8 @@ const ClientDetailsScreen = () => {
                     {
                       backgroundColor:
                         activityForm.type === type
-                          ? theme.colors.primary + '20'
-                          : 'transparent',
+                          ? theme.colors.primary + "20"
+                          : "transparent",
                       borderColor:
                         activityForm.type === type
                           ? theme.colors.primary
@@ -708,7 +710,7 @@ const ClientDetailsScreen = () => {
                         activityForm.type === type
                           ? theme.colors.primary
                           : theme.colors.textSecondary,
-                      textTransform: 'capitalize',
+                      textTransform: "capitalize",
                     }}
                   >
                     {type}
@@ -745,7 +747,7 @@ const ClientDetailsScreen = () => {
             <TextInput
               style={styles.input}
               value={familyForm.name}
-              onChangeText={text =>
+              onChangeText={(text) =>
                 setFamilyForm({ ...familyForm, name: text })
               }
               placeholder="Full Name"
@@ -754,7 +756,7 @@ const ClientDetailsScreen = () => {
             <TextInput
               style={styles.input}
               value={familyForm.relation}
-              onChangeText={text =>
+              onChangeText={(text) =>
                 setFamilyForm({ ...familyForm, relation: text })
               }
               placeholder="Spouse, Child, etc."
@@ -763,7 +765,7 @@ const ClientDetailsScreen = () => {
             <TextInput
               style={styles.input}
               value={familyForm.email}
-              onChangeText={text =>
+              onChangeText={(text) =>
                 setFamilyForm({ ...familyForm, email: text })
               }
               placeholder="email@example.com"
@@ -795,8 +797,8 @@ const ClientDetailsScreen = () => {
             </View>
             <ScrollView style={{ marginBottom: 16 }}>
               {availableServices
-                .filter(s => !services.includes(s.id))
-                .map(service => {
+                .filter((s) => !services.includes(s.id))
+                .map((service) => {
                   const isSelected = tempSelectedServices.includes(service.id);
                   return (
                     <TouchableOpacity
@@ -808,7 +810,7 @@ const ClientDetailsScreen = () => {
                             ? theme.colors.primary
                             : theme.effects.cardBorder,
                           backgroundColor: isSelected
-                            ? theme.colors.primary + '10'
+                            ? theme.colors.primary + "10"
                             : theme.colors.surface,
                         },
                       ]}
@@ -823,7 +825,7 @@ const ClientDetailsScreen = () => {
                               : theme.colors.textSecondary,
                             backgroundColor: isSelected
                               ? theme.colors.primary
-                              : 'transparent',
+                              : "transparent",
                           },
                         ]}
                       >
@@ -835,7 +837,7 @@ const ClientDetailsScreen = () => {
                         <Text
                           style={{
                             fontSize: 16,
-                            fontWeight: '600',
+                            fontWeight: "600",
                             color: theme.colors.text,
                           }}
                         >
@@ -853,11 +855,11 @@ const ClientDetailsScreen = () => {
                     </TouchableOpacity>
                   );
                 })}
-              {availableServices.filter(s => !services.includes(s.id))
+              {availableServices.filter((s) => !services.includes(s.id))
                 .length === 0 && (
                 <Text
                   style={{
-                    textAlign: 'center',
+                    textAlign: "center",
                     color: theme.colors.textSecondary,
                   }}
                 >

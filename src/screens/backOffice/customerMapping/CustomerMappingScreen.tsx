@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,47 +10,47 @@ import {
   ScrollView,
   ActivityIndicator,
   Dimensions,
-} from 'react-native';
-import { useTheme } from '../../../hooks/useTheme';
-import Card from '../../../components/ui/Card';
-import Button from '../../../components/ui/Button';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { CustomerMapping } from '../../../types';
-import ThemeDropdown from '../../../components/ui/ThemeDropdown';
+} from "react-native";
+import { useTheme } from "../../../hooks/useTheme";
+import Card from "../../../components/ui/Card";
+import Button from "../../../components/ui/Button";
+import Icon from "react-native-vector-icons/Ionicons";
+import { CustomerMapping } from "../../../types";
+import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import {
   mockMappings,
   mockServiceProviders,
   mockReferralPartners,
-} from '../../../utils/mockData';
+} from "../../../utils/mockData";
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-const availableServiceProviders = mockServiceProviders.map(sp => ({
+const availableServiceProviders = mockServiceProviders.map((sp) => ({
   label: sp.name,
   value: sp.name,
 }));
 
-const availableReferralPartners = mockReferralPartners.map(rp => ({
+const availableReferralPartners = mockReferralPartners.map((rp) => ({
   label: rp.name,
   value: rp.name,
 }));
 
 const CustomerMappingScreen = () => {
   const theme = useTheme();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [mappings, setMappings] = useState<CustomerMapping[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [tempProvider, setTempProvider] = useState({ label: '', value: '' });
+  const [tempProvider, setTempProvider] = useState({ label: "", value: "" });
 
   const [filters, setFilters] = useState({
-    assignedSP: 'all',
-    referralPartner: 'all',
+    assignedSP: "all",
+    referralPartner: "all",
   });
   const [tempFilters, setTempFilters] = useState({
-    assignedSP: 'all',
-    referralPartner: 'all',
+    assignedSP: "all",
+    referralPartner: "all",
   });
 
   useEffect(() => {
@@ -67,8 +67,8 @@ const CustomerMappingScreen = () => {
 
   const handleResetFilters = () => {
     const reset = {
-      assignedSP: 'all',
-      referralPartner: 'all',
+      assignedSP: "all",
+      referralPartner: "all",
     };
     setTempFilters(reset);
     setFilters(reset);
@@ -77,37 +77,37 @@ const CustomerMappingScreen = () => {
 
   const handleAssignProvider = (id: string) => {
     if (!tempProvider.value) return;
-    setMappings(prev =>
-      prev.map(m =>
+    setMappings((prev) =>
+      prev.map((m) =>
         m.id === id ? { ...m, serviceProvider: tempProvider.value } : m,
       ),
     );
     setEditingId(null);
-    setTempProvider({ label: '', value: '' });
+    setTempProvider({ label: "", value: "" });
   };
 
-  const filteredMappings = mappings.filter(m => {
+  const filteredMappings = mappings.filter((m) => {
     const matchesSearch =
       m.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.externalId.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSP =
-      filters.assignedSP === 'all' || m.serviceProvider === filters.assignedSP;
+      filters.assignedSP === "all" || m.serviceProvider === filters.assignedSP;
     const matchesRP =
-      filters.referralPartner === 'all' ||
+      filters.referralPartner === "all" ||
       m.referralPartner === filters.referralPartner;
 
     return matchesSearch && matchesSP && matchesRP;
   });
 
-  const activeCount = mappings.filter(m => m.status === 'active').length;
-  const pendingCount = mappings.filter(m => m.status === 'pending').length;
+  const activeCount = mappings.filter((m) => m.status === "active").length;
+  const pendingCount = mappings.filter((m) => m.status === "pending").length;
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
     header: { padding: 16 },
     title: {
       fontSize: 24,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
       marginBottom: 4,
     },
@@ -116,19 +116,19 @@ const CustomerMappingScreen = () => {
       color: theme.colors.textSecondary,
       marginBottom: 16,
     },
-    statsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+    statsRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
     statCard: {
       flex: 1,
       backgroundColor: theme.effects.cardBackground,
       padding: 12,
       borderRadius: 12,
-      alignItems: 'center',
+      alignItems: "center",
       borderWidth: 1,
       borderColor: theme.effects.cardBorder,
     },
-    statValue: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
+    statValue: { fontSize: 20, fontWeight: "bold", marginBottom: 4 },
     statLabel: { fontSize: 12, color: theme.colors.textSecondary },
-    searchContainer: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+    searchContainer: { flexDirection: "row", gap: 12, marginBottom: 16 },
     searchBox: {
       flex: 1,
       backgroundColor: theme.effects.glassBackground,
@@ -142,43 +142,43 @@ const CustomerMappingScreen = () => {
     filterBtn: {
       width: 44,
       height: 44,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgba(0,0,0,0.05)',
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "rgba(0,0,0,0.05)",
       borderRadius: 12,
     },
     listContent: { padding: 16, paddingTop: 0 },
     card: { marginBottom: 12, padding: 16 },
     cardHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
       marginBottom: 12,
     },
     customerName: {
       fontSize: 16,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
     },
     idText: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
     statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
     statusText: {
       fontSize: 10,
-      fontWeight: 'bold',
-      textTransform: 'uppercase',
+      fontWeight: "bold",
+      textTransform: "uppercase",
     },
     detailsRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+      flexDirection: "row",
+      justifyContent: "space-between",
       marginBottom: 8,
     },
     label: { fontSize: 12, color: theme.colors.textSecondary },
-    value: { fontSize: 12, color: theme.colors.text, fontWeight: '500' },
+    value: { fontSize: 12, color: theme.colors.text, fontWeight: "500" },
     actionRow: {
       marginTop: 12,
-      flexDirection: 'row',
+      flexDirection: "row",
       gap: 8,
-      alignItems: 'center',
+      alignItems: "center",
     },
     pickerContainer: {
       flex: 1,
@@ -186,12 +186,12 @@ const CustomerMappingScreen = () => {
       borderColor: theme.effects.cardBorder,
       borderRadius: 8,
       height: 40,
-      justifyContent: 'center',
+      justifyContent: "center",
     },
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'flex-end',
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
     },
     modalContent: {
       backgroundColor: theme.colors.surface,
@@ -202,19 +202,19 @@ const CustomerMappingScreen = () => {
       maxHeight: SCREEN_HEIGHT * 0.8,
     },
     modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       marginBottom: 24,
     },
     modalTitle: {
       fontSize: 20,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
     },
     filterLabel: {
       fontSize: 14,
-      fontWeight: '600',
+      fontWeight: "600",
       color: theme.colors.text,
       marginTop: 16,
       marginBottom: 8,
@@ -223,7 +223,7 @@ const CustomerMappingScreen = () => {
       color: theme.colors.text,
     },
     modalButtons: {
-      flexDirection: 'row',
+      flexDirection: "row",
       gap: 12,
       marginTop: 32,
       marginBottom: 16,
@@ -234,7 +234,7 @@ const CustomerMappingScreen = () => {
       borderRadius: 12,
       backgroundColor: theme.colors.background,
       height: 50,
-      justifyContent: 'center',
+      justifyContent: "center",
       marginTop: 8,
     },
   });
@@ -244,7 +244,7 @@ const CustomerMappingScreen = () => {
       <View
         style={[
           styles.container,
-          { flex: 1, justifyContent: 'center', alignItems: 'center' },
+          { flex: 1, justifyContent: "center", alignItems: "center" },
         ]}
       >
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -297,7 +297,7 @@ const CustomerMappingScreen = () => {
 
       <FlatList
         data={filteredMappings}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <Card style={styles.card}>
@@ -311,9 +311,9 @@ const CustomerMappingScreen = () => {
                   styles.statusBadge,
                   {
                     backgroundColor:
-                      item.status === 'active'
-                        ? theme.colors.success + '20'
-                        : theme.colors.warning + '20',
+                      item.status === "active"
+                        ? theme.colors.success + "20"
+                        : theme.colors.warning + "20",
                   },
                 ]}
               >
@@ -322,7 +322,7 @@ const CustomerMappingScreen = () => {
                     styles.statusText,
                     {
                       color:
-                        item.status === 'active'
+                        item.status === "active"
                           ? theme.colors.success
                           : theme.colors.warning,
                     },
@@ -343,7 +343,7 @@ const CustomerMappingScreen = () => {
             </View>
             <View style={styles.detailsRow}>
               <Text style={styles.label}>Referral Partner</Text>
-              <Text style={styles.value}>{item.referralPartner || 'N/A'}</Text>
+              <Text style={styles.value}>{item.referralPartner || "N/A"}</Text>
             </View>
 
             <View
@@ -364,9 +364,9 @@ const CustomerMappingScreen = () => {
                     label="Service Provider"
                     options={availableServiceProviders}
                     selectedValue={tempProvider.value}
-                    onValueChange={val => {
+                    onValueChange={(val) => {
                       const selected = availableServiceProviders.find(
-                        opt => opt.value === val,
+                        (opt) => opt.value === val,
                       );
                       setTempProvider(selected || { label: val, value: val });
                     }}
@@ -392,9 +392,9 @@ const CustomerMappingScreen = () => {
               ) : (
                 <View
                   style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
                   <Text style={[styles.value, { fontSize: 14 }]}>
@@ -410,7 +410,7 @@ const CustomerMappingScreen = () => {
                     }}
                   >
                     <Text
-                      style={{ color: theme.colors.primary, fontWeight: '600' }}
+                      style={{ color: theme.colors.primary, fontWeight: "600" }}
                     >
                       Change
                     </Text>
@@ -441,12 +441,12 @@ const CustomerMappingScreen = () => {
               <ThemeDropdown
                 label="Service Provider"
                 options={[
-                  { label: 'All Providers', value: 'all' },
+                  { label: "All Providers", value: "all" },
                   ...availableServiceProviders,
                 ]}
                 selectedValue={tempFilters.assignedSP}
-                onValueChange={itemValue =>
-                  setTempFilters(prev => ({
+                onValueChange={(itemValue) =>
+                  setTempFilters((prev) => ({
                     ...prev,
                     assignedSP: itemValue as string,
                   }))
@@ -456,12 +456,12 @@ const CustomerMappingScreen = () => {
               <ThemeDropdown
                 label="Referral Partner"
                 options={[
-                  { label: 'All Partners', value: 'all' },
+                  { label: "All Partners", value: "all" },
                   ...availableReferralPartners,
                 ]}
                 selectedValue={tempFilters.referralPartner}
-                onValueChange={itemValue =>
-                  setTempFilters(prev => ({
+                onValueChange={(itemValue) =>
+                  setTempFilters((prev) => ({
                     ...prev,
                     referralPartner: itemValue as string,
                   }))
