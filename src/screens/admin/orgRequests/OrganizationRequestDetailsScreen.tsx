@@ -11,6 +11,12 @@ import { useRoute, RouteProp } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
+import ServicesList from "../../../components/screens/ServicesList";
+import DocumentsList from "../../../components/screens/DocumentsList";
+import ApprovalDetails from "../../../components/screens/ApprovalDetails";
+import CommissionEditor from "../../../components/screens/CommissionEditor";
+import TitleHeader from "../../../components/screens/TitleHeader";
+import PersonalInformation from "../../../components/screens/PersonalInformation";
 import { OrganizationRequest } from "../../../types";
 
 type RouteParams = {
@@ -19,15 +25,42 @@ type RouteParams = {
   };
 };
 
+interface ApprovalDetail {
+  approvedBy?: string;
+  approvalComments?: string;
+  approvalDate?: string;
+}
+
+interface Service {
+  id: string;
+  name: string;
+  segment?: string;
+  aum?: number;
+  commission?: number;
+}
+
+interface Document {
+  id: string;
+  name: string;
+  type: string;
+  uploadDate: string;
+}
+
 const OrganizationRequestDetailsScreen = () => {
   const theme = useTheme();
   const route =
     useRoute<RouteProp<RouteParams, "OrganizationRequestDetails">>();
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState<OrganizationRequest | null>(null);
+  const [approvalDetails, setApprovalDetails] = useState<ApprovalDetail | null>(
+    null
+  );
+  const [services, setServices] = useState<Service[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [defaultCommission, setDefaultCommission] = useState<number>(5);
 
   useEffect(() => {
-    // Mock loading request data
+    // Mock loading request data with additional details
     setTimeout(() => {
       setRequest({
         id: route.params?.requestId || "1",
@@ -41,6 +74,62 @@ const OrganizationRequestDetailsScreen = () => {
         description:
           "Expanding our operations to offer specialized portfolio management services for high-net-worth clients.",
       });
+
+      // Mock services
+      setServices([
+        {
+          id: "1",
+          name: "Portfolio Management",
+          segment: "HNI",
+          aum: 50000000,
+          commission: 5,
+        },
+        {
+          id: "2",
+          name: "Financial Planning",
+          segment: "Affluent",
+          aum: 25000000,
+          commission: 3,
+        },
+        {
+          id: "3",
+          name: "Wealth Advisory",
+          segment: "Ultra HNI",
+          aum: 100000000,
+          commission: 4,
+        },
+      ]);
+
+      // Mock documents
+      setDocuments([
+        {
+          id: "1",
+          name: "Company_Registration.pdf",
+          type: "Registration",
+          uploadDate: "2023-10-15",
+        },
+        {
+          id: "2",
+          name: "Tax_Certificate.pdf",
+          type: "Tax Document",
+          uploadDate: "2023-10-16",
+        },
+        {
+          id: "3",
+          name: "Business_License.pdf",
+          type: "License",
+          uploadDate: "2023-10-17",
+        },
+      ]);
+
+      // Set approval details if approved
+      setApprovalDetails({
+        approvedBy: undefined,
+        approvalComments: undefined,
+        approvalDate: undefined,
+      });
+
+      setDefaultCommission(5);
       setLoading(false);
     }, 500);
   }, [route.params?.requestId]);
@@ -53,12 +142,18 @@ const OrganizationRequestDetailsScreen = () => {
         { text: "Cancel", style: "cancel" },
         {
           text: "Approve",
-          onPress: () =>
+          onPress: () => {
             setRequest((prev) =>
-              prev ? { ...prev, status: "approved" } : null,
-            ),
+              prev ? { ...prev, status: "approved" } : null
+            );
+            setApprovalDetails({
+              approvedBy: "Admin User",
+              approvalComments: "Approved on review",
+              approvalDate: new Date().toISOString().split("T")[0],
+            });
+          },
         },
-      ],
+      ]
     );
   };
 
@@ -71,13 +166,48 @@ const OrganizationRequestDetailsScreen = () => {
         {
           text: "Reject",
           style: "destructive",
-          onPress: () =>
+          onPress: () => {
             setRequest((prev) =>
-              prev ? { ...prev, status: "rejected" } : null,
-            ),
+              prev ? { ...prev, status: "rejected" } : null
+            );
+            setApprovalDetails({
+              approvedBy: "Admin User",
+              approvalComments: "Rejected - does not meet criteria",
+              approvalDate: new Date().toISOString().split("T")[0],
+            });
+          },
         },
-      ],
+      ]
     );
+  };
+
+  const handleCommissionSave = () => {
+    Alert.alert("Success", "Default commission updated successfully");
+  };
+
+  const handleUpdateDefaultCommission = (value: number) => {
+    setDefaultCommission(value);
+    Alert.alert("Success", `Default commission updated to ${value}%`);
+  };
+
+  const handleSaveServiceOverride = (serviceId: string, payload: Partial<Service>) => {
+    setServices((prev) => prev.map((s) => (s.id === serviceId ? { ...s, ...payload } : s)));
+    Alert.alert("Saved", `Saved override for service`);
+  };
+
+  const handleDocumentDelete = (doc: Document) => {
+    Alert.alert("Delete Document", `Delete ${doc.name}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => setDocuments((prev) => prev.filter((d) => d.id !== doc.id)),
+      },
+    ]);
+  };
+
+  const handleDocumentPreview = (doc: Document) => {
+    Alert.alert("Preview", `Open ${doc.name}`);
   };
 
   const styles = StyleSheet.create({
@@ -129,6 +259,7 @@ const OrganizationRequestDetailsScreen = () => {
     infoLabel: {
       fontSize: 14,
       color: theme.colors.textSecondary,
+      fontWeight: "500",
     },
     infoValue: {
       fontSize: 14,
@@ -174,36 +305,29 @@ const OrganizationRequestDetailsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.orgName}>{request?.organizationName}</Text>
-          <View
-            style={[
-              styles.statusBadge,
-              {
-                backgroundColor:
-                  (statusColors as any)[request?.status || "pending"] + "20",
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.statusText,
-                { color: (statusColors as any)[request?.status || "pending"] },
-              ]}
-            >
-              {request?.status}
-            </Text>
-          </View>
-        </View>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Title/Header (with actions & chips) */}
+        <TitleHeader
+          user={{
+            first_name: request?.contactPerson?.split(" ")[0],
+            last_name: request?.contactPerson?.split(" ").slice(1).join(" "),
+            mobile_number: request?.phone,
+          }}
+          selectedServices={services.map((s) => s.id)}
+          systemServices={services.map((s) => ({ id: s.id, label: s.name }))}
+          requestStatus={request?.status || "pending"}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
 
+        {/* Organization Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Organization Details</Text>
           <Card>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Type</Text>
               <Text style={styles.infoValue}>
-                {request?.requestType.replace("_", " ")}
+                {request?.requestType.replace(/_/g, " ").toUpperCase()}
               </Text>
             </View>
             <View style={styles.infoRow}>
@@ -213,32 +337,52 @@ const OrganizationRequestDetailsScreen = () => {
           </Card>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Information</Text>
-          <Card>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Name</Text>
-              <Text style={styles.infoValue}>{request?.contactPerson}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>{request?.email}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Phone</Text>
-              <Text style={styles.infoValue}>{request?.phone}</Text>
-            </View>
-          </Card>
-        </View>
+        {/* Personal Information */}
+        <PersonalInformation
+          user={{ email: request?.email, gender: undefined, dob: undefined }}
+        />
 
+        {/* Description */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Description</Text>
           <Card>
             <Text style={styles.description}>{request?.description}</Text>
           </Card>
         </View>
+
+        {/* Services list */}
+        <ServicesList services={services} title="Assigned Services" />
+
+        {/* Commission editor (default + per-service overrides) */}
+        <CommissionEditor
+          services={services}
+          selectedServices={services}
+          userOrganizationDefaultCommission={defaultCommission}
+          onUpdateDefaultCommission={handleUpdateDefaultCommission}
+          onSaveServiceOverride={handleSaveServiceOverride}
+        />
+
+        {/* Reusable Documents Component */}
+        <DocumentsList
+          documents={documents}
+          title="Documents"
+          onDocumentPress={handleDocumentPreview}
+          onDelete={handleDocumentDelete}
+        />
+
+        {/* Reusable Approval Details Component */}
+        {request?.status !== "pending" && approvalDetails && (
+          <ApprovalDetails
+            details={approvalDetails}
+            title="Approval Details"
+          />
+        )}
+
+        {/* Spacer for footer button area */}
+        <View style={{ height: request?.status === "pending" ? 100 : 40 }} />
       </ScrollView>
 
+      {/* Action Buttons */}
       {request?.status === "pending" && (
         <View style={styles.footer}>
           <View style={styles.buttonRow}>

@@ -7,11 +7,17 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
+  ScrollView,
+  SafeAreaView,
 } from "react-native";
 import { useSelector } from "react-redux";
 import { useTheme } from "../../../hooks/useTheme";
 import { RootState } from "../../../store";
 import Card from "../../../components/ui/Card";
+import Button from "../../../components/ui/Button";
+import Input from "../../../components/ui/Input";
+import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import { Payout } from "../../../types";
 import Icon1 from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
@@ -56,6 +62,49 @@ const PayoutScreen = () => {
   const user = useSelector((state: RootState) => state.auth.user);
   const [loading, setLoading] = useState(true);
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+
+  // New Payout Form State
+  const [newPayout, setNewPayout] = useState({
+    name: "",
+    month: "",
+    year: "",
+    commissionType: "manual",
+    serviceProviderId: "",
+  });
+
+  const months = [
+    { label: "January", value: "01" },
+    { label: "February", value: "02" },
+    { label: "March", value: "03" },
+    { label: "April", value: "04" },
+    { label: "May", value: "05" },
+    { label: "June", value: "06" },
+    { label: "July", value: "07" },
+    { label: "August", value: "08" },
+    { label: "September", value: "09" },
+    { label: "October", value: "10" },
+    { label: "November", value: "11" },
+    { label: "December", value: "12" },
+  ];
+
+  const years = [
+    { label: "2024", value: "2024" },
+    { label: "2025", value: "2025" },
+    { label: "2026", value: "2026" },
+  ];
+
+  const commissionTypes = [
+    { label: "Manual Entry", value: "manual" },
+    { label: "File Upload", value: "file" },
+  ];
+
+  const referralPartners = [
+    { id: "p1", name: "Elite Financial Services" },
+    { id: "p2", name: "Global Wealth Partners" },
+    { id: "p3", name: "Alpha Advisors" },
+    { id: "p4", name: "Premium Wealth" },
+  ];
 
   useEffect(() => {
     // Mock loading payout data with role filtering
@@ -90,6 +139,46 @@ const PayoutScreen = () => {
     }
   };
 
+  const handleCreatePayout = () => {
+    if (
+      !newPayout.name ||
+      !newPayout.month ||
+      !newPayout.year ||
+      !newPayout.serviceProviderId
+    ) {
+      Alert.alert("Required Fields", "Please fill in all fields.");
+      return;
+    }
+
+    const partner = referralPartners.find(
+      (p) => p.id === newPayout.serviceProviderId,
+    );
+    if (!partner) return;
+
+    const payout: Payout = {
+      id: Math.random().toString(36).substr(2, 9),
+      partnerId: partner.id,
+      partnerName: partner.name,
+      amount: 0,
+      status: "pending",
+      requestDate: new Date().toISOString().split("T")[0],
+      payoutDate: `${newPayout.year}-${newPayout.month}-25`,
+    };
+
+    setPayouts([payout, ...payouts]);
+    setIsAddModalVisible(false);
+    setNewPayout({
+      name: "",
+      month: "",
+      year: "",
+      commissionType: "manual",
+      serviceProviderId: "",
+    });
+
+    // Navigate to edit screen immediately to add services
+    navigation.navigate("PayoutEdit", { payoutId: payout.id });
+  };
+
   const renderPayoutItem = ({ item }: { item: Payout }) => (
     <TouchableOpacity
       activeOpacity={0.7}
@@ -97,9 +186,38 @@ const PayoutScreen = () => {
     >
       <Card style={styles.payoutCard}>
         <View style={styles.row}>
-          <View>
-            <Text style={styles.partnerName}>{item.partnerName}</Text>
-            <Text style={styles.dateText}>Requested: {item.requestDate}</Text>
+          <View style={{ flex: 1 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 4,
+              }}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: theme.colors.primary + "15",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginRight: 12,
+                }}
+              >
+                <Icon1
+                  name="business-outline"
+                  size={20}
+                  color={theme.colors.primary}
+                />
+              </View>
+              <View>
+                <Text style={styles.partnerName}>{item.partnerName}</Text>
+                <Text style={styles.dateText}>
+                  Requested: {item.requestDate}
+                </Text>
+              </View>
+            </View>
           </View>
           <View style={{ alignItems: "flex-end" }}>
             <Text style={styles.amountText}>
@@ -192,6 +310,35 @@ const PayoutScreen = () => {
       marginBottom: 8,
     },
     headerButtons: { flexDirection: "row", gap: 12 },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
+    },
+    modalContent: {
+      backgroundColor: theme.colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      maxHeight: "90%",
+      padding: 24,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 24,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: theme.colors.text,
+    },
+    modalButtons: {
+      flexDirection: "row",
+      gap: 12,
+      marginTop: 24,
+      marginBottom: 8,
+    },
   });
 
   if (loading) {
@@ -203,23 +350,13 @@ const PayoutScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={[styles.row, { marginBottom: 8 }]}>
           <Text style={styles.title}>Payout Management</Text>
           {user?.role === "admin" && (
-            // <TouchableOpacity
-            //     style={styles.addButton}
-            //     onPress={() => Alert.alert('Add Payout', 'This feature is coming soon!')}
-            // >
-            //     <Text style={styles.addButtonText}>+ Add New</Text>
-            // </TouchableOpacity>
             <View style={styles.headerButtons}>
-              <TouchableOpacity
-                onPress={() =>
-                  Alert.alert("Add Payout", "This feature is coming soon!")
-                }
-              >
+              <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
                 <Icon1
                   name="add-circle"
                   size={32}
@@ -239,7 +376,98 @@ const PayoutScreen = () => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
-    </View>
+
+      {/* Add Payout Modal */}
+      <Modal
+        visible={isAddModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsAddModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add New Payout</Text>
+              <TouchableOpacity onPress={() => setIsAddModalVisible(false)}>
+                <Icon1 name="close" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Input
+                label="Payout Name"
+                placeholder="e.g. Monthly Commission"
+                value={newPayout.name}
+                onChangeText={(text) =>
+                  setNewPayout({ ...newPayout, name: text })
+                }
+              />
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <ThemeDropdown
+                    label="Month"
+                    options={months}
+                    selectedValue={newPayout.month}
+                    onValueChange={(val) =>
+                      setNewPayout({ ...newPayout, month: val })
+                    }
+                    placeholder="Month"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemeDropdown
+                    label="Year"
+                    options={years}
+                    selectedValue={newPayout.year}
+                    onValueChange={(val) =>
+                      setNewPayout({ ...newPayout, year: val })
+                    }
+                    placeholder="Year"
+                  />
+                </View>
+              </View>
+
+              <ThemeDropdown
+                label="Commission Type"
+                options={commissionTypes}
+                selectedValue={newPayout.commissionType}
+                onValueChange={(val) =>
+                  setNewPayout({ ...newPayout, commissionType: val })
+                }
+              />
+
+              <ThemeDropdown
+                label="Service Provider"
+                options={referralPartners.map((p) => ({
+                  label: p.name,
+                  value: p.id,
+                }))}
+                selectedValue={newPayout.serviceProviderId}
+                onValueChange={(val) =>
+                  setNewPayout({ ...newPayout, serviceProviderId: val })
+                }
+                placeholder="Select Provider"
+              />
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              <Button
+                title="Cancel"
+                variant="outline"
+                onPress={() => setIsAddModalVisible(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Create"
+                onPress={handleCreatePayout}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 };
 

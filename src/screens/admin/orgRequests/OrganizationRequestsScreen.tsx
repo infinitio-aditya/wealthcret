@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
@@ -52,6 +53,7 @@ const mockOrgRequests: OrganizationRequest[] = [
 
 const OrganizationRequestsScreen = () => {
   const theme = useTheme();
+  const navigation = useNavigation();
   const [requests, setRequests] = useState(mockOrgRequests);
   const [filter, setFilter] = useState<
     "all" | "pending" | "approved" | "rejected"
@@ -59,6 +61,12 @@ const OrganizationRequestsScreen = () => {
 
   const filteredRequests =
     filter === "all" ? requests : requests.filter((r) => r.status === filter);
+
+  const handleViewDetails = (requestId: string) => {
+    navigation.navigate("OrganizationRequestDetails" as never, {
+      requestId,
+    } as never);
+  };
 
   const handleApprove = (id: string) => {
     Alert.alert(
@@ -188,7 +196,7 @@ const OrganizationRequestsScreen = () => {
         color: theme.colors.text,
       },
       actionButtons: {
-        flexDirection: "row",
+        flexDirection: "column",
         gap: 8,
         marginTop: 12,
       },
@@ -252,26 +260,36 @@ const OrganizationRequestsScreen = () => {
           </Text>
         </View>
 
-        {item.status === "pending" && (
-          <View style={styles.actionButtons}>
-            <View style={{ flex: 1 }}>
-              <Button
-                title="Approve"
-                onPress={() => handleApprove(item.id)}
-                variant="primary"
-                fullWidth
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Button
-                title="Reject"
-                onPress={() => handleReject(item.id)}
-                variant="outline"
-                fullWidth
-              />
-            </View>
+        <View style={styles.actionButtons}>
+          <View style={{ flex: 1 }}>
+            <Button
+              title="View Details"
+              onPress={() => handleViewDetails(item.id)}
+              variant="secondary"
+              fullWidth
+            />
           </View>
-        )}
+          {item.status === "pending" && (
+            <>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Approve"
+                  onPress={() => handleApprove(item.id)}
+                  variant="primary"
+                  fullWidth
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Reject"
+                  onPress={() => handleReject(item.id)}
+                  variant="outline"
+                  fullWidth
+                />
+              </View>
+            </>
+          )}
+        </View>
       </Card>
     );
   };

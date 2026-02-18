@@ -35,6 +35,7 @@ export type DocumentStackParamList = {
 
 export type AdminLicensingStackParamList = {
   AdminLicensing: undefined;
+  AdminLicensingEdit: { orgId: string };
   OrganizationEdit: { orgId: string };
 };
 

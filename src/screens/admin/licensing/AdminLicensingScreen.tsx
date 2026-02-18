@@ -10,6 +10,8 @@ import {
   Platform,
   TextInput,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { StackNavigationProp } from "@react-navigation/stack";
 import { useTheme } from "../../../hooks/useTheme";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
@@ -25,6 +27,12 @@ import {
   mockServiceProviders,
   mockReferralPartners,
 } from "../../../utils/mockData";
+import { AdminLicensingStackParamList } from "../../../navigation/NavigationParams";
+
+type NavigationProp = StackNavigationProp<
+  AdminLicensingStackParamList,
+  "AdminLicensing"
+>;
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -33,6 +41,7 @@ const uniqueReferralPartners = mockReferralPartners.map((rp) => rp.name);
 
 const AdminLicensingScreen = () => {
   const theme = useTheme();
+  const navigation = useNavigation<NavigationProp>();
   const [organizations, setOrganizations] =
     useState<Organization[]>(mockOrganizations);
   const [isModalVisible, setModalVisible] = useState(false);
@@ -94,33 +103,26 @@ const AdminLicensingScreen = () => {
   };
 
   const handleOpenModal = (org?: Organization) => {
+    // If org is provided, navigate to edit screen
     if (org) {
-      setEditingOrg(org);
-      setFormData({
-        name: org.name,
-        type: org.type,
-        startDate: org.startDate,
-        endDate: org.endDate,
-        isActive: org.isActive,
-        features: [...org.features],
-        assignedSP: org.assignedSP || "all",
-        referralPartner: org.referralPartner || "all",
-      });
-    } else {
-      setEditingOrg(null);
-      setFormData({
-        name: "",
-        type: "Enterprise",
-        startDate: new Date().toISOString().split("T")[0],
-        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-          .toISOString()
-          .split("T")[0],
-        isActive: true,
-        features: JSON.parse(JSON.stringify(mockFeatures)),
-        assignedSP: "all",
-        referralPartner: "all",
-      });
+      navigation.navigate("AdminLicensingEdit", { orgId: org.id });
+      return;
     }
+
+    // Otherwise open create modal
+    setEditingOrg(null);
+    setFormData({
+      name: "",
+      type: "Enterprise",
+      startDate: new Date().toISOString().split("T")[0],
+      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+        .toISOString()
+        .split("T")[0],
+      isActive: true,
+      features: JSON.parse(JSON.stringify(mockFeatures)),
+      assignedSP: "all",
+      referralPartner: "all",
+    });
     setModalVisible(true);
   };
 
@@ -261,7 +263,7 @@ const AdminLicensingScreen = () => {
     modalButtons: {
       flexDirection: "row",
       gap: 12,
-      marginTop: 32,
+      marginTop: 16,
       marginBottom: 16,
     },
     statsContainer: {
@@ -574,7 +576,7 @@ const AdminLicensingScreen = () => {
               style={[
                 { fontSize: 14, fontWeight: "500" },
                 tempFilters.status === status
-                  ? { color: "#fff" }
+                  ? { color: theme.colors.secondary }
                   : { color: theme.colors.text },
               ]}
             >
@@ -639,9 +641,9 @@ const AdminLicensingScreen = () => {
             >
               <Icon name="filter" size={24} color={theme.colors.primary} />
             </TouchableOpacity> */}
-            <TouchableOpacity onPress={() => handleOpenModal()}>
+            {/* <TouchableOpacity onPress={() => handleOpenModal()}>
               <Icon name="add-circle" size={32} color={theme.colors.primary} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
 
@@ -730,7 +732,7 @@ const AdminLicensingScreen = () => {
 
       {renderFilters()}
 
-      <Modal
+      {/* <Modal
         isVisible={isModalVisible}
         onBackdropPress={() => setModalVisible(false)}
         onBackButtonPress={() => setModalVisible(false)}
@@ -913,7 +915,7 @@ const AdminLicensingScreen = () => {
             />
           </ScrollView>
         </View>
-      </Modal>
+      </Modal> */}
     </View>
   );
 };

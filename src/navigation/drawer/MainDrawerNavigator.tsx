@@ -16,12 +16,12 @@ import TeamMembersStackNavigator from '../stacks/TeamMembersStack';
 import RiskProfileStackNavigator from '../stacks/RiskProfileStack';
 import AdminLicensingStackNavigator from '../stacks/AdminLicensingStack';
 import PayoutStackNavigator from '../stacks/PayoutStack';
+import OrgRequestsStackNavigator from '../stacks/OrgRequestsStack';
 
 // Screens
 import BulkUploadScreen from '../../screens/backOffice/bulkUpload/BulkUploadScreen';
 import CustomerMappingScreen from '../../screens/backOffice/customerMapping/CustomerMappingScreen';
 import MemberRolesScreen from '../../screens/backOffice/memberRoles/MemberRolesScreen';
-import OrganizationRequestsScreen from '../../screens/admin/orgRequests/OrganizationRequestsScreen';
 import InviteScreen from '../../screens/admin/invite/InviteScreen';
 import ServiceRequestsScreen from '../../screens/admin/serviceResuests/ServiceRequestsScreen';
 import ProfileScreen from '../../screens/profile/ProfileScreen';
@@ -119,7 +119,7 @@ const MainDrawerNavigator = () => {
       />
       <Drawer.Screen
         name="OrganizationRequests"
-        component={OrganizationRequestsScreen}
+        component={OrgRequestsStackNavigator}
         options={{ title: 'Requests' }}
       />
       <Drawer.Screen

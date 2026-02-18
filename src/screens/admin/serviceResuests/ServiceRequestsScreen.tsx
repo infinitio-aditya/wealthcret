@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Modal,
 } from "react-native";
 import { useTheme } from "../../../hooks/useTheme";
 import Card from "../../../components/ui/Card";
@@ -14,6 +15,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { ServiceRequest } from "../../../types";
 import Button from "../../../components/ui/Button";
 import { Alert } from "react-native";
+import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 
 const mockServiceRequests: ServiceRequest[] = [
   {
@@ -56,6 +58,14 @@ const mockServiceRequests: ServiceRequest[] = [
   },
 ];
 
+// Mock organizations
+const mockOrganizations = [
+  { label: "Acme Financial Services", value: "org-1" },
+  { label: "Global Wealth Management", value: "org-2" },
+  { label: "Elite Financial Group", value: "org-3" },
+  { label: "Premier Wealth Advisors", value: "org-4" },
+];
+
 const ServiceRequestsScreen = () => {
   const theme = useTheme();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
@@ -64,6 +74,9 @@ const ServiceRequestsScreen = () => {
   const [filter, setFilter] = useState<
     "all" | "pending" | "assigned" | "completed"
   >("all");
+  const [assignModalVisible, setAssignModalVisible] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
 
   useEffect(() => {
     loadRequests();
@@ -85,39 +98,33 @@ const ServiceRequestsScreen = () => {
   };
 
   const handleAssign = (id: string) => {
-    Alert.alert(
-      "Assign Organization",
-      "Select an organization to assign this request to:",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Acme Financial",
-          onPress: () => {
-            setRequests((prev) =>
-              prev.map((r) =>
-                r.id === id
-                  ? { ...r, status: "assigned", organizationId: "org-1" }
-                  : r,
-              ),
-            );
-            Alert.alert("Success", "Request assigned to Acme Financial");
-          },
-        },
-        {
-          text: "Global Wealth",
-          onPress: () => {
-            setRequests((prev) =>
-              prev.map((r) =>
-                r.id === id
-                  ? { ...r, status: "assigned", organizationId: "org-2" }
-                  : r,
-              ),
-            );
-            Alert.alert("Success", "Request assigned to Global Wealth");
-          },
-        },
-      ],
+    setSelectedRequestId(id);
+    setSelectedOrgId("");
+    setAssignModalVisible(true);
+  };
+
+  const handleConfirmAssign = () => {
+    if (!selectedOrgId) {
+      Alert.alert("Error", "Please select an organization");
+      return;
+    }
+
+    const orgName = mockOrganizations.find(
+      (org) => org.value === selectedOrgId
+    )?.label;
+
+    setRequests((prev) =>
+      prev.map((r) =>
+        r.id === selectedRequestId
+          ? { ...r, status: "assigned", organizationId: selectedOrgId }
+          : r
+      )
     );
+
+    setAssignModalVisible(false);
+    setSelectedRequestId(null);
+    setSelectedOrgId("");
+    Alert.alert("Success", `Request assigned to ${orgName}`);
   };
 
   const filteredRequests =
@@ -202,7 +209,9 @@ const ServiceRequestsScreen = () => {
     });
 
     return (
-      <TouchableOpacity activeOpacity={0.8}>
+      <TouchableOpacity 
+      onPress={() => handleAssign(item.id)}
+      activeOpacity={0.8}>
         <Card style={styles.requestCard}>
           <View style={styles.requestHeader}>
             <View style={styles.requestInfo}>
@@ -246,7 +255,7 @@ const ServiceRequestsScreen = () => {
             <Text style={styles.footerText}>
               Requested: {new Date(item.requestDate).toLocaleDateString()}
             </Text>
-            {item.status === "pending" && (
+            {/* {item.status === "pending" && (
               <View style={{ width: 120 }}>
                 <Button
                   title="Assign"
@@ -255,7 +264,7 @@ const ServiceRequestsScreen = () => {
                   // size="small"
                 />
               </View>
-            )}
+            )} */}
           </View>
         </Card>
       </TouchableOpacity>
@@ -454,6 +463,77 @@ const ServiceRequestsScreen = () => {
           </View>
         }
       />
+
+      {/* Organization Assignment Modal */}
+      <Modal
+        visible={assignModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setAssignModalVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.colors.background,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: 20,
+              minHeight: 400,
+            }}
+          >
+            <View style={{ marginBottom: 20 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "600",
+                  color: theme.colors.text,
+                  marginBottom: 8,
+                }}
+              >
+                Assign Organization
+              </Text>
+              <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>
+                Select an organization to assign this service request
+              </Text>
+            </View>
+
+            <ThemeDropdown
+              label="Organization"
+              options={mockOrganizations}
+              selectedValue={selectedOrgId}
+              onValueChange={setSelectedOrgId}
+              placeholder="Select an organization"
+            />
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                alignSelf: "flex-end",
+                gap: 12,
+                marginTop: 20,
+              }}
+            >
+              <Button
+                title="Cancel"
+                onPress={() => setAssignModalVisible(false)}
+                variant="secondary"
+              />
+              <Button
+                title="Assign"
+                onPress={handleConfirmAssign}
+                variant="primary"
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

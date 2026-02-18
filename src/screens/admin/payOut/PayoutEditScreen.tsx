@@ -15,6 +15,8 @@ import { useTheme } from "../../../hooks/useTheme";
 import Icon from "react-native-vector-icons/Ionicons";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
+import ThemeDropdown from "../../../components/ui/ThemeDropdown";
+import Input from "../../../components/ui/Input";
 import { Payout } from "../../../types";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { PayoutStackParamList } from "../../../navigation/NavigationParams";
@@ -30,7 +32,10 @@ type NavigationProp = StackNavigationProp<PayoutStackParamList, "PayoutEdit">;
 interface Service {
   id: string;
   name: string;
-  amount: number;
+  revenue: number;
+  commission: number;
+  partnerId: string;
+  partnerName: string;
 }
 
 const PayoutEditScreen = () => {
@@ -42,25 +47,51 @@ const PayoutEditScreen = () => {
   const [payout, setPayout] = useState<Payout | null>(null);
   const [loading, setLoading] = useState(true);
   const [showServiceSelector, setShowServiceSelector] = useState(false);
+  const [showEditServiceModal, setShowEditServiceModal] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
 
   // Services State
   const [selectedServices, setSelectedServices] = useState<Service[]>([
-    { id: "1", name: "Wealth Management", amount: 5000 },
-    { id: "2", name: "Investment Advisory", amount: 3500 },
+    {
+      id: "1",
+      name: "Wealth Management",
+      revenue: 25000,
+      commission: 5000,
+      partnerId: "p1",
+      partnerName: "Elite Financial Services",
+    },
+    {
+      id: "2",
+      name: "Investment Advisory",
+      revenue: 15000,
+      commission: 3500,
+      partnerId: "p1",
+      partnerName: "Elite Financial Services",
+    },
   ]);
 
-  const availableServices: Service[] = [
-    { id: "3", name: "Portfolio Management", amount: 4200 },
-    { id: "4", name: "Financial Planning", amount: 2800 },
-    { id: "5", name: "Tax Consulting", amount: 1500 },
-    { id: "6", name: "Estate Planning", amount: 3000 },
-    { id: "7", name: "Risk Assessment", amount: 2200 },
-    { id: "8", name: "Retirement Planning", amount: 4500 },
+  const availableServices = [
+    { id: "s1", name: "Wealth Management" },
+    { id: "s2", name: "Investment Advisory" },
+    { id: "s3", name: "Portfolio Management" },
+    { id: "s4", name: "Financial Planning" },
+    { id: "s5", name: "Tax Consulting" },
+    { id: "s6", name: "Estate Planning" },
+    { id: "s7", name: "Risk Assessment" },
+    { id: "s8", name: "Retirement Planning" },
   ];
 
-  const [tempSelectedServices, setTempSelectedServices] = useState<string[]>(
-    [],
-  );
+  const referralPartners = [
+    { id: "p1", name: "Elite Financial Services" },
+    { id: "p2", name: "Global Wealth Partners" },
+    { id: "p3", name: "Alpha Advisors" },
+    { id: "p4", name: "Premium Wealth" },
+  ];
+
+  const [newServiceSelection, setNewServiceSelection] = useState({
+    serviceId: "",
+    partnerId: "",
+  });
 
   useEffect(() => {
     // Mock loading payout data
@@ -80,12 +111,51 @@ const PayoutEditScreen = () => {
   }, [route.params?.payoutId]);
 
   const handleAddServices = () => {
-    const newServices = availableServices.filter((service) =>
-      tempSelectedServices.includes(service.id),
+    if (!newServiceSelection.serviceId || !newServiceSelection.partnerId) {
+      Alert.alert(
+        "Selection Required",
+        "Please select both a service and a partner.",
+      );
+      return;
+    }
+
+    const serviceInfo = availableServices.find(
+      (s) => s.id === newServiceSelection.serviceId,
     );
-    setSelectedServices([...selectedServices, ...newServices]);
-    setTempSelectedServices([]);
-    setShowServiceSelector(false);
+    const partnerInfo = referralPartners.find(
+      (p) => p.id === newServiceSelection.partnerId,
+    );
+
+    if (serviceInfo && partnerInfo) {
+      const newService: Service = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: serviceInfo.name,
+        revenue: 0,
+        commission: 0,
+        partnerId: partnerInfo.id,
+        partnerName: partnerInfo.name,
+      };
+      setSelectedServices([...selectedServices, newService]);
+      setNewServiceSelection({ serviceId: "", partnerId: "" });
+      setShowServiceSelector(false);
+    }
+  };
+
+  const handleEditService = (service: Service) => {
+    setEditingService({ ...service });
+    setShowEditServiceModal(true);
+  };
+
+  const handleSaveService = () => {
+    if (editingService) {
+      setSelectedServices(
+        selectedServices.map((s) =>
+          s.id === editingService.id ? editingService : s,
+        ),
+      );
+      setShowEditServiceModal(false);
+      setEditingService(null);
+    }
   };
 
   const handleRemoveService = (serviceId: string) => {
@@ -106,18 +176,8 @@ const PayoutEditScreen = () => {
     );
   };
 
-  const toggleServiceSelection = (serviceId: string) => {
-    if (tempSelectedServices.includes(serviceId)) {
-      setTempSelectedServices(
-        tempSelectedServices.filter((id) => id !== serviceId),
-      );
-    } else {
-      setTempSelectedServices([...tempSelectedServices, serviceId]);
-    }
-  };
-
   const totalAmount = selectedServices.reduce(
-    (sum, service) => sum + service.amount,
+    (sum, service) => sum + service.commission,
     0,
   );
 
@@ -395,12 +455,56 @@ const PayoutEditScreen = () => {
           {selectedServices.length > 0 ? (
             <View>
               {selectedServices.map((service) => (
-                <View key={service.id} style={styles.serviceItem}>
-                  <View>
+                <TouchableOpacity
+                  key={service.id}
+                  style={styles.serviceItem}
+                  onPress={() => handleEditService(service)}
+                >
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.serviceName}>{service.name}</Text>
-                    <Text style={styles.serviceAmount}>
-                      ${service.amount.toLocaleString()}
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: theme.colors.textSecondary,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Partner: {service.partnerName}
                     </Text>
+                    <View style={{ flexDirection: "row", gap: 12 }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: theme.colors.textSecondary,
+                        }}
+                      >
+                        Rev:{" "}
+                        <Text
+                          style={{
+                            color: theme.colors.text,
+                            fontWeight: "600",
+                          }}
+                        >
+                          ${service.revenue.toLocaleString()}
+                        </Text>
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: theme.colors.textSecondary,
+                        }}
+                      >
+                        Comm:{" "}
+                        <Text
+                          style={{
+                            color: theme.colors.primary,
+                            fontWeight: "600",
+                          }}
+                        >
+                          ${service.commission.toLocaleString()}
+                        </Text>
+                      </Text>
+                    </View>
                   </View>
                   <TouchableOpacity
                     onPress={() => handleRemoveService(service.id)}
@@ -416,7 +520,7 @@ const PayoutEditScreen = () => {
                       color={theme.colors.error}
                     />
                   </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
               ))}
 
               <View style={styles.totalCard}>
@@ -453,101 +557,47 @@ const PayoutEditScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Services</Text>
+              <Text style={styles.modalTitle}>Add Service</Text>
               <TouchableOpacity onPress={() => setShowServiceSelector(false)}>
                 <Icon name="close" size={24} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
 
-            <Text
-              style={{ color: theme.colors.textSecondary, marginBottom: 16 }}
-            >
-              Choose services to add to this payout
-            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <ThemeDropdown
+                label="Select Service"
+                placeholder="Choose a service"
+                options={availableServices.map((s) => ({
+                  label: s.name,
+                  value: s.id,
+                }))}
+                selectedValue={newServiceSelection.serviceId}
+                onValueChange={(val: string) =>
+                  setNewServiceSelection({
+                    ...newServiceSelection,
+                    serviceId: val,
+                  })
+                }
+              />
 
-            <ScrollView style={{ marginBottom: 16 }}>
-              {availableServices
-                .filter(
-                  (service) =>
-                    !selectedServices.find((s) => s.id === service.id),
-                )
-                .map((service) => {
-                  const isSelected = tempSelectedServices.includes(service.id);
-                  return (
-                    <TouchableOpacity
-                      key={service.id}
-                      style={[
-                        styles.serviceOption,
-                        {
-                          borderColor: isSelected
-                            ? theme.colors.primary
-                            : theme.effects.cardBorder,
-                          backgroundColor: isSelected
-                            ? theme.colors.primary + "10"
-                            : theme.colors.surface,
-                        },
-                      ]}
-                      onPress={() => toggleServiceSelection(service.id)}
-                    >
-                      <View
-                        style={[
-                          styles.checkbox,
-                          {
-                            borderColor: isSelected
-                              ? theme.colors.primary
-                              : theme.colors.textSecondary,
-                            backgroundColor: isSelected
-                              ? theme.colors.primary
-                              : "transparent",
-                          },
-                        ]}
-                      >
-                        {isSelected && (
-                          <Icon name="checkmark" size={16} color="#FFF" />
-                        )}
-                      </View>
-                      <View>
-                        <Text style={[styles.serviceName, { fontSize: 14 }]}>
-                          {service.name}
-                        </Text>
-                        <Text style={[styles.serviceAmount, { fontSize: 13 }]}>
-                          ${service.amount.toLocaleString()}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-
-              {availableServices.filter(
-                (service) => !selectedServices.find((s) => s.id === service.id),
-              ).length === 0 && (
-                <Text
-                  style={{
-                    textAlign: "center",
-                    color: theme.colors.textSecondary,
-                    marginTop: 20,
-                  }}
-                >
-                  All available services added
-                </Text>
-              )}
+              <ThemeDropdown
+                label="Select Partner"
+                placeholder="Choose a partner"
+                options={referralPartners.map((p) => ({
+                  label: p.name,
+                  value: p.id,
+                }))}
+                selectedValue={newServiceSelection.partnerId}
+                onValueChange={(val: string) =>
+                  setNewServiceSelection({
+                    ...newServiceSelection,
+                    partnerId: val,
+                  })
+                }
+              />
             </ScrollView>
 
-            {/* <View style={{ gap: 12 }}>
-              <Button
-                title={`Add Selected (${tempSelectedServices.length})`}
-                onPress={handleAddServices}
-                variant="primary"
-                disabled={tempSelectedServices.length === 0}
-              />
-              <Button
-                title="Cancel"
-                onPress={() => setShowServiceSelector(false)}
-                variant="ghost"
-              />
-            </View> */}
-
-            <View style={[styles.modalButtons, { marginBottom: 20 }]}>
+            <View style={styles.modalButtons}>
               <Button
                 title="Cancel"
                 variant="outline"
@@ -555,8 +605,75 @@ const PayoutEditScreen = () => {
                 style={{ flex: 1 }}
               />
               <Button
-                title={`Add Selected (${tempSelectedServices.length})`}
+                title="Add Service"
                 onPress={handleAddServices}
+                style={{ flex: 1 }}
+                disabled={
+                  !newServiceSelection.serviceId ||
+                  !newServiceSelection.partnerId
+                }
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Service Modal */}
+      <Modal
+        visible={showEditServiceModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEditServiceModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Service Details</Text>
+              <TouchableOpacity onPress={() => setShowEditServiceModal(false)}>
+                <Icon name="close" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.serviceName, { marginBottom: 16 }]}>
+                {editingService?.name}
+              </Text>
+
+              <Input
+                label="Revenue Amount ($)"
+                placeholder="0.00"
+                keyboardType="numeric"
+                value={editingService?.revenue?.toString()}
+                onChangeText={(val: string) =>
+                  setEditingService((prev) =>
+                    prev ? { ...prev, revenue: parseFloat(val) || 0 } : null,
+                  )
+                }
+              />
+
+              <Input
+                label="Commission Amount ($)"
+                placeholder="0.00"
+                keyboardType="numeric"
+                value={editingService?.commission?.toString()}
+                onChangeText={(val: string) =>
+                  setEditingService((prev) =>
+                    prev ? { ...prev, commission: parseFloat(val) || 0 } : null,
+                  )
+                }
+              />
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              <Button
+                title="Cancel"
+                variant="outline"
+                onPress={() => setShowEditServiceModal(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Save Changes"
+                onPress={handleSaveService}
                 style={{ flex: 1 }}
               />
             </View>

@@ -87,7 +87,8 @@ const ProfileScreen = () => {
       textTransform: "capitalize",
     },
     section: {
-      marginBottom: 24,
+      // marginBottom: 24,
+      marginBottom: 12,
     },
     sectionTitle: {
       fontSize: 18,
@@ -201,7 +202,7 @@ const ProfileScreen = () => {
         </View>
 
         {/* Theme Selection */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             Theme ({themes.length} available)
           </Text>
@@ -242,7 +243,7 @@ const ProfileScreen = () => {
               ))}
             </View>
           </Card>
-        </View>
+        </View> */}
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={() => navigation.navigate("Settings")}
