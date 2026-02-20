@@ -5,11 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../../hooks/useTheme";
+import { useAlert } from "../../context/AlertContext";
 import { RootState } from "../../store";
 import { logout } from "../../store/slices/authSlice";
 import { setTheme } from "../../store/slices/themeSlice";
@@ -18,6 +18,7 @@ import { themes } from "../../theme/themes";
 import { useNavigation } from "@react-navigation/native";
 
 const ProfileScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigation = useNavigation<any>();
@@ -27,7 +28,7 @@ const ProfileScreen = () => {
   );
 
   const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
+    showAlert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Logout",

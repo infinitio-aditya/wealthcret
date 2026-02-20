@@ -10,11 +10,11 @@ import {
   Modal,
 } from "react-native";
 import { useTheme } from "../../../hooks/useTheme";
+import { useAlert } from "../../../context/AlertContext";
 import Card from "../../../components/ui/Card";
 import Icon from "react-native-vector-icons/Ionicons";
 import { ServiceRequest } from "../../../types";
 import Button from "../../../components/ui/Button";
-import { Alert } from "react-native";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 
 const mockServiceRequests: ServiceRequest[] = [
@@ -67,6 +67,7 @@ const mockOrganizations = [
 ];
 
 const ServiceRequestsScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +76,9 @@ const ServiceRequestsScreen = () => {
     "all" | "pending" | "assigned" | "completed"
   >("all");
   const [assignModalVisible, setAssignModalVisible] = useState(false);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
+    null,
+  );
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
 
   useEffect(() => {
@@ -105,26 +108,26 @@ const ServiceRequestsScreen = () => {
 
   const handleConfirmAssign = () => {
     if (!selectedOrgId) {
-      Alert.alert("Error", "Please select an organization");
+      showAlert("Error", "Please select an organization");
       return;
     }
 
     const orgName = mockOrganizations.find(
-      (org) => org.value === selectedOrgId
+      (org) => org.value === selectedOrgId,
     )?.label;
 
     setRequests((prev) =>
       prev.map((r) =>
         r.id === selectedRequestId
           ? { ...r, status: "assigned", organizationId: selectedOrgId }
-          : r
-      )
+          : r,
+      ),
     );
 
     setAssignModalVisible(false);
     setSelectedRequestId(null);
     setSelectedOrgId("");
-    Alert.alert("Success", `Request assigned to ${orgName}`);
+    showAlert("Success", `Request assigned to ${orgName}`);
   };
 
   const filteredRequests =
@@ -209,9 +212,10 @@ const ServiceRequestsScreen = () => {
     });
 
     return (
-      <TouchableOpacity 
-      onPress={() => handleAssign(item.id)}
-      activeOpacity={0.8}>
+      <TouchableOpacity
+        onPress={() => handleAssign(item.id)}
+        activeOpacity={0.8}
+      >
         <Card style={styles.requestCard}>
           <View style={styles.requestHeader}>
             <View style={styles.requestInfo}>

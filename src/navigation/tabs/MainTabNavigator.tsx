@@ -1,69 +1,69 @@
-import React from 'react';
-import { Platform, SafeAreaView, View } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { useSelector } from 'react-redux';
-import { useTheme } from '../../hooks/useTheme';
-import { RootState } from '../../store';
-import { MainTabParamList } from '../NavigationParams';
+import React from "react";
+import { Platform, SafeAreaView, View } from "react-native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import Icon from "react-native-vector-icons/Ionicons";
+import { useSelector } from "react-redux";
+import { useTheme } from "../../hooks/useTheme";
+import { RootState } from "../../store";
+import { MainTabParamList } from "../NavigationParams";
 
 // Stacks
-import DashboardStackNavigator from '../stacks/DashboardStack';
-import ClientStackNavigator from '../stacks/ClientStack';
-import SupportStackNavigator from '../stacks/SupportStack';
-import DocumentStackNavigator from '../stacks/DocumentStack';
+import DashboardStackNavigator from "../stacks/DashboardStack";
+import ClientStackNavigator from "../stacks/ClientStack";
+import SupportStackNavigator from "../stacks/SupportStack";
+import DocumentStackNavigator from "../stacks/DocumentStack";
 
 // Screens
-import OrganizationRequestsScreen from '../../screens/admin/orgRequests/OrganizationRequestsScreen';
-import PayoutScreen from '../../screens/admin/payOut/PayoutScreen';
-import NotificationsScreen from '../../screens/NotificationsScreen';
-import ProfileScreen from '../../screens/profile/ProfileScreen';
+import OrgRequestsStackNavigator from "../stacks/OrgRequestsStack";
+import PayoutScreen from "../../screens/admin/payOut/PayoutScreen";
+import NotificationsScreen from "../../screens/NotificationsScreen";
+import ProfileScreen from "../../screens/profile/ProfileScreen";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const MainTabNavigator = () => {
   const theme = useTheme();
   const user = useSelector((state: RootState) => state.auth.user);
-  const role = user?.role || 'client';
+  const role = user?.role || "client";
 
   const getTabConfig = (routeName: string) => {
     switch (routeName) {
-      case 'HomeTab':
-        return { label: 'Home', icon: 'home-outline' };
-      case 'RoleTab1':
-        if (role === 'admin')
-          return { label: 'Requests', icon: 'business-outline' };
-        if (role === 'client')
-          return { label: 'Docs', icon: 'document-text-outline' };
-        return { label: 'Clients', icon: 'people-outline' }; // sp, rp
-      case 'RoleTab2':
-        if (role === 'admin' || role === 'referral_partner')
-          return { label: 'Payout', icon: 'cash-outline' };
-        return { label: 'Support', icon: 'help-buoy-outline' }; // sp, client
-      case 'AlertsTab':
-        return { label: 'Alerts', icon: 'notifications-outline' };
-      case 'ProfileTab':
-        return { label: 'Profile', icon: 'person-outline' };
+      case "HomeTab":
+        return { label: "Home", icon: "home-outline" };
+      case "RoleTab1":
+        if (role === "admin")
+          return { label: "Requests", icon: "business-outline" };
+        if (role === "client")
+          return { label: "Docs", icon: "document-text-outline" };
+        return { label: "Clients", icon: "people-outline" }; // sp, rp
+      case "RoleTab2":
+        if (role === "admin" || role === "referral_partner")
+          return { label: "Payout", icon: "cash-outline" };
+        return { label: "Support", icon: "help-buoy-outline" }; // sp, client
+      case "AlertsTab":
+        return { label: "Alerts", icon: "notifications-outline" };
+      case "ProfileTab":
+        return { label: "Profile", icon: "person-outline" };
       default:
-        return { label: '', icon: '' };
+        return { label: "", icon: "" };
     }
   };
 
   const getTabComponent = (routeName: string) => {
     switch (routeName) {
-      case 'HomeTab':
+      case "HomeTab":
         return DashboardStackNavigator;
-      case 'RoleTab1':
-        if (role === 'admin') return OrganizationRequestsScreen;
-        if (role === 'client') return DocumentStackNavigator;
+      case "RoleTab1":
+        if (role === "admin") return OrgRequestsStackNavigator;
+        if (role === "client") return DocumentStackNavigator;
         return ClientStackNavigator;
-      case 'RoleTab2':
-        if (role === 'admin' || role === 'referral_partner')
+      case "RoleTab2":
+        if (role === "admin" || role === "referral_partner")
           return PayoutScreen;
         return SupportStackNavigator;
-      case 'AlertsTab':
+      case "AlertsTab":
         return NotificationsScreen;
-      case 'ProfileTab':
+      case "ProfileTab":
         return ProfileScreen;
       default:
         return DashboardStackNavigator;
@@ -76,11 +76,11 @@ const MainTabNavigator = () => {
         tabBarIcon: ({ focused, color, size }) => {
           const { icon } = getTabConfig(route.name);
           return (
-            <View style={{ alignItems: 'center', width: '100%' }}>
+            <View style={{ alignItems: "center", width: "100%" }}>
               {focused && (
                 <View
                   style={{
-                    position: 'absolute',
+                    position: "absolute",
                     top: -12,
                     width: 32,
                     height: 3,
@@ -98,23 +98,23 @@ const MainTabNavigator = () => {
         tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: '600',
+          fontWeight: "600",
           marginBottom: 4,
         },
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.effects.cardBorder,
-          height: Platform.OS === 'ios' ? 100 : 65,
+          height: Platform.OS === "ios" ? 100 : 65,
           paddingTop: 10,
         },
         headerShown: false,
       })}
     >
-      <Tab.Screen name="HomeTab" component={getTabComponent('HomeTab')} />
-      <Tab.Screen name="RoleTab1" component={getTabComponent('RoleTab1')} />
-      <Tab.Screen name="RoleTab2" component={getTabComponent('RoleTab2')} />
-      <Tab.Screen name="AlertsTab" component={getTabComponent('AlertsTab')} />
-      <Tab.Screen name="ProfileTab" component={getTabComponent('ProfileTab')} />
+      <Tab.Screen name="HomeTab" component={getTabComponent("HomeTab")} />
+      <Tab.Screen name="RoleTab1" component={getTabComponent("RoleTab1")} />
+      <Tab.Screen name="RoleTab2" component={getTabComponent("RoleTab2")} />
+      <Tab.Screen name="AlertsTab" component={getTabComponent("AlertsTab")} />
+      <Tab.Screen name="ProfileTab" component={getTabComponent("ProfileTab")} />
     </Tab.Navigator>
   );
 };

@@ -5,13 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Dimensions,
   TextInput,
 } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { useTheme } from "../../../hooks/useTheme";
+import { useAlert } from "../../../context/AlertContext";
 import Header from "../../../components/Header";
 import Icon from "react-native-vector-icons/Ionicons";
 import Card from "../../../components/ui/Card";
@@ -42,6 +42,7 @@ const uniqueAdvisors = mockServiceProviders.map((sp) => sp.name);
 const uniqueReferralPartners = mockReferralPartners.map((rp) => rp.name);
 
 const AdminLicensingEditScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const route = useRoute<RouteProp<RouteParams, "AdminLicensingEdit">>();
   const navigation = useNavigation<NavigationProp>();
@@ -86,11 +87,11 @@ const AdminLicensingEditScreen = () => {
 
   const handleSave = () => {
     if (!formData.name) {
-      Alert.alert("Error", "Organization name is required");
+      showAlert("Error", "Organization name is required");
       return;
     }
 
-    Alert.alert("Success", "Organization updated successfully", [
+    showAlert("Success", "Organization updated successfully", [
       {
         text: "OK",
         onPress: () => {
@@ -150,7 +151,7 @@ const AdminLicensingEditScreen = () => {
   };
 
   const handleSaveFeature = (featureId: string) => {
-    Alert.alert("Success", "Feature license updated successfully", [
+    showAlert("Success", "Feature license updated successfully", [
       {
         text: "OK",
         onPress: () => {

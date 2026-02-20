@@ -6,15 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  Alert,
   Platform,
   TextInput,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { useTheme } from "../../../hooks/useTheme";
+import { useAlert } from "../../../context/AlertContext";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
-import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
@@ -40,6 +39,7 @@ const uniqueAdvisors = mockServiceProviders.map((sp) => sp.name);
 const uniqueReferralPartners = mockReferralPartners.map((rp) => rp.name);
 
 const AdminLicensingScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const [organizations, setOrganizations] =
@@ -48,102 +48,96 @@ const AdminLicensingScreen = () => {
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [formData, setFormData] = useState({
     name: "",
-    type: "Enterprise",
-    startDate: "",
+    status: "active" as const,
     endDate: "",
-    isActive: true,
-    features: JSON.parse(JSON.stringify(mockFeatures)) as Feature[],
-    assignedSP: "all",
-    referralPartner: "all",
+    assignedSP: "",
+    referralPartner: "",
+    features: [] as string[],
   });
 
-  // Filter States
-  const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState({
-    status: "all" as "all" | "active" | "inactive",
-    assignedSP: "all",
-    referralPartner: "all",
-  });
-  const [tempFilters, setTempFilters] = useState({
-    status: "all" as "all" | "active" | "inactive",
-    assignedSP: "all",
-    referralPartner: "all",
-  });
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [filterType, setFilterType] = useState<"all" | "active" | "expired">(
+    "all",
+  );
 
-  const filteredOrganizations = organizations.filter((org) => {
+  const filteredOrgs = organizations.filter((org) => {
     const matchesSearch = org.name
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      filters.status === "all" ||
-      (filters.status === "active" ? org.isActive : !org.isActive);
-    const matchesAdvisor =
-      filters.assignedSP === "all" || org.assignedSP === filters.assignedSP;
-    const matchesReferral =
-      filters.referralPartner === "all" ||
-      org.referralPartner === filters.referralPartner;
-    return matchesSearch && matchesStatus && matchesAdvisor && matchesReferral;
+    const matchesFilter =
+      filterType === "all" ||
+      (filterType === "active" ? org.isActive : !org.isActive);
+    return matchesSearch && matchesFilter;
   });
 
-  const handleApplyFilters = () => {
-    setFilters(tempFilters);
-    setShowFilters(false);
-  };
-
-  const handleResetFilters = () => {
-    const reset = {
-      status: "all" as "all" | "active" | "inactive",
-      assignedSP: "all",
-      referralPartner: "all",
-    };
-    setTempFilters(reset);
-    setFilters(reset);
-    setShowFilters(false);
-  };
-
-  const handleOpenModal = (org?: Organization) => {
-    // If org is provided, navigate to edit screen
-    if (org) {
-      navigation.navigate("AdminLicensingEdit", { orgId: org.id });
-      return;
-    }
-
-    // Otherwise open create modal
-    setEditingOrg(null);
+  const handleEdit = (org: Organization) => {
+    setEditingOrg(org);
     setFormData({
-      name: "",
-      type: "Enterprise",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-        .toISOString()
-        .split("T")[0],
-      isActive: true,
-      features: JSON.parse(JSON.stringify(mockFeatures)),
-      assignedSP: "all",
-      referralPartner: "all",
+      name: org.name,
+      status: org.isActive ? "active" : "expired",
+      endDate: org.endDate,
+      assignedSP: org.assignedSP || "",
+      referralPartner: org.referralPartner || "",
+      features: org.features.map((f) => f.id),
     });
     setModalVisible(true);
   };
 
-  const handleSaveOrg = () => {
+  const handleCreate = () => {
+    setEditingOrg(null);
+    setFormData({
+      name: "",
+      status: "active",
+      endDate: "",
+      assignedSP: "",
+      referralPartner: "",
+      features: [],
+    });
+    setModalVisible(true);
+  };
+
+  const handleSave = () => {
     if (!formData.name) {
-      Alert.alert("Error", "Organization name is required");
+      showAlert("Error", "Please fill in all required fields.");
       return;
     }
 
+    const orgFeatures = mockFeatures.filter((f) =>
+      formData.features.includes(f.id),
+    );
+
     if (editingOrg) {
-      setOrganizations(
-        organizations.map((o) =>
-          o.id === editingOrg.id ? { ...editingOrg, ...formData } : o,
+      setOrganizations((prev) =>
+        prev.map((org) =>
+          org.id === editingOrg.id
+            ? {
+                ...org,
+                name: formData.name,
+                endDate: formData.endDate,
+                assignedSP: formData.assignedSP,
+                referralPartner: formData.referralPartner,
+                isActive: formData.status === "active",
+                features: orgFeatures,
+              }
+            : org,
         ),
       );
+      showAlert("Success", "Organization updated successfully.");
     } else {
       const newOrg: Organization = {
         id: Math.random().toString(36).substr(2, 9),
-        ...formData,
+        name: formData.name,
+        type: "Enterprise",
+        startDate: new Date().toISOString().split("T")[0],
+        endDate: formData.endDate,
+        isActive: formData.status === "active",
+        assignedSP: formData.assignedSP,
+        referralPartner: formData.referralPartner,
+        features: orgFeatures,
       };
-      setOrganizations([...organizations, newOrg]);
+      setOrganizations((prev) => [...prev, newOrg]);
+      showAlert("Success", "Organization created successfully.");
     }
     setModalVisible(false);
   };
@@ -151,773 +145,618 @@ const AdminLicensingScreen = () => {
   const toggleFeature = (featureId: string) => {
     setFormData((prev) => ({
       ...prev,
-      features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, isActive: !f.isActive } : f,
-      ),
+      features: prev.features.includes(featureId)
+        ? prev.features.filter((id) => id !== featureId)
+        : [...prev.features, featureId],
     }));
   };
 
-  const updateFeatureAllocated = (featureId: string, count: string) => {
-    const val = parseInt(count) || 0;
-    setFormData((prev) => ({
-      ...prev,
-      features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, allocatedLicenses: val } : f,
-      ),
-    }));
-  };
-
-  const stats = [
-    {
-      label: "Total Orgs",
-      value: organizations.length.toString(),
-      icon: "business-outline",
-      color: theme.colors.primary,
-    },
-    {
-      label: "Active Orgs",
-      value: organizations.filter((o) => o.isActive).length.toString(),
-      icon: "trending-up-outline",
-      color: theme.colors.success,
-    },
-    {
-      label: "Total Users",
-      value: "2,847",
-      icon: "people-outline",
-      color: theme.colors.info,
-    },
-    {
-      label: "Revenue",
-      value: "$127K",
-      icon: "cash-outline",
-      color: theme.colors.warning,
-    },
-  ];
-
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    header: {
-      padding: 20,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    title: {
-      fontSize: 24,
-      fontWeight: "bold",
-      color: theme.colors.text,
-    },
-    subtitle: {
-      fontSize: 14,
-      color: theme.colors.textSecondary,
-    },
-    headerButtons: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-    },
-    filterButtonIcon: {
-      padding: 8,
-      backgroundColor: "rgba(0,0,0,0.05)",
-      borderRadius: 8,
-    },
-    // searchContainer: {
-    //   paddingHorizontal: 16,
-    //   marginBottom: 16,
-    // },
-    searchContainer: {
-      flexDirection: "row",
-      gap: 12,
-      paddingHorizontal: 16,
-      //   marginBottom: 16,
-    },
-    searchInner: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-      paddingHorizontal: 12,
-      borderWidth: 1,
-      borderColor: theme.effects.cardBorder,
-    },
-    searchInput: {
-      flex: 1,
-      marginLeft: 8,
-      fontSize: 14,
-    },
-    emptyContainer: {
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 40,
-    },
-    pickerContainer: {
-      borderWidth: 1,
-      borderRadius: 12,
-      height: 50,
-      justifyContent: "center",
-      marginTop: 8,
-    },
-    modalButtons: {
-      flexDirection: "row",
-      gap: 12,
-      marginTop: 16,
-      marginBottom: 16,
-    },
-    statsContainer: {
-      paddingHorizontal: 16,
-      paddingBottom: 20,
-      gap: 12,
-    },
-    statCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      padding: 16,
-      width: 140,
-      borderWidth: 1,
-      borderColor: theme.effects.cardBorder,
-    },
-    statIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      justifyContent: "center",
-      alignItems: "center",
-      marginBottom: 8,
-    },
-    statValue: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: theme.colors.text,
-    },
-    statLabel: {
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-      marginTop: 2,
-    },
-    listContainer: {
-      padding: 16,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: theme.colors.text,
-      marginBottom: 16,
-    },
-    orgCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      padding: 16,
-      marginBottom: 16,
-      borderWidth: 1,
-      borderColor: theme.effects.cardBorder,
-    },
-    orgHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 16,
-    },
-    iconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 10,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    orgInfo: {
-      flex: 1,
-      marginLeft: 12,
-    },
-    orgName: {
-      fontSize: 16,
-      fontWeight: "600",
-      color: theme.colors.text,
-    },
-    typeBadge: {
-      alignSelf: "flex-start",
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 6,
-      marginTop: 4,
-    },
-    typeText: {
-      fontSize: 11,
-      fontWeight: "600",
-    },
-    editButton: {
-      padding: 8,
-    },
-    datesGrid: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: theme.effects.cardBorder,
-      marginBottom: 12,
-    },
-    dateLabel: {
-      fontSize: 10,
-      color: theme.colors.textSecondary,
-      fontWeight: "600",
-      marginBottom: 4,
-    },
-    dateValue: {
-      fontSize: 13,
-      color: theme.colors.text,
-      fontWeight: "500",
-    },
-    statusRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    statusBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
-    statusText: {
-      fontSize: 13,
-      fontWeight: "600",
-    },
-    modal: {
-      margin: 0,
-      justifyContent: "flex-end",
-    },
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: "rgba(0,0,0,0.5)",
-      justifyContent: "flex-end",
-    },
-    modalContent: {
-      backgroundColor: theme.colors.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      padding: 24,
-      paddingBottom: 40,
-      maxHeight: SCREEN_HEIGHT * 0.9,
-    },
-    modalHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 24,
-    },
-    modalTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: theme.colors.text,
-    },
-    form: {
-      gap: 20,
-    },
-    formGroup: {
-      gap: 8,
-    },
-    label: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: theme.colors.text,
-    },
-    featureItem: {
-      padding: 16,
-      borderRadius: 12,
-      backgroundColor: theme.colors.background,
-      marginBottom: 12,
-      borderWidth: 1,
-      borderColor: theme.effects.cardBorder,
-    },
-    featureHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 12,
-    },
-    featureName: {
-      fontSize: 15,
-      fontWeight: "bold",
-      color: theme.colors.text,
-    },
-    featureControls: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-    },
-    allocatedInput: {
-      flex: 1,
-      backgroundColor: theme.colors.surface,
-      height: 40,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      color: theme.colors.text,
-      borderWidth: 1,
-      borderColor: theme.effects.cardBorder,
-    },
-    saveButton: {
-      marginTop: 24,
-    },
-    searchBox: {
-      flex: 1,
-      backgroundColor: theme.effects.glassBackground,
-      paddingHorizontal: 12,
-      height: 44,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: theme.effects.cardBorder,
-      color: theme.colors.text,
-    },
-    filterBtn: {
-      width: 44,
-      height: 44,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.05)",
-      borderRadius: 12,
-    },
-  });
-
-  const renderOrg = ({ item }: { item: Organization }) => (
-    <Card style={styles.orgCard}>
-      <View style={styles.orgHeader}>
-        <View
-          style={[
-            styles.iconContainer,
-            { backgroundColor: theme.colors.primary + "20" },
-          ]}
-        >
-          <Icon
-            name="business-outline"
-            size={20}
-            color={theme.colors.primary}
-          />
-        </View>
-        <View style={styles.orgInfo}>
-          <Text style={styles.orgName}>{item.name}</Text>
-          <View
-            style={[
-              styles.typeBadge,
-              { backgroundColor: theme.colors.info + "20" },
-            ]}
-          >
-            <Text style={[styles.typeText, { color: theme.colors.info }]}>
-              {item.type}
-            </Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => handleOpenModal(item)}
-        >
-          <Icon name="create-outline" size={22} color={theme.colors.primary} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.datesGrid}>
-        <View>
-          <Text style={styles.dateLabel}>START DATE</Text>
-          <Text style={styles.dateValue}>{item.startDate}</Text>
-        </View>
-        <View>
-          <Text style={styles.dateLabel}>END DATE</Text>
-          <Text style={styles.dateValue}>{item.endDate}</Text>
-        </View>
-      </View>
-
-      <View style={styles.statusRow}>
-        <Text style={styles.dateLabel}>STATUS</Text>
-        <View style={styles.statusBadge}>
-          <Icon
-            name={item.isActive ? "checkmark-circle" : "close-circle"}
-            size={16}
-            color={item.isActive ? theme.colors.success : theme.colors.error}
-          />
-          <Text
-            style={[
-              styles.statusText,
-              {
-                color: item.isActive
-                  ? theme.colors.success
-                  : theme.colors.error,
-              },
-            ]}
-          >
-            {item.isActive ? "Active" : "Inactive"}
-          </Text>
-        </View>
-      </View>
-    </Card>
-  );
-
-  const renderFilters = () => (
-    <ThemeBottomSheet
-      isVisible={showFilters}
-      onClose={() => setShowFilters(false)}
-      title="Filters"
+  const renderFilterButton = (
+    label: string,
+    type: "all" | "active" | "expired",
+  ) => (
+    <TouchableOpacity
+      onPress={() => setFilterType(type)}
+      style={[
+        styles.filterOption,
+        filterType === type && {
+          backgroundColor: theme.colors.primary,
+          borderColor: theme.colors.primary,
+        },
+      ]}
     >
-      <Text style={[styles.label, { color: theme.colors.text }]}>Status</Text>
-      <View style={styles.modalButtons}>
-        {["all", "active", "inactive"].map((status) => (
-          <TouchableOpacity
-            key={status}
-            style={[
-              { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-              tempFilters.status === status
-                ? { backgroundColor: theme.colors.primary }
-                : { borderColor: theme.effects.cardBorder, borderWidth: 1 },
-            ]}
-            onPress={() =>
-              setTempFilters({ ...tempFilters, status: status as any })
-            }
-          >
-            <Text
-              style={[
-                { fontSize: 14, fontWeight: "500" },
-                tempFilters.status === status
-                  ? { color: theme.colors.secondary }
-                  : { color: theme.colors.text },
-              ]}
-            >
-              {status.toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <ThemeDropdown
-        label="Assigned Service Provider"
-        options={[
-          { label: "All Advisors", value: "all" },
-          ...uniqueAdvisors.map((ad) => ({ label: ad, value: ad })),
+      <Text
+        style={[
+          styles.filterOptionText,
+          filterType === type && { color: "#fff" },
         ]}
-        selectedValue={tempFilters.assignedSP}
-        onValueChange={(value) =>
-          setTempFilters({ ...tempFilters, assignedSP: value })
-        }
-      />
-
-      <ThemeDropdown
-        label="Referral Partner"
-        options={[
-          { label: "All Partners", value: "all" },
-          ...uniqueReferralPartners.map((rp) => ({ label: rp, value: rp })),
-        ]}
-        selectedValue={tempFilters.referralPartner}
-        onValueChange={(value) =>
-          setTempFilters({ ...tempFilters, referralPartner: value })
-        }
-      />
-
-      <View style={[styles.modalButtons, { marginBottom: 20 }]}>
-        <Button
-          title="Reset All"
-          variant="outline"
-          onPress={handleResetFilters}
-          style={{ flex: 1 }}
-        />
-        <Button
-          title="Apply Filters"
-          onPress={handleApplyFilters}
-          style={{ flex: 1 }}
-        />
-      </View>
-    </ThemeBottomSheet>
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
           <View>
-            <Text style={styles.title}>License Management</Text>
-            <Text style={styles.subtitle}>Manage organization licenses</Text>
+            <Text style={styles.headerTitle}>Licensing Management</Text>
+            <Text style={styles.headerSubtitle}>
+              Manage organizations and their active licenses
+            </Text>
           </View>
-          <View style={styles.headerButtons}>
-            {/* <TouchableOpacity
-              style={styles.filterButtonIcon}
-              onPress={() => setShowFilters(true)}
-            >
-              <Icon name="filter" size={24} color={theme.colors.primary} />
-            </TouchableOpacity> */}
-            {/* <TouchableOpacity onPress={() => handleOpenModal()}>
-              <Icon name="add-circle" size={32} color={theme.colors.primary} />
-            </TouchableOpacity> */}
-          </View>
+          <TouchableOpacity style={styles.createButton} onPress={handleCreate}>
+            <Icon name="add" size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.statsContainer}
-        >
-          {stats.map((stat, idx) => (
-            <View key={idx} style={styles.statCard}>
-              <View
-                style={[
-                  styles.statIcon,
-                  { backgroundColor: stat.color + "20" },
-                ]}
-              >
-                <Icon name={stat.icon} size={20} color={stat.color} />
-              </View>
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </ScrollView>
-
-        {/* <View
-          style={[
-            styles.searchContainer,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.effects.cardBorder,
-            },
-          ]}
-        >
-          <View style={styles.searchInner}>
-            <Icon name="search" size={20} color={theme.colors.textSecondary} />
-            <Input
-              style={[
-                styles.searchInput,
-                { color: theme.colors.text, borderBottomWidth: 0, height: 40 },
-              ]}
+        <View style={styles.searchContainer}>
+          <View
+            style={[
+              styles.searchInputWrapper,
+              { backgroundColor: theme.colors.surface },
+            ]}
+          >
+            <Icon
+              name="search-outline"
+              size={20}
+              color={theme.colors.textSecondary}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={[styles.searchInput, { color: theme.colors.text }]}
               placeholder="Search organizations..."
               placeholderTextColor={theme.colors.textSecondary}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
-          </View> */}
-        {/* </View> */}
-
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchBox}
-            placeholder="Search organizations..."
-            placeholderTextColor={theme.colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+            {searchQuery !== "" && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Icon
+                  name="close-circle"
+                  size={18}
+                  color={theme.colors.textSecondary}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
           <TouchableOpacity
-            style={styles.filterBtn}
-            onPress={() => setShowFilters(true)}
+            style={[
+              styles.filterButton,
+              { backgroundColor: theme.colors.surface },
+            ]}
+            onPress={() => setIsFilterVisible(!isFilterVisible)}
           >
-            <Icon name="filter" size={20} color={theme.colors.primary} />
+            <Icon
+              name="options-outline"
+              size={20}
+              color={theme.colors.primary}
+            />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.listContainer}>
-          <Text style={styles.sectionTitle}>Organizations</Text>
-          {filteredOrganizations.map((org) => (
-            <View key={org.id}>{renderOrg({ item: org })}</View>
-          ))}
-          {filteredOrganizations.length === 0 && (
-            <View style={styles.emptyContainer}>
-              <Icon
-                name="business-outline"
-                size={48}
-                color={theme.colors.textSecondary}
-              />
-              <Text
-                style={{ color: theme.colors.textSecondary, marginTop: 12 }}
-              >
-                No organizations found
-              </Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-
-      {renderFilters()}
-
-      {/* <Modal
-        isVisible={isModalVisible}
-        onBackdropPress={() => setModalVisible(false)}
-        onBackButtonPress={() => setModalVisible(false)}
-        swipeDirection={["down"]}
-        onSwipeComplete={() => setModalVisible(false)}
-        style={styles.modal}
-        backdropOpacity={0.5}
-      >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {editingOrg ? "Edit Organization" : "Add Organization"}
-            </Text>
-            <TouchableOpacity onPress={() => setModalVisible(false)}>
-              <Icon name="close" size={24} color={theme.colors.text} />
-            </TouchableOpacity>
+        {isFilterVisible && (
+          <View style={styles.filterOptionsContainer}>
+            {renderFilterButton("All", "all")}
+            {renderFilterButton("Active", "active")}
+            {renderFilterButton("Expired", "expired")}
           </View>
+        )}
+      </View>
 
-          <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Organization Name</Text>
-              <Input
-                placeholder="e.g. Acme Corp"
-                value={formData.name}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, name: text })
-                }
-              />
-            </View>
-
-            <ThemeDropdown
-              label="Assigned advisor"
-              options={[
-                { label: "Select Advisor", value: "all" },
-                ...uniqueAdvisors.map((ad) => ({ label: ad, value: ad })),
-              ]}
-              selectedValue={formData.assignedSP}
-              onValueChange={(itemValue) =>
-                setFormData({ ...formData, assignedSP: itemValue })
-              }
-            />
-
-            <ThemeDropdown
-              label="Referral Partner"
-              options={[
-                { label: "Select Partner", value: "all" },
-                ...uniqueReferralPartners.map((rp) => ({
-                  label: rp,
-                  value: rp,
-                })),
-              ]}
-              selectedValue={formData.referralPartner}
-              onValueChange={(itemValue) =>
-                setFormData({ ...formData, referralPartner: itemValue })
-              }
-            />
-
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Start Date</Text>
-                <Input
-                  placeholder="YYYY-MM-DD"
-                  value={formData.startDate}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, startDate: text })
-                  }
-                />
-              </View>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.label}>End Date</Text>
-                <Input
-                  placeholder="YYYY-MM-DD"
-                  value={formData.endDate}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, endDate: text })
-                  }
-                />
-              </View>
-            </View>
-
-            <View style={styles.formGroup}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={styles.label}>Active Status</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.orgList}>
+          {filteredOrgs.map((org) => (
+            <Card key={org.id} style={styles.orgCard}>
+              <View style={styles.orgCardHeader}>
+                <View style={styles.orgInfo}>
+                  <Text style={styles.orgCardTitle}>{org.name}</Text>
+                  <View style={styles.statusBadgeWrapper}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        {
+                          backgroundColor: org.isActive
+                            ? theme.colors.success + "20"
+                            : theme.colors.error + "20",
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          {
+                            color: org.isActive
+                              ? theme.colors.success
+                              : theme.colors.error,
+                          },
+                        ]}
+                      >
+                        {org.isActive ? "ACTIVE" : "EXPIRED"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
                 <TouchableOpacity
-                  onPress={() =>
-                    setFormData({ ...formData, isActive: !formData.isActive })
-                  }
-                  style={{
-                    width: 48,
-                    height: 24,
-                    borderRadius: 12,
-                    backgroundColor: formData.isActive
-                      ? theme.colors.success
-                      : theme.colors.error,
-                    padding: 2,
-                  }}
+                  style={styles.editButton}
+                  onPress={() => handleEdit(org)}
                 >
-                  <View
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      backgroundColor: "#FFF",
-                      alignSelf: formData.isActive ? "flex-end" : "flex-start",
-                    }}
+                  <Icon
+                    name="create-outline"
+                    size={20}
+                    color={theme.colors.primary}
                   />
                 </TouchableOpacity>
               </View>
-            </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Feature Licenses</Text>
-              {formData.features.map((feature) => (
-                <View key={feature.id} style={styles.featureItem}>
-                  <View style={styles.featureHeader}>
-                    <Text style={styles.featureName}>{feature.name}</Text>
-                    <TouchableOpacity onPress={() => toggleFeature(feature.id)}>
-                      <Icon
-                        name={feature.isActive ? "toggle" : "toggle-outline"}
-                        size={32}
-                        color={
-                          feature.isActive
-                            ? theme.colors.success
-                            : theme.colors.textSecondary
-                        }
-                      />
-                    </TouchableOpacity>
+              <View style={styles.orgDetails}>
+                <View style={styles.detailItem}>
+                  <Icon
+                    name="calendar-outline"
+                    size={16}
+                    color={theme.colors.textSecondary}
+                  />
+                  <Text style={styles.detailText}>Expires: {org.endDate}</Text>
+                </View>
+                {org.assignedSP && (
+                  <View style={styles.detailItem}>
+                    <Icon
+                      name="person-outline"
+                      size={16}
+                      color={theme.colors.textSecondary}
+                    />
+                    <Text style={styles.detailText}>SP: {org.assignedSP}</Text>
                   </View>
-                  {feature.isActive && (
-                    <View style={styles.featureControls}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.dateLabel, { marginBottom: 4 }]}>
-                          ALLOCATED
-                        </Text>
-                        <Input
-                          keyboardType="numeric"
-                          value={feature.allocatedLicenses.toString()}
-                          onChangeText={(text) =>
-                            updateFeatureAllocated(feature.id, text)
-                          }
-                          style={{ height: 40 }}
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.dateLabel, { marginBottom: 4 }]}>
-                          BILLING
-                        </Text>
-                        <View
-                          style={[
-                            styles.allocatedInput,
-                            { justifyContent: "center" },
-                          ]}
-                        >
-                          <Text
-                            style={{
-                              color: theme.colors.text,
-                              textTransform: "capitalize",
-                            }}
-                          >
-                            {feature.billingType}
-                          </Text>
-                        </View>
-                      </View>
+                )}
+                {org.referralPartner && (
+                  <View style={styles.detailItem}>
+                    <Icon
+                      name="people-outline"
+                      size={16}
+                      color={theme.colors.textSecondary}
+                    />
+                    <Text style={styles.detailText}>
+                      RP: {org.referralPartner}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.featureContainer}>
+                <Text style={styles.featureLabel}>Active Features:</Text>
+                <View style={styles.featureList}>
+                  {org.features.slice(0, 3).map((feature) => (
+                    <View
+                      key={feature.id}
+                      style={[
+                        styles.featureChip,
+                        { backgroundColor: theme.colors.primary + "15" },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.featureChipText,
+                          { color: theme.colors.primary },
+                        ]}
+                      >
+                        {feature.name}
+                      </Text>
                     </View>
+                  ))}
+                  {org.features.length > 3 && (
+                    <Text style={styles.moreFeaturesText}>
+                      +{org.features.length - 3} more
+                    </Text>
                   )}
                 </View>
-              ))}
+              </View>
+
+              <View style={styles.cardActions}>
+                <Button
+                  title="View Details"
+                  variant="outline"
+                  onPress={() =>
+                    navigation.navigate("AdminLicensingEdit", { orgId: org.id })
+                  }
+                  style={styles.actionBtn}
+                />
+                <Button
+                  title="Update License"
+                  variant="primary"
+                  onPress={() =>
+                    navigation.navigate("AdminLicensingEdit", { orgId: org.id })
+                  }
+                  style={styles.actionBtn}
+                />
+              </View>
+            </Card>
+          ))}
+        </View>
+      </ScrollView>
+
+      <Modal
+        isVisible={isModalVisible}
+        onBackdropPress={() => setModalVisible(false)}
+        style={styles.modal}
+        useNativeDriver
+        hideModalContentWhileAnimating
+      >
+        <View
+          style={[
+            styles.modalContent,
+            { backgroundColor: theme.colors.background },
+          ]}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              {editingOrg ? "Edit Organization" : "Create Organization"}
+            </Text>
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Icon name="close" size={24} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalForm}>
+            <Input
+              label="Organization Name"
+              value={formData.name}
+              onChangeText={(text) => setFormData({ ...formData, name: text })}
+              placeholder="Enter name"
+            />
+
+            <Input
+              label="Expiry Date"
+              value={formData.endDate}
+              onChangeText={(text) =>
+                setFormData({ ...formData, endDate: text })
+              }
+              placeholder="YYYY-MM-DD"
+            />
+
+            <View style={{ marginTop: 16 }}>
+              <ThemeDropdown
+                label="Assigned Service Provider"
+                options={uniqueAdvisors.map((name) => ({
+                  label: name,
+                  value: name,
+                }))}
+                selectedValue={formData.assignedSP}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, assignedSP: value })
+                }
+                placeholder="Select SP"
+              />
             </View>
 
-            <Button
-              title={editingOrg ? "Update Organization" : "Add Organization"}
-              onPress={handleSaveOrg}
-              style={styles.saveButton}
-            />
+            <View style={{ marginTop: 16 }}>
+              <ThemeDropdown
+                label="Assigned Referral Partner"
+                options={uniqueReferralPartners.map((name) => ({
+                  label: name,
+                  value: name,
+                }))}
+                selectedValue={formData.referralPartner}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, referralPartner: value })
+                }
+                placeholder="Select Partner"
+              />
+            </View>
+
+            <View style={styles.featureSelection}>
+              <Text style={[styles.formLabel, { color: theme.colors.text }]}>
+                Features
+              </Text>
+              <View style={styles.featureGrid}>
+                {mockFeatures.map((feature) => (
+                  <TouchableOpacity
+                    key={feature.id}
+                    style={[
+                      styles.featureSelectItem,
+                      formData.features.includes(feature.id) && {
+                        backgroundColor: theme.colors.primary + "20",
+                        borderColor: theme.colors.primary,
+                      },
+                    ]}
+                    onPress={() => toggleFeature(feature.id)}
+                  >
+                    <Icon
+                      name={
+                        formData.features.includes(feature.id)
+                          ? "checkbox"
+                          : "square-outline"
+                      }
+                      size={20}
+                      color={
+                        formData.features.includes(feature.id)
+                          ? theme.colors.primary
+                          : theme.colors.textSecondary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.featureSelectText,
+                        { color: theme.colors.text },
+                        formData.features.includes(feature.id) && {
+                          color: theme.colors.primary,
+                          fontWeight: "600",
+                        },
+                      ]}
+                    >
+                      {feature.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <Button
+              title="Cancel"
+              variant="outline"
+              onPress={() => setModalVisible(false)}
+              style={{ flex: 1, marginRight: 8 }}
+            />
+            <Button
+              title="Save"
+              variant="primary"
+              onPress={handleSave}
+              style={{ flex: 1, marginLeft: 8 }}
+            />
+          </View>
         </View>
-      </Modal> */}
+      </Modal>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    padding: 20,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1a1a1a",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 4,
+  },
+  createButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#6C63FF",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  searchInputWrapper: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#eee",
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+  },
+  filterButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#eee",
+  },
+  filterOptionsContainer: {
+    flexDirection: "row",
+    marginTop: 16,
+    gap: 8,
+  },
+  filterOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#eee",
+    backgroundColor: "#fff",
+  },
+  filterOptionText: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500",
+  },
+  scrollContent: {
+    padding: 20,
+    paddingTop: 10,
+  },
+  orgList: {
+    gap: 16,
+  },
+  orgCard: {
+    padding: 16,
+  },
+  orgCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  orgInfo: {
+    flex: 1,
+  },
+  orgCardTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1a1a1a",
+    marginBottom: 6,
+  },
+  statusBadgeWrapper: {
+    flexDirection: "row",
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  editButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F0EFFF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  orgDetails: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  featureContainer: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+    marginBottom: 16,
+  },
+  featureLabel: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#999",
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  featureList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    alignItems: "center",
+  },
+  featureChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  featureChipText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  moreFeaturesText: {
+    fontSize: 12,
+    color: "#666",
+    fontStyle: "italic",
+  },
+  cardActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  actionBtn: {
+    flex: 1,
+  },
+  modal: {
+    margin: 0,
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    height: SCREEN_HEIGHT * 0.85,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  modalForm: {
+    flex: 1,
+  },
+  formRow: {
+    flexDirection: "row",
+  },
+  formLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  featureSelection: {
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  featureGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  featureSelectItem: {
+    width: "48%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#eee",
+  },
+  featureSelectText: {
+    fontSize: 14,
+  },
+  modalFooter: {
+    flexDirection: "row",
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+  },
+});
 
 export default AdminLicensingScreen;

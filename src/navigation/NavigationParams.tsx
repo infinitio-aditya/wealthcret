@@ -67,7 +67,7 @@ export type MainDrawerParamList = {
   BulkUploads: undefined;
   CustomerMapping: undefined;
   MemberRoles: undefined;
-  OrganizationRequests: undefined;
+  OrgRequests: undefined;
   AdminLicensingStack: undefined;
   PayoutStack: undefined;
   Invite: undefined;

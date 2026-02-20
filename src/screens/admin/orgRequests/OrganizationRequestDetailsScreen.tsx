@@ -5,10 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useRoute, RouteProp } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
+import { useAlert } from "../../../context/AlertContext";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import ServicesList from "../../../components/screens/ServicesList";
@@ -47,13 +47,14 @@ interface Document {
 }
 
 const OrganizationRequestDetailsScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const route =
     useRoute<RouteProp<RouteParams, "OrganizationRequestDetails">>();
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState<OrganizationRequest | null>(null);
   const [approvalDetails, setApprovalDetails] = useState<ApprovalDetail | null>(
-    null
+    null,
   );
   const [services, setServices] = useState<Service[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -135,7 +136,7 @@ const OrganizationRequestDetailsScreen = () => {
   }, [route.params?.requestId]);
 
   const handleApprove = () => {
-    Alert.alert(
+    showAlert(
       "Approve Request",
       "Are you sure you want to approve this organization?",
       [
@@ -144,7 +145,7 @@ const OrganizationRequestDetailsScreen = () => {
           text: "Approve",
           onPress: () => {
             setRequest((prev) =>
-              prev ? { ...prev, status: "approved" } : null
+              prev ? { ...prev, status: "approved" } : null,
             );
             setApprovalDetails({
               approvedBy: "Admin User",
@@ -153,12 +154,12 @@ const OrganizationRequestDetailsScreen = () => {
             });
           },
         },
-      ]
+      ],
     );
   };
 
   const handleReject = () => {
-    Alert.alert(
+    showAlert(
       "Reject Request",
       "Are you sure you want to reject this organization?",
       [
@@ -168,7 +169,7 @@ const OrganizationRequestDetailsScreen = () => {
           style: "destructive",
           onPress: () => {
             setRequest((prev) =>
-              prev ? { ...prev, status: "rejected" } : null
+              prev ? { ...prev, status: "rejected" } : null,
             );
             setApprovalDetails({
               approvedBy: "Admin User",
@@ -177,37 +178,43 @@ const OrganizationRequestDetailsScreen = () => {
             });
           },
         },
-      ]
+      ],
     );
   };
 
   const handleCommissionSave = () => {
-    Alert.alert("Success", "Default commission updated successfully");
+    showAlert("Success", "Default commission updated successfully");
   };
 
   const handleUpdateDefaultCommission = (value: number) => {
     setDefaultCommission(value);
-    Alert.alert("Success", `Default commission updated to ${value}%`);
+    showAlert("Success", `Default commission updated to ${value}%`);
   };
 
-  const handleSaveServiceOverride = (serviceId: string, payload: Partial<Service>) => {
-    setServices((prev) => prev.map((s) => (s.id === serviceId ? { ...s, ...payload } : s)));
-    Alert.alert("Saved", `Saved override for service`);
+  const handleSaveServiceOverride = (
+    serviceId: string,
+    payload: Partial<Service>,
+  ) => {
+    setServices((prev) =>
+      prev.map((s) => (s.id === serviceId ? { ...s, ...payload } : s)),
+    );
+    showAlert("Saved", `Saved override for service`);
   };
 
   const handleDocumentDelete = (doc: Document) => {
-    Alert.alert("Delete Document", `Delete ${doc.name}?`, [
+    showAlert("Delete Document", `Delete ${doc.name}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => setDocuments((prev) => prev.filter((d) => d.id !== doc.id)),
+        onPress: () =>
+          setDocuments((prev) => prev.filter((d) => d.id !== doc.id)),
       },
     ]);
   };
 
   const handleDocumentPreview = (doc: Document) => {
-    Alert.alert("Preview", `Open ${doc.name}`);
+    showAlert("Preview", `Open ${doc.name}`);
   };
 
   const styles = StyleSheet.create({
@@ -372,10 +379,7 @@ const OrganizationRequestDetailsScreen = () => {
 
         {/* Reusable Approval Details Component */}
         {request?.status !== "pending" && approvalDetails && (
-          <ApprovalDetails
-            details={approvalDetails}
-            title="Approval Details"
-          />
+          <ApprovalDetails details={approvalDetails} title="Approval Details" />
         )}
 
         {/* Spacer for footer button area */}

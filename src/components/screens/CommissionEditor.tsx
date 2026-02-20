@@ -5,10 +5,10 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   ScrollView,
 } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
+import { useAlert } from "../../context/AlertContext";
 import Card from "../ui/Card";
 import Button from "../ui/Button";
 import ThemeDropdown from "../ui/ThemeDropdown";
@@ -26,7 +26,10 @@ interface CommissionEditorProps {
   selectedServices: Service[]; // services assigned to org
   userOrganizationDefaultCommission?: number;
   onUpdateDefaultCommission?: (value: number) => void;
-  onSaveServiceOverride?: (serviceId: string, payload: Partial<Service>) => void;
+  onSaveServiceOverride?: (
+    serviceId: string,
+    payload: Partial<Service>,
+  ) => void;
 }
 
 // Segment options
@@ -73,8 +76,11 @@ const CommissionEditor: React.FC<CommissionEditorProps> = ({
   onUpdateDefaultCommission,
   onSaveServiceOverride,
 }) => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
-  const [defaultCommission, setDefaultCommission] = useState(userOrganizationDefaultCommission);
+  const [defaultCommission, setDefaultCommission] = useState(
+    userOrganizationDefaultCommission,
+  );
   const [rows, setRows] = useState(
     selectedServices.map((s) => ({
       id: s.id,
@@ -105,24 +111,32 @@ const CommissionEditor: React.FC<CommissionEditorProps> = ({
 
   const handleRowChange = (id: string, key: string, value: any) => {
     setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, [key]: value, changed: true } : r)),
+      prev.map((r) =>
+        r.id === id ? { ...r, [key]: value, changed: true } : r,
+      ),
     );
   };
 
   const handleSaveRow = (r: any) => {
     if (onSaveServiceOverride) {
-      onSaveServiceOverride(r.id, { segment: r.segment, aum: r.aum, commission: Number(r.commission) });
+      onSaveServiceOverride(r.id, {
+        segment: r.segment,
+        aum: r.aum,
+        commission: Number(r.commission),
+      });
     } else {
-      Alert.alert("Saved", `Saved override for ${r.name}`);
+      showAlert("Saved", `Saved override for ${r.name}`);
     }
-    setRows((prev) => prev.map((row) => (row.id === r.id ? { ...row, changed: false } : row)));
+    setRows((prev) =>
+      prev.map((row) => (row.id === r.id ? { ...row, changed: false } : row)),
+    );
   };
 
   const handleSaveDefault = () => {
     if (onUpdateDefaultCommission) {
       onUpdateDefaultCommission(Number(defaultCommission));
     } else {
-      Alert.alert("Saved", `Default commission set to ${defaultCommission}%`);
+      showAlert("Saved", `Default commission set to ${defaultCommission}%`);
     }
   };
 
@@ -160,7 +174,12 @@ const CommissionEditor: React.FC<CommissionEditorProps> = ({
       backgroundColor: theme.colors.background,
     },
     saveRow: { minWidth: 90 },
-    defaultRow: { flexDirection: "row", gap: 8, alignItems: "center", marginBottom: 8 },
+    defaultRow: {
+      flexDirection: "row",
+      gap: 8,
+      alignItems: "center",
+      marginBottom: 8,
+    },
   });
 
   if (!selectedServices || selectedServices.length === 0) return null;
@@ -179,21 +198,29 @@ const CommissionEditor: React.FC<CommissionEditorProps> = ({
               style={styles.input}
             />
             <View style={{ flex: 1 }} />
-            <Button title="Save" onPress={handleSaveDefault} variant="primary" />
+            <Button
+              title="Save"
+              onPress={handleSaveDefault}
+              variant="primary"
+            />
           </View>
 
           <ScrollView>
             {rows.map((r) => (
               <View key={r.id} style={styles.rowCard}>
-                <Text style={[styles.value, { marginBottom: 12 }]}>{r.name}</Text>
-                
+                <Text style={[styles.value, { marginBottom: 12 }]}>
+                  {r.name}
+                </Text>
+
                 {/* Segment Dropdown */}
                 <View style={{ marginBottom: 12 }}>
                   <ThemeDropdown
                     label="Segment"
                     options={SEGMENT_OPTIONS}
                     selectedValue={r.segment}
-                    onValueChange={(value) => handleRowChange(r.id, 'segment', value)}
+                    onValueChange={(value) =>
+                      handleRowChange(r.id, "segment", value)
+                    }
                     placeholder="Select Segment"
                   />
                 </View>
@@ -204,7 +231,9 @@ const CommissionEditor: React.FC<CommissionEditorProps> = ({
                     label="AUM Range"
                     options={AUM_OPTIONS}
                     selectedValue={getAUMLabelFromValue(r.aum)}
-                    onValueChange={(value) => handleRowChange(r.id, 'aum', getAUMValue(value))}
+                    onValueChange={(value) =>
+                      handleRowChange(r.id, "aum", getAUMValue(value))
+                    }
                     placeholder="Select AUM Range"
                   />
                 </View>
@@ -214,16 +243,29 @@ const CommissionEditor: React.FC<CommissionEditorProps> = ({
                   <Text style={styles.label}>Commission %</Text>
                   <TextInput
                     value={String(r.commission)}
-                    onChangeText={(t) => handleRowChange(r.id, 'commission', Number(t || 0))}
+                    onChangeText={(t) =>
+                      handleRowChange(r.id, "commission", Number(t || 0))
+                    }
                     keyboardType="numeric"
                     style={styles.input}
                   />
                 </View>
 
-                <View style={{ marginTop: 12, alignItems: 'flex-end' }}>
-                  <TouchableOpacity disabled={!r.changed} onPress={() => handleSaveRow(r)} style={{ opacity: r.changed ? 1 : 0.5 }}>
+                <View style={{ marginTop: 12, alignItems: "flex-end" }}>
+                  <TouchableOpacity
+                    disabled={!r.changed}
+                    onPress={() => handleSaveRow(r)}
+                    style={{ opacity: r.changed ? 1 : 0.5 }}
+                  >
                     <View style={{ paddingHorizontal: 12 }}>
-                      <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>Save</Text>
+                      <Text
+                        style={{
+                          color: theme.colors.primary,
+                          fontWeight: "600",
+                        }}
+                      >
+                        Save
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 </View>

@@ -1,4 +1,4 @@
-import { Ticket, TicketMessage, TeamMember, Client, RiskProfile, NewsItem, OrganizationRequest, ServiceRequest, CustomerMapping, License, Activity } from '../types';
+import { Ticket, TicketMessage, TeamMember, Client, RiskProfile, NewsItem, OrganizationRequest, ServiceRequest, CustomerMapping, License, Activity, Document } from '../types';
 
 export const mockServiceProviders = [
     { id: '1', name: 'John Smith' },
