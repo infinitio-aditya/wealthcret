@@ -12,6 +12,7 @@ import {
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { useTheme } from "../../../hooks/useTheme";
+import Header from "../../../components/Header";
 import Icon from "react-native-vector-icons/Ionicons";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
@@ -58,7 +59,9 @@ const AdminLicensingEditScreen = () => {
   });
 
   const [expandedLicense, setExpandedLicense] = useState<string | null>(null);
-  const [featureChanges, setFeatureChanges] = useState<{ [key: string]: boolean }>({});
+  const [featureChanges, setFeatureChanges] = useState<{
+    [key: string]: boolean;
+  }>({});
 
   useEffect(() => {
     loadOrganization();
@@ -101,7 +104,7 @@ const AdminLicensingEditScreen = () => {
     setFormData((prev) => ({
       ...prev,
       features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, isActive: !f.isActive } : f
+        f.id === featureId ? { ...f, isActive: !f.isActive } : f,
       ),
     }));
     markFeatureChanged(featureId);
@@ -112,7 +115,7 @@ const AdminLicensingEditScreen = () => {
     setFormData((prev) => ({
       ...prev,
       features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, allocatedLicenses: val } : f
+        f.id === featureId ? { ...f, allocatedLicenses: val } : f,
       ),
     }));
     markFeatureChanged(featureId);
@@ -123,7 +126,7 @@ const AdminLicensingEditScreen = () => {
     setFormData((prev) => ({
       ...prev,
       features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, amount: val } : f
+        f.id === featureId ? { ...f, amount: val } : f,
       ),
     }));
     markFeatureChanged(featureId);
@@ -133,7 +136,7 @@ const AdminLicensingEditScreen = () => {
     setFormData((prev) => ({
       ...prev,
       features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, billingType: billingType as any } : f
+        f.id === featureId ? { ...f, billingType: billingType as any } : f,
       ),
     }));
     markFeatureChanged(featureId);
@@ -318,7 +321,7 @@ const AdminLicensingEditScreen = () => {
     },
     billingInfo: {
       flex: 1,
-    //   backgroundColor: theme.colors.background,
+      //   backgroundColor: theme.colors.background,
       padding: 10,
       borderRadius: 8,
       borderWidth: 1,
@@ -374,7 +377,12 @@ const AdminLicensingEditScreen = () => {
 
   if (!organization) {
     return (
-      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
         <Text style={{ color: theme.colors.textSecondary }}>Loading...</Text>
       </View>
     );
@@ -382,19 +390,7 @@ const AdminLicensingEditScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerBack}
-          onPress={() => navigation.goBack()}
-        >
-          <Icon name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerTitle}>
-          <Text style={styles.title}>Edit Organization</Text>
-          <Text style={styles.subtitle}>{organization.name}</Text>
-        </View>
-      </View>
+      <Header title="Edit Organization" subtitle={organization.name} showBack />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Organization Info Section */}
@@ -423,7 +419,9 @@ const AdminLicensingEditScreen = () => {
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Status</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+              >
                 <Icon
                   name={formData.isActive ? "checkmark-circle" : "close-circle"}
                   size={16}
@@ -455,9 +453,7 @@ const AdminLicensingEditScreen = () => {
             <Input
               placeholder="Enter organization name"
               value={formData.name}
-              onChangeText={(text) =>
-                setFormData({ ...formData, name: text })
-              }
+              onChangeText={(text) => setFormData({ ...formData, name: text })}
             />
           </View>
 

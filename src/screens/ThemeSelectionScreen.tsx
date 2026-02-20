@@ -10,6 +10,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Ionicons";
+import Header from "../components/Header";
 import { useTheme } from "../hooks/useTheme";
 import { RootState } from "../store";
 import { setTheme } from "../store/slices/themeSlice";
@@ -190,12 +191,7 @@ const ThemeSelectionScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Select Theme</Text>
-      </View>
+      <Header title="Select Theme" showBack />
       <FlatList
         data={themes}
         renderItem={renderThemeItem}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,16 @@ import {
   TextInput,
   Alert,
   Switch,
-} from 'react-native';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
-import { useTheme } from '../../../hooks/useTheme';
-import Icon from 'react-native-vector-icons/Ionicons';
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
-import Input from '../../../components/ui/Input';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { AdminLicensingStackParamList } from '../../../navigation/NavigationParams';
+} from "react-native";
+import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
+import { useTheme } from "../../../hooks/useTheme";
+import Header from "../../../components/Header";
+import Icon from "react-native-vector-icons/Ionicons";
+import Button from "../../../components/ui/Button";
+import Card from "../../../components/ui/Card";
+import Input from "../../../components/ui/Input";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { AdminLicensingStackParamList } from "../../../navigation/NavigationParams";
 
 type RouteParams = {
   OrganizationEdit: { orgId: string };
@@ -24,7 +25,7 @@ type RouteParams = {
 
 type NavigationProp = StackNavigationProp<
   AdminLicensingStackParamList,
-  'OrganizationEdit'
+  "OrganizationEdit"
 >;
 
 interface Feature {
@@ -32,65 +33,65 @@ interface Feature {
   name: string;
   allocatedLicenses: number;
   usedLicenses: number;
-  billingType: 'monthly' | 'annually';
+  billingType: "monthly" | "annually";
   amount: number;
   isActive: boolean;
 }
 
 const OrganizationEditScreen = () => {
   const theme = useTheme();
-  const route = useRoute<RouteProp<RouteParams, 'OrganizationEdit'>>();
+  const route = useRoute<RouteProp<RouteParams, "OrganizationEdit">>();
   const navigation = useNavigation<NavigationProp>();
 
   // Organization Details State
-  const [orgName, setOrgName] = useState('Acme Financial Services');
-  const [startDate, setStartDate] = useState('2024-01-15');
-  const [endDate, setEndDate] = useState('2025-01-15');
+  const [orgName, setOrgName] = useState("Acme Financial Services");
+  const [startDate, setStartDate] = useState("2024-01-15");
+  const [endDate, setEndDate] = useState("2025-01-15");
 
   // Features State
   const [features, setFeatures] = useState<Feature[]>([
     {
-      id: '1',
-      name: 'CRM Access',
+      id: "1",
+      name: "CRM Access",
       allocatedLicenses: 50,
       usedLicenses: 32,
-      billingType: 'monthly',
+      billingType: "monthly",
       amount: 29.99,
       isActive: true,
     },
     {
-      id: '2',
-      name: 'Analytics Pro',
+      id: "2",
+      name: "Analytics Pro",
       allocatedLicenses: 25,
       usedLicenses: 18,
-      billingType: 'annually',
+      billingType: "annually",
       amount: 299.99,
       isActive: true,
     },
     {
-      id: '3',
-      name: 'Document Manager',
+      id: "3",
+      name: "Document Manager",
       allocatedLicenses: 40,
       usedLicenses: 35,
-      billingType: 'monthly',
+      billingType: "monthly",
       amount: 19.99,
       isActive: true,
     },
     {
-      id: '4',
-      name: 'Client Portal',
+      id: "4",
+      name: "Client Portal",
       allocatedLicenses: 100,
       usedLicenses: 67,
-      billingType: 'monthly',
+      billingType: "monthly",
       amount: 49.99,
       isActive: true,
     },
     {
-      id: '5',
-      name: 'Risk Assessment',
+      id: "5",
+      name: "Risk Assessment",
       allocatedLicenses: 30,
       usedLicenses: 22,
-      billingType: 'annually',
+      billingType: "annually",
       amount: 199.99,
       isActive: false,
     },
@@ -102,24 +103,24 @@ const OrganizationEditScreen = () => {
   }, [route.params?.orgId]);
 
   const updateFeature = (id: string, field: keyof Feature, value: any) => {
-    setFeatures(prev =>
-      prev.map(feature =>
+    setFeatures((prev) =>
+      prev.map((feature) =>
         feature.id === id ? { ...feature, [field]: value } : feature,
       ),
     );
   };
 
   const handleSaveAll = () => {
-    console.log('Saving all changes:', {
+    console.log("Saving all changes:", {
       orgName,
       startDate,
       endDate,
       features,
     });
     Alert.alert(
-      'Success',
-      'Organization details and features updated successfully!',
-      [{ text: 'OK', onPress: () => navigation.goBack() }],
+      "Success",
+      "Organization details and features updated successfully!",
+      [{ text: "OK", onPress: () => navigation.goBack() }],
     );
   };
 
@@ -134,8 +135,8 @@ const OrganizationEditScreen = () => {
       backgroundColor: theme.colors.background,
     },
     header: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       padding: 16,
       backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
@@ -147,7 +148,7 @@ const OrganizationEditScreen = () => {
     },
     headerTitle: {
       fontSize: 20,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
     },
     content: {
@@ -157,14 +158,14 @@ const OrganizationEditScreen = () => {
       marginBottom: 24,
     },
     sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       marginBottom: 12,
       gap: 8,
     },
     sectionTitle: {
       fontSize: 18,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
     },
     card: {
@@ -174,30 +175,30 @@ const OrganizationEditScreen = () => {
       marginBottom: 16,
       borderWidth: 1,
       borderColor: theme.effects.cardBorder,
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 3,
     },
     featureHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       marginBottom: 12,
     },
     featureName: {
       fontSize: 16,
-      fontWeight: '600',
+      fontWeight: "600",
       color: theme.colors.text,
     },
     featureContent: {
       gap: 12,
     },
     row: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
     },
     label: {
       fontSize: 12,
@@ -221,17 +222,17 @@ const OrganizationEditScreen = () => {
       backgroundColor: theme.colors.background,
       borderRadius: 3,
       marginHorizontal: 8,
-      overflow: 'hidden',
+      overflow: "hidden",
     },
     usageBar: {
-      height: '100%',
+      height: "100%",
       borderRadius: 3,
     },
     usageText: {
       fontSize: 12,
       color: theme.colors.textSecondary,
       minWidth: 35,
-      textAlign: 'right',
+      textAlign: "right",
     },
     picker: {
       height: 40,
@@ -245,15 +246,7 @@ const OrganizationEditScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Icon name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Organization</Text>
-      </View>
+      <Header title="Edit Organization" showBack />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Organization Details */}
@@ -270,7 +263,7 @@ const OrganizationEditScreen = () => {
               onChangeText={setOrgName}
               placeholder="Enter name"
             />
-            <View style={{ flexDirection: 'row', gap: 16 }}>
+            <View style={{ flexDirection: "row", gap: 16 }}>
               <View style={{ flex: 1 }}>
                 <Input
                   label="Start Date"
@@ -298,7 +291,7 @@ const OrganizationEditScreen = () => {
             <Text style={styles.sectionTitle}>Feature Licenses</Text>
           </View>
 
-          {features.map(feature => {
+          {features.map((feature) => {
             const percentage = getUsagePercentage(
               feature.usedLicenses,
               feature.allocatedLicenses,
@@ -312,8 +305,8 @@ const OrganizationEditScreen = () => {
                 <View style={styles.featureHeader}>
                   <View
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
+                      flexDirection: "row",
+                      alignItems: "center",
                       gap: 8,
                     }}
                   >
@@ -326,15 +319,15 @@ const OrganizationEditScreen = () => {
                   </View>
                   <Switch
                     value={feature.isActive}
-                    onValueChange={value =>
-                      updateFeature(feature.id, 'isActive', value)
+                    onValueChange={(value) =>
+                      updateFeature(feature.id, "isActive", value)
                     }
                     trackColor={{
                       false: theme.colors.border,
-                      true: theme.colors.success + '80',
+                      true: theme.colors.success + "80",
                     }}
                     thumbColor={
-                      feature.isActive ? theme.colors.success : '#f4f3f4'
+                      feature.isActive ? theme.colors.success : "#f4f3f4"
                     }
                   />
                 </View>
@@ -368,10 +361,10 @@ const OrganizationEditScreen = () => {
                       <TextInput
                         style={styles.input}
                         value={feature.allocatedLicenses.toString()}
-                        onChangeText={text =>
+                        onChangeText={(text) =>
                           updateFeature(
                             feature.id,
-                            'allocatedLicenses',
+                            "allocatedLicenses",
                             parseInt(text) || 0,
                           )
                         }
@@ -385,20 +378,20 @@ const OrganizationEditScreen = () => {
                     <View style={{ flex: 1, marginRight: 8 }}>
                       <Text style={styles.label}>Billing Type</Text>
                       <TouchableOpacity
-                        style={[styles.input, { justifyContent: 'center' }]}
+                        style={[styles.input, { justifyContent: "center" }]}
                         onPress={() => {
                           // Simple toggle for now, could be a picker/modal
                           const newValue =
-                            feature.billingType === 'monthly'
-                              ? 'annually'
-                              : 'monthly';
-                          updateFeature(feature.id, 'billingType', newValue);
+                            feature.billingType === "monthly"
+                              ? "annually"
+                              : "monthly";
+                          updateFeature(feature.id, "billingType", newValue);
                         }}
                       >
                         <Text
                           style={{
                             color: theme.colors.text,
-                            textTransform: 'capitalize',
+                            textTransform: "capitalize",
                           }}
                         >
                           {feature.billingType}
@@ -410,10 +403,10 @@ const OrganizationEditScreen = () => {
                       <TextInput
                         style={styles.input}
                         value={feature.amount.toString()}
-                        onChangeText={text =>
+                        onChangeText={(text) =>
                           updateFeature(
                             feature.id,
-                            'amount',
+                            "amount",
                             parseFloat(text) || 0,
                           )
                         }

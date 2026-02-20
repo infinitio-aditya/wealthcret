@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
+import Header from "../../../components/Header";
 import Card from "../../../components/ui/Card";
 import Icon from "react-native-vector-icons/Ionicons";
 import { RiskProfile, Assessment } from "../../../types";
@@ -253,24 +254,11 @@ const RiskProfileDetailsScreen = () => {
     <ScrollView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <View
-        style={[styles.header, { borderBottomColor: theme.effects.cardBorder }]}
-      >
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Icon name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 16 }}>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            Risk Profile Details
-          </Text>
-          <Text style={styles.headerSubtitle}>
-            Comprehensive risk assessment and history
-          </Text>
-        </View>
-      </View>
+      <Header
+        title="Risk Profile Details"
+        subtitle="Comprehensive risk assessment and history"
+        showBack
+      />
 
       <View style={styles.content}>
         {/* Client Info */}

@@ -80,7 +80,7 @@ export const themes: Theme[] = [
         },
         effects: {
             cardBackground: '#F3F4F6',
-            cardBorder: '#F3F4F6', // 'none' in web, approximated for mobile
+            cardBorder: '#ceced1ff', // 'none' in web, approximated for mobile
             cardShadow: 'rgba(0,0,0,0.1)', // Complex shadow emulation simplified
             glassBackground: '#F3F4F6',
             glassBlur: '0',

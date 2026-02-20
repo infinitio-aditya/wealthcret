@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
+import Header from "../../../components/Header";
 import Icon from "react-native-vector-icons/Ionicons";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
@@ -367,16 +368,7 @@ const PayoutEditScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Icon name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Payout</Text>
-      </View>
+      <Header title="Edit Payout" showBack />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Payout Details */}

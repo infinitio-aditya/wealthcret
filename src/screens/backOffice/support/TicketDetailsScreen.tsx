@@ -17,6 +17,7 @@ import { mockTickets, mockServiceProviders } from "../../../utils/mockData";
 import { TicketMessage } from "../../../types";
 import LinearGradient from "react-native-linear-gradient";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
+import Header from "../../../components/Header";
 
 const TicketDetailsScreen = () => {
   const theme = useTheme();
@@ -252,25 +253,6 @@ const TicketDetailsScreen = () => {
       justifyContent: "center",
       alignItems: "center",
     },
-    header: {
-      padding: 16,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 16,
-      backgroundColor: theme.colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.effects.cardBorder,
-    },
-    headerTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: theme.colors.text,
-      flex: 1,
-    },
-    headerSubtitle: {
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-    },
     content: {
       padding: 16,
     },
@@ -452,15 +434,11 @@ const TicketDetailsScreen = () => {
       style={styles.container}
     >
       <ScrollView>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="arrow-left" size={24} color={theme.colors.primary} />
-          </TouchableOpacity>
-          <View>
-            <Text style={styles.headerTitle}>{ticket.title}</Text>
-            <Text style={styles.headerSubtitle}>Ticket #{ticket.id}</Text>
-          </View>
-        </View>
+        <Header
+          title={ticket.title}
+          subtitle={`Ticket #${ticket.id}`}
+          showBack
+        />
         <View style={styles.content}>
           {renderStatusProgress()}
 
