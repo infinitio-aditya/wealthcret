@@ -6,13 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Modal,
   TextInput,
   Platform,
 } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
+import { useAlert } from "../../../context/AlertContext";
 import {
   mockClients,
   mockActivities,
@@ -30,6 +30,7 @@ type RouteParams = {
 };
 
 const ClientDetailsScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<RouteParams, "ClientDetails">>();
@@ -106,7 +107,7 @@ const ClientDetailsScreen = () => {
 
   const handleAddActivity = () => {
     if (!activityForm.title || !activityForm.description) {
-      Alert.alert("Error", "Please fill in all fields");
+      showAlert("Error", "Please fill in all fields");
       return;
     }
     const newActivity: Activity = {
@@ -123,12 +124,12 @@ const ClientDetailsScreen = () => {
     setActivities([newActivity, ...activities]);
     setShowAddActivity(false);
     setActivityForm({ title: "", description: "", type: "call" });
-    Alert.alert("Success", "Activity added successfully");
+    showAlert("Success", "Activity added successfully");
   };
 
   const handleAddFamily = () => {
     if (!familyForm.name || !familyForm.relation) {
-      Alert.alert("Error", "Name and Relation are required");
+      showAlert("Error", "Name and Relation are required");
       return;
     }
     const newMember: FamilyMember = {
@@ -141,7 +142,7 @@ const ClientDetailsScreen = () => {
     setFamilyMembers([...familyMembers, newMember]);
     setShowAddFamily(false);
     setFamilyForm({ name: "", relation: "", email: "" });
-    Alert.alert("Success", "Family member added successfully");
+    showAlert("Success", "Family member added successfully");
   };
 
   const handleSaveServices = () => {
@@ -151,7 +152,7 @@ const ClientDetailsScreen = () => {
     setServices(uniqueServices);
     setShowAddServices(false);
     setTempSelectedServices([]);
-    Alert.alert("Success", "Services updated successfully");
+    showAlert("Success", "Services updated successfully");
   };
 
   const toggleServiceSelection = (id: string) => {
@@ -440,10 +441,11 @@ const ClientDetailsScreen = () => {
                 </Text>
               </View>
             </Card>
-            {/* <View style={styles.actionButtons}>
-                            <Button title="Edit Client" onPress={() => Alert.alert('Edit', 'Edit Client functionality')} variant="primary" />
-                            <Button title="Add Activity" onPress={() => setShowAddActivity(true)} variant="secondary" />
-                        </View> */}
+            <Button
+              title="Edit Client"
+              onPress={() => showAlert("Edit", "Edit Client functionality")}
+              variant="primary"
+            />
           </View>
         )}
 

@@ -7,17 +7,18 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../../hooks/useTheme";
+import { useAlert } from "../../context/AlertContext";
 import { setUser, setToken } from "../../store/slices/authSlice";
 import { login } from "../../services/authService";
 import { UserRole } from "../../types";
 
 const LoginScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch();
@@ -35,7 +36,7 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password");
+      showAlert("Error", "Please enter both email and password");
       return;
     }
 
@@ -63,7 +64,7 @@ const LoginScreen = () => {
       dispatch(setUser(response.user));
       dispatch(setToken(response.token));
     } catch (error) {
-      Alert.alert("Error", "Login failed. Please try again.");
+      showAlert("Error", "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }

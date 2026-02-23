@@ -6,11 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   Switch,
 } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
+import { useAlert } from "../../../context/AlertContext";
 import Header from "../../../components/Header";
 import Icon from "react-native-vector-icons/Ionicons";
 import Button from "../../../components/ui/Button";
@@ -39,6 +39,7 @@ interface Feature {
 }
 
 const OrganizationEditScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const route = useRoute<RouteProp<RouteParams, "OrganizationEdit">>();
   const navigation = useNavigation<NavigationProp>();
@@ -117,7 +118,7 @@ const OrganizationEditScreen = () => {
       endDate,
       features,
     });
-    Alert.alert(
+    showAlert(
       "Success",
       "Organization details and features updated successfully!",
       [{ text: "OK", onPress: () => navigation.goBack() }],

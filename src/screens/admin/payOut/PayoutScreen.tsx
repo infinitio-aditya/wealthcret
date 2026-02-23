@@ -6,13 +6,13 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Modal,
   ScrollView,
   SafeAreaView,
 } from "react-native";
 import { useSelector } from "react-redux";
 import { useTheme } from "../../../hooks/useTheme";
+import { useAlert } from "../../../context/AlertContext";
 import { RootState } from "../../../store";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
@@ -57,6 +57,7 @@ const mockPayouts: Payout[] = [
 ];
 
 const PayoutScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const user = useSelector((state: RootState) => state.auth.user);
@@ -146,7 +147,7 @@ const PayoutScreen = () => {
       !newPayout.year ||
       !newPayout.serviceProviderId
     ) {
-      Alert.alert("Required Fields", "Please fill in all fields.");
+      showAlert("Required Fields", "Please fill in all fields.");
       return;
     }
 

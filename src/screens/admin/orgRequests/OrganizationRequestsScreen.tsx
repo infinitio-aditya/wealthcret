@@ -5,11 +5,11 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   ScrollView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
+import { useAlert } from "../../../context/AlertContext";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -52,6 +52,7 @@ const mockOrgRequests: OrganizationRequest[] = [
 ];
 
 const OrganizationRequestsScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation();
   const [requests, setRequests] = useState(mockOrgRequests);
@@ -63,13 +64,16 @@ const OrganizationRequestsScreen = () => {
     filter === "all" ? requests : requests.filter((r) => r.status === filter);
 
   const handleViewDetails = (requestId: string) => {
-    navigation.navigate("OrganizationRequestDetails" as never, {
-      requestId,
-    } as never);
+    navigation.navigate(
+      "OrganizationRequestDetails" as never,
+      {
+        requestId,
+      } as never,
+    );
   };
 
   const handleApprove = (id: string) => {
-    Alert.alert(
+    showAlert(
       "Approve Request",
       "Are you sure you want to approve this organization request?",
       [
@@ -89,7 +93,7 @@ const OrganizationRequestsScreen = () => {
   };
 
   const handleReject = (id: string) => {
-    Alert.alert(
+    showAlert(
       "Reject Request",
       "Are you sure you want to reject this organization request?",
       [

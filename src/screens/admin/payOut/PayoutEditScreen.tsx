@@ -5,13 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Modal,
   FlatList,
   SafeAreaView,
 } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
+import { useAlert } from "../../../context/AlertContext";
 import Header from "../../../components/Header";
 import Icon from "react-native-vector-icons/Ionicons";
 import Card from "../../../components/ui/Card";
@@ -40,6 +40,7 @@ interface Service {
 }
 
 const PayoutEditScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const route = useRoute<RouteProp<RouteParams, "PayoutEdit">>();
   const navigation = useNavigation<NavigationProp>();
@@ -113,7 +114,7 @@ const PayoutEditScreen = () => {
 
   const handleAddServices = () => {
     if (!newServiceSelection.serviceId || !newServiceSelection.partnerId) {
-      Alert.alert(
+      showAlert(
         "Selection Required",
         "Please select both a service and a partner.",
       );
@@ -160,7 +161,7 @@ const PayoutEditScreen = () => {
   };
 
   const handleRemoveService = (serviceId: string) => {
-    Alert.alert(
+    showAlert(
       "Remove Service",
       "Are you sure you want to remove this service?",
       [
@@ -418,7 +419,7 @@ const PayoutEditScreen = () => {
             <Button
               title="Calculate Payout"
               onPress={() =>
-                Alert.alert("Calculate", "Running calculation logic...")
+                showAlert("Calculate", "Running calculation logic...")
               }
               variant="primary"
               // icon="calculator-outline"
