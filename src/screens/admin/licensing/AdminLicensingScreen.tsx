@@ -28,6 +28,7 @@ import {
   mockReferralPartners,
 } from "../../../utils/mockData";
 import { AdminLicensingStackParamList } from "../../../navigation/NavigationParams";
+import { useAlert } from "context/AlertContext";
 
 type NavigationProp = StackNavigationProp<
   AdminLicensingStackParamList,
@@ -40,6 +41,7 @@ const uniqueAdvisors = mockServiceProviders.map((sp) => sp.name);
 const uniqueReferralPartners = mockReferralPartners.map((rp) => rp.name);
 
 const AdminLicensingScreen = () => {
+  const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const [organizations, setOrganizations] =
@@ -128,7 +130,7 @@ const AdminLicensingScreen = () => {
 
   const handleSaveOrg = () => {
     if (!formData.name) {
-      Alert.alert("Error", "Organization name is required");
+      showAlert("Error", "Organization name is required");
       return;
     }
 

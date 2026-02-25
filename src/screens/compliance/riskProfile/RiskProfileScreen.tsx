@@ -21,6 +21,7 @@ import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Icon from "react-native-vector-icons/Ionicons";
 import { RiskProfile, QuizQuestion } from "../../../types";
+import Gauge from "../../../components/ui/Gauge";
 import {
   mockRiskProfiles,
   mockServiceProviders,
@@ -584,13 +585,13 @@ const RiskProfileScreen = () => {
       </View>
 
       <LinearGradient
-        colors={[theme.colors.surface, theme.colors.surface] as any} // Simplified gradient, could use theme effects
+        colors={[theme.colors.surface, theme.colors.surface + "80"] as any} // Simplified gradient, could use theme effects
         style={[
           styles.clientProfileCard,
           { borderColor: theme.colors.success + "40", borderWidth: 1 },
         ]}
       >
-        <View
+        {/* <View
           style={[
             styles.largeScoreCircle,
             { borderColor: theme.colors.success },
@@ -602,7 +603,8 @@ const RiskProfileScreen = () => {
             35
           </Text>
           <Text style={styles.largeScoreLabel}>Low Risk</Text>
-        </View>
+        </View> */}
+        <Gauge score={35} />
         <Text style={styles.clientNotice}>
           Your risk profile was last updated on 2025-11-15. We recommend
           reviewing this annually or after major life changes.

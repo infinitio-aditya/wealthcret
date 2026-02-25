@@ -14,6 +14,8 @@ import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Icon from "react-native-vector-icons/Ionicons";
 import { OrganizationRequest } from "../../../types";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { OrgRequestsStackParamList } from "../../../navigation/stacks/OrgRequestsStack";
 
 const mockOrgRequests: OrganizationRequest[] = [
   {
@@ -54,7 +56,8 @@ const mockOrgRequests: OrganizationRequest[] = [
 const OrganizationRequestsScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<StackNavigationProp<OrgRequestsStackParamList>>();
   const [requests, setRequests] = useState(mockOrgRequests);
   const [filter, setFilter] = useState<
     "all" | "pending" | "approved" | "rejected"
@@ -64,12 +67,9 @@ const OrganizationRequestsScreen = () => {
     filter === "all" ? requests : requests.filter((r) => r.status === filter);
 
   const handleViewDetails = (requestId: string) => {
-    navigation.navigate(
-      "OrganizationRequestDetails" as never,
-      {
-        requestId,
-      } as never,
-    );
+    navigation.navigate("OrganizationRequestDetails", {
+      requestId,
+    });
   };
 
   const handleApprove = (id: string) => {

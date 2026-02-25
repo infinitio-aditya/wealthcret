@@ -18,231 +18,11 @@ import { TicketMessage } from "../../../types";
 import LinearGradient from "react-native-linear-gradient";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import Header from "../../../components/Header";
+import { useAlert } from "context/AlertContext";
 
 const TicketDetailsScreen = () => {
   const theme = useTheme();
-  const route = useRoute<any>();
-  const navigation = useNavigation();
-  const { ticketId } = route.params;
-
-  // In real app, we would fetch or select from store. Here we find in mockData.
-  const ticket = mockTickets.find((t) => t.id === ticketId);
-
-  const [messageText, setMessageText] = useState("");
-  const [messages, setMessages] = useState<TicketMessage[]>(
-    ticket?.messages || [],
-  );
-  const [assignedSP, setAssignedSP] = useState(ticket?.assignedTo || "");
-  const [ticketStatus, setTicketStatus] = useState<
-    "open" | "in-progress" | "resolved" | "closed"
-  >(ticket?.status || "open");
-  const scrollViewRef = useRef<ScrollView>(null);
-
-  // Mock current user
-  const currentUser = { name: "Admin User", role: "admin" };
-  const isAdmin = currentUser.role === "admin"; // Logic for user role check
-
-  const STATUSES = ["open", "in-progress", "resolved", "closed"];
-
-  const spOptions = mockServiceProviders.map((sp) => ({
-    label: sp.name,
-    value: sp.name,
-  }));
-
-  const statusOptions = STATUSES.map((status) => ({
-    label: status.replace("-", " "),
-    value: status,
-  }));
-
-  useEffect(() => {
-    // Scroll to bottom on load
-    setTimeout(
-      () => scrollViewRef.current?.scrollToEnd({ animated: false }),
-      100,
-    );
-  }, []);
-
-  if (!ticket) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={{ color: theme.colors.text }}>Ticket not found</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <LinearGradient
-            colors={theme.effects.buttonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              borderRadius: 12,
-              gap: 8,
-              marginTop: 20,
-            }}
-          >
-            <Icon name="arrow-left" size={20} color="#fff" />
-            <Text style={{ color: "#fff", fontWeight: "600" }}>Go Back</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "open":
-        return theme.colors.info;
-      case "in-progress":
-        return theme.colors.warning;
-      case "resolved":
-        return theme.colors.success;
-      case "closed":
-        return theme.colors.textSecondary;
-      default:
-        return theme.colors.textSecondary;
-    }
-  };
-
-  const handleSendMessage = () => {
-    if (!messageText.trim()) return;
-
-    const newMessage: TicketMessage = {
-      id: Date.now().toString(),
-      ticketId: ticket.id,
-      sender: currentUser.name,
-      message: messageText,
-      timestamp: new Date().toISOString(),
-    };
-
-    setMessages([...messages, newMessage]);
-    setMessageText("");
-    setTimeout(
-      () => scrollViewRef.current?.scrollToEnd({ animated: true }),
-      100,
-    );
-  };
-
-  const handleStatusChange = (newStatus: string) => {
-    setTicketStatus(newStatus as any);
-    // In a real app, you would send this update to your backend
-    Alert.alert(
-      "Status Updated",
-      `Ticket status changed to ${newStatus.replace("-", " ")}`,
-    );
-  };
-
-  const handleCloseTicket = () => {
-    Alert.alert(
-      "Close Ticket",
-      "Are you sure you want to close this ticket?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Close",
-          onPress: () => handleStatusChange("closed"),
-          style: "destructive",
-        },
-      ],
-      { cancelable: true },
-    );
-  };
-
-  const renderStatusProgress = () => {
-    // Simple linear mapping for progress example
-    // open -> 0, in-progress -> 1, resolved -> 2, closed -> 3
-    const currentIdx = STATUSES.indexOf(ticketStatus);
-    const progressWidth = (currentIdx / (STATUSES.length - 1)) * 100;
-
-    return (
-      <View style={styles.card}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-        >
-          <Text style={[styles.cardTitle, { marginBottom: 0 }]}>
-            Ticket Status Progress
-          </Text>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: getStatusColor(ticketStatus) + "20" },
-            ]}
-          >
-            <Text
-              style={[
-                styles.statusText,
-                { color: getStatusColor(ticketStatus) },
-              ]}
-            >
-              {ticketStatus.replace("-", " ")}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBarBackground}>
-            <View
-              style={[
-                styles.progressBarFill,
-                {
-                  width: `${progressWidth}%`,
-                  backgroundColor: theme.colors.primary,
-                },
-              ]}
-            />
-          </View>
-          <View style={styles.stepsContainer}>
-            {STATUSES.map((status, index) => {
-              const isCompleted = index <= currentIdx;
-              const isCurrent = index === currentIdx;
-              return (
-                <View key={status} style={styles.stepWrapper}>
-                  <View
-                    style={[
-                      styles.stepCircle,
-                      {
-                        backgroundColor: isCompleted
-                          ? theme.colors.primary
-                          : theme.colors.surface,
-                        borderColor: isCompleted
-                          ? theme.colors.primary
-                          : theme.effects.cardBorder,
-                        borderWidth: 2,
-                      },
-                    ]}
-                  >
-                    {isCompleted && (
-                      <Icon name="check" size={12} color="#fff" />
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      styles.stepLabel,
-                      {
-                        color: isCurrent
-                          ? theme.colors.text
-                          : theme.colors.textSecondary,
-                        fontWeight: isCurrent ? "600" : "400",
-                      },
-                    ]}
-                  >
-                    {status.replace("-", " ")}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-      </View>
-    );
-  };
+  const { showAlert } = useAlert();
 
   const styles = StyleSheet.create({
     container: {
@@ -426,6 +206,232 @@ const TicketDetailsScreen = () => {
       fontSize: 14,
     },
   });
+  const route = useRoute<any>();
+  const navigation = useNavigation();
+  const { ticketId } = route.params;
+
+  // In real app, we would fetch or select from store. Here we find in mockData.
+  const ticket = mockTickets.find((t) => t.id === ticketId);
+
+  const [messageText, setMessageText] = useState("");
+  const [messages, setMessages] = useState<TicketMessage[]>(
+    ticket?.messages || [],
+  );
+  const [assignedSP, setAssignedSP] = useState(ticket?.assignedTo || "");
+  const [ticketStatus, setTicketStatus] = useState<
+    "open" | "in-progress" | "resolved" | "closed"
+  >(ticket?.status || "open");
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Mock current user
+  const currentUser = { name: "Admin User", role: "admin" };
+  const isAdmin = currentUser.role === "admin"; // Logic for user role check
+
+  const STATUSES = ["open", "in-progress", "resolved", "closed"];
+
+  const spOptions = mockServiceProviders.map((sp) => ({
+    label: sp.name,
+    value: sp.name,
+  }));
+
+  const statusOptions = STATUSES.map((status) => ({
+    label: status.replace("-", " "),
+    value: status,
+  }));
+
+  useEffect(() => {
+    // Scroll to bottom on load
+    setTimeout(
+      () => scrollViewRef.current?.scrollToEnd({ animated: false }),
+      100,
+    );
+  }, []);
+
+  if (!ticket) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={{ color: theme.colors.text }}>Ticket not found</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <LinearGradient
+            colors={[theme.colors.primary, theme.colors.primary + "80"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              paddingVertical: 10,
+              borderRadius: 12,
+              gap: 8,
+              marginTop: 20,
+            }}
+          >
+            <Icon name="arrow-left" size={20} color="#fff" />
+            <Text style={{ color: "#fff", fontWeight: "600" }}>Go Back</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "open":
+        return theme.colors.info;
+      case "in-progress":
+        return theme.colors.warning;
+      case "resolved":
+        return theme.colors.success;
+      case "closed":
+        return theme.colors.textSecondary;
+      default:
+        return theme.colors.textSecondary;
+    }
+  };
+
+  const handleSendMessage = () => {
+    if (!messageText.trim()) return;
+
+    const newMessage: TicketMessage = {
+      id: Date.now().toString(),
+      ticketId: ticket.id,
+      sender: currentUser.name,
+      message: messageText,
+      timestamp: new Date().toISOString(),
+    };
+
+    setMessages([...messages, newMessage]);
+    setMessageText("");
+    setTimeout(
+      () => scrollViewRef.current?.scrollToEnd({ animated: true }),
+      100,
+    );
+  };
+
+  const handleStatusChange = (newStatus: string) => {
+    setTicketStatus(newStatus as any);
+    // In a real app, you would send this update to your backend
+    showAlert(
+      "Status Updated",
+      `Ticket status changed to ${newStatus.replace("-", " ")}`,
+    );
+  };
+
+  // const handleCloseTicket = () => {
+  //   showAlert(
+  //     "Close Ticket",
+  //     "Are you sure you want to close this ticket?",
+  //     [
+  //       {
+  //         text: "Cancel",
+  //         style: "cancel",
+  //       },
+  //       {
+  //         text: "Close",
+  //         onPress: () => handleStatusChange("closed"),
+  //         style: "destructive",
+  //       },
+  //     ],
+  //     { cancelable: true },
+  //   );
+  // };
+
+  const renderStatusProgress = () => {
+    // Simple linear mapping for progress example
+    // open -> 0, in-progress -> 1, resolved -> 2, closed -> 3
+    const currentIdx = STATUSES.indexOf(ticketStatus);
+    const progressWidth = (currentIdx / (STATUSES.length - 1)) * 100;
+
+    return (
+      <View style={styles.card}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
+          <Text style={[styles.cardTitle, { marginBottom: 0 }]}>
+            Ticket Status Progress
+          </Text>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(ticketStatus) + "20" },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                { color: getStatusColor(ticketStatus) },
+              ]}
+            >
+              {ticketStatus.replace("-", " ")}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBarBackground}>
+            <View
+              style={[
+                styles.progressBarFill,
+                {
+                  width: `${progressWidth}%`,
+                  backgroundColor: theme.colors.primary,
+                },
+              ]}
+            />
+          </View>
+          <View style={styles.stepsContainer}>
+            {STATUSES.map((status, index) => {
+              const isCompleted = index <= currentIdx;
+              const isCurrent = index === currentIdx;
+              return (
+                <View key={status} style={styles.stepWrapper}>
+                  <View
+                    style={[
+                      styles.stepCircle,
+                      {
+                        backgroundColor: isCompleted
+                          ? theme.colors.primary
+                          : theme.colors.surface,
+                        borderColor: isCompleted
+                          ? theme.colors.primary
+                          : theme.effects.cardBorder,
+                        borderWidth: 2,
+                      },
+                    ]}
+                  >
+                    {isCompleted && (
+                      <Icon
+                        name="check"
+                        size={12}
+                        color={theme.colors.textOnPrimary}
+                      />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.stepLabel,
+                      {
+                        color: isCurrent
+                          ? theme.colors.text
+                          : theme.colors.textSecondary,
+                        fontWeight: isCurrent ? "600" : "400",
+                      },
+                    ]}
+                  >
+                    {status.replace("-", " ")}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -452,7 +458,7 @@ const TicketDetailsScreen = () => {
                 selectedValue={assignedSP}
                 onValueChange={(value) => {
                   setAssignedSP(value);
-                  Alert.alert("Success", `Ticket assigned to ${value}`);
+                  showAlert("Success", `Ticket assigned to ${value}`);
                 }}
                 placeholder="Select Service Provider"
               />
@@ -463,7 +469,7 @@ const TicketDetailsScreen = () => {
                   selectedValue={ticketStatus}
                   onValueChange={(value) => {
                     setTicketStatus(value as any);
-                    Alert.alert(
+                    showAlert(
                       "Success",
                       `Status updated to ${value.replace("-", " ")}`,
                     );
@@ -475,7 +481,7 @@ const TicketDetailsScreen = () => {
                 <TouchableOpacity
                   style={styles.closeButton}
                   onPress={() => {
-                    Alert.alert(
+                    showAlert(
                       "Close Ticket",
                       "Are you sure you want to close this ticket?",
                       [
@@ -485,7 +491,7 @@ const TicketDetailsScreen = () => {
                           style: "destructive",
                           onPress: () => {
                             setTicketStatus("closed");
-                            Alert.alert("Success", "Ticket has been closed");
+                            showAlert("Success", "Ticket has been closed");
                           },
                         },
                       ],
@@ -584,7 +590,7 @@ const TicketDetailsScreen = () => {
                     <LinearGradient
                       colors={
                         isOwn
-                          ? theme.effects.buttonGradient
+                          ? [theme.colors.primary, theme.colors.primary + "80"]
                           : ["transparent", "transparent"]
                       }
                       style={{ borderRadius: 16, padding: 12 }}
@@ -600,7 +606,11 @@ const TicketDetailsScreen = () => {
                         <Text
                           style={[
                             styles.senderName,
-                            { color: isOwn ? "#fff" : theme.colors.text },
+                            {
+                              color: isOwn
+                                ? theme.colors.textOnPrimary
+                                : theme.colors.text,
+                            },
                           ]}
                         >
                           {msg.sender}
@@ -609,7 +619,11 @@ const TicketDetailsScreen = () => {
                       <Text
                         style={[
                           styles.messageText,
-                          { color: isOwn ? "#fff" : theme.colors.text },
+                          {
+                            color: isOwn
+                              ? theme.colors.textOnPrimary
+                              : theme.colors.text,
+                          },
                         ]}
                       >
                         {msg.message}
@@ -649,10 +663,10 @@ const TicketDetailsScreen = () => {
         />
         <TouchableOpacity onPress={handleSendMessage}>
           <LinearGradient
-            colors={theme.effects.buttonGradient}
+            colors={[theme.colors.primary, theme.colors.primary + "80"]}
             style={styles.sendButton}
           >
-            <Icon name="send" size={18} color="#fff" />
+            <Icon name="send" size={18} color={theme.colors.textOnPrimary} />
           </LinearGradient>
         </TouchableOpacity>
       </View>

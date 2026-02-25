@@ -15,9 +15,11 @@ import LinearGradient from "react-native-linear-gradient";
 import { mockTickets, mockMappings } from "../../../utils/mockData";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
+import { useAlert } from "context/AlertContext";
 
 const CreateTicketScreen = () => {
   const theme = useTheme();
+  const { showAlert } = useAlert();
   const navigation = useNavigation();
 
   // Derived organization list for dropdown
@@ -34,12 +36,12 @@ const CreateTicketScreen = () => {
 
   const handleSubmit = () => {
     if (!title.trim() || !description.trim()) {
-      Alert.alert("Error", "Please fill in all fields");
+      showAlert("Error", "Please fill in all fields");
       return;
     }
 
     // In real app, dispatch action or call API
-    Alert.alert("Success", "Ticket created successfully", [
+    showAlert("Success", "Ticket created successfully", [
       { text: "OK", onPress: () => navigation.goBack() },
     ]);
   };
@@ -189,7 +191,7 @@ const CreateTicketScreen = () => {
           style={styles.submitButton}
         >
           <LinearGradient
-            colors={theme.effects.buttonGradient as any}
+            colors={[theme.colors.primary, theme.colors.primary + "80"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.gradient}

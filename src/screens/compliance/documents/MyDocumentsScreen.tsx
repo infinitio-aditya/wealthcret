@@ -529,7 +529,12 @@ const MyDocumentsScreen = () => {
                 >
                   {isActive ? (
                     <LinearGradient
-                      colors={theme.effects.buttonGradient as any}
+                      colors={
+                        [
+                          theme.colors.primary,
+                          theme.colors.primary + "80",
+                        ] as any
+                      }
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={[StyleSheet.absoluteFill, { borderRadius: 25 }]}

@@ -280,7 +280,7 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
       <View style={styles.header}>
         <View style={styles.logoSection}>
           <LinearGradient
-            colors={theme.effects.buttonGradient}
+            colors={[theme.colors.primary, theme.colors.primary + "80"]}
             style={styles.logoIconSquare}
           >
             <Text style={{ fontSize: 24, color: "#FFF", fontWeight: "bold" }}>

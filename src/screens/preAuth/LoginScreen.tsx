@@ -212,7 +212,7 @@ const LoginScreen = () => {
         {/* Logo */}
         <View style={styles.logoContainer}>
           <LinearGradient
-            colors={theme.effects.buttonGradient}
+            colors={[theme.colors.primary, theme.colors.primary + "80"]}
             style={styles.logoGradient}
           >
             <Text style={{ fontSize: 32, color: theme.colors.textOnPrimary }}>
@@ -305,7 +305,7 @@ const LoginScreen = () => {
             disabled={loading}
           >
             <LinearGradient
-              colors={theme.effects.buttonGradient}
+              colors={[theme.colors.primary, theme.colors.primary + "80"]}
               style={styles.loginButtonGradient}
             >
               {loading ? (

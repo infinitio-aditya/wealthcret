@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -8,16 +8,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { useTheme } from '../../hooks/useTheme';
-import Icon from 'react-native-vector-icons/Ionicons';
-import LinearGradient from 'react-native-linear-gradient';
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../../hooks/useTheme";
+import Icon from "react-native-vector-icons/Ionicons";
+import LinearGradient from "react-native-linear-gradient";
 
 const OTPVerificationScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation();
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputs = useRef<TextInput[]>([]);
 
   const handleOtpChange = (value: string, index: number) => {
@@ -31,14 +31,14 @@ const OTPVerificationScreen = () => {
   };
 
   const handleKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
+    if (e.nativeEvent.key === "Backspace" && !otp[index] && index > 0) {
       inputs.current[index - 1]?.focus();
     }
   };
 
   const handleVerify = () => {
-    if (otp.join('').length === 6) {
-      navigation.navigate('ResetPassword' as never);
+    if (otp.join("").length === 6) {
+      navigation.navigate("ResetPassword" as never);
     }
   };
 
@@ -50,10 +50,10 @@ const OTPVerificationScreen = () => {
     content: {
       flex: 1,
       padding: 24,
-      justifyContent: 'center',
+      justifyContent: "center",
     },
     backButton: {
-      position: 'absolute',
+      position: "absolute",
       top: 60,
       left: 20,
       zIndex: 10,
@@ -62,28 +62,28 @@ const OTPVerificationScreen = () => {
       width: 80,
       height: 80,
       borderRadius: 24,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
       marginBottom: 32,
-      alignSelf: 'center',
+      alignSelf: "center",
     },
     title: {
       fontSize: 32,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
-      textAlign: 'center',
+      textAlign: "center",
       marginBottom: 12,
     },
     description: {
       fontSize: 16,
       color: theme.colors.textSecondary,
-      textAlign: 'center',
+      textAlign: "center",
       marginBottom: 40,
       lineHeight: 24,
     },
     otpContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+      flexDirection: "row",
+      justifyContent: "space-between",
       marginBottom: 40,
     },
     otpInput: {
@@ -95,27 +95,27 @@ const OTPVerificationScreen = () => {
       backgroundColor: theme.colors.card,
       color: theme.colors.text,
       fontSize: 24,
-      fontWeight: 'bold',
-      textAlign: 'center',
+      fontWeight: "bold",
+      textAlign: "center",
     },
     verifyButton: {
       height: 56,
       borderRadius: 16,
-      overflow: 'hidden',
+      overflow: "hidden",
     },
     gradient: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
     verifyText: {
-      color: '#FFF',
+      color: "#FFF",
       fontSize: 16,
-      fontWeight: 'bold',
+      fontWeight: "bold",
     },
     resendContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
+      flexDirection: "row",
+      justifyContent: "center",
       marginTop: 32,
     },
     resendLabel: {
@@ -123,19 +123,19 @@ const OTPVerificationScreen = () => {
     },
     resendButton: {
       color: theme.colors.primary,
-      fontWeight: '600',
+      fontWeight: "600",
       marginLeft: 4,
     },
   });
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.content}>
         <LinearGradient
-          colors={[theme.colors.primary, theme.colors.secondary]}
+          colors={[theme.colors.primary, theme.colors.primary + "80"]}
           style={styles.iconContainer}
         >
           <Icon name="shield-checkmark-outline" size={40} color="#FFF" />
@@ -151,11 +151,11 @@ const OTPVerificationScreen = () => {
           {otp.map((digit, index) => (
             <TextInput
               key={index}
-              ref={el => (inputs.current[index] = el!)}
+              ref={(el) => (inputs.current[index] = el!)}
               style={styles.otpInput}
               value={digit}
-              onChangeText={v => handleOtpChange(v, index)}
-              onKeyPress={e => handleKeyPress(e, index)}
+              onChangeText={(v) => handleOtpChange(v, index)}
+              onKeyPress={(e) => handleKeyPress(e, index)}
               keyboardType="number-pad"
               maxLength={1}
               selectionColor={theme.colors.primary}
@@ -165,7 +165,7 @@ const OTPVerificationScreen = () => {
 
         <TouchableOpacity style={styles.verifyButton} onPress={handleVerify}>
           <LinearGradient
-            colors={[theme.colors.primary, theme.colors.secondary]}
+            colors={[theme.colors.primary, theme.colors.primary + "80"]}
             style={styles.gradient}
           >
             <Text style={styles.verifyText}>Verify Code</Text>

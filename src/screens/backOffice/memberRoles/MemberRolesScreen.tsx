@@ -105,11 +105,9 @@ const MemberRolesScreen = () => {
 
   const handleSaveRole = () => {
     if (!formData.name || !formData.description) {
-      showAlert(
-        "Permissions Updated",
-        `${formData.name} permissions have been successfully updated.`, // Assuming formData.name is the roleName
-        [{ text: "OK" }],
-      );
+      showAlert("Error", `Please fill in all required fields`, [
+        { text: "OK" },
+      ]);
       return;
     }
 

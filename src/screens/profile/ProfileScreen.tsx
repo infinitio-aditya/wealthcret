@@ -250,7 +250,7 @@ const ProfileScreen = () => {
           onPress={() => navigation.navigate("Settings")}
         >
           <LinearGradient
-            colors={[theme.colors.primary, theme.colors.primary]}
+            colors={[theme.colors.primary, theme.colors.primary + "80"]}
             style={styles.logoutButtonGradient}
           >
             <Text style={styles.logoutButtonText}>Settings</Text>
@@ -260,7 +260,7 @@ const ProfileScreen = () => {
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <LinearGradient
-            colors={[theme.colors.error, theme.colors.error]}
+            colors={[theme.colors.error, theme.colors.error + "80"]}
             style={styles.logoutButtonGradient}
           >
             <Text style={styles.logoutButtonText}>Logout</Text>

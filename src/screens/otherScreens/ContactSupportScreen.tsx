@@ -157,7 +157,7 @@ const ContactSupportScreen = () => {
 
           <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
             <LinearGradient
-              colors={[theme.colors.primary, theme.colors.secondary]}
+              colors={[theme.colors.primary, theme.colors.primary + "80"]}
               style={styles.gradient}
             >
               <Text style={styles.sendText}>Send Message</Text>

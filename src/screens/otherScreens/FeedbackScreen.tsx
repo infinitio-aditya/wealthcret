@@ -123,7 +123,7 @@ const FeedbackScreen = () => {
 
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
             <LinearGradient
-              colors={[theme.colors.primary, theme.colors.secondary]}
+              colors={[theme.colors.primary, theme.colors.primary + "80"]}
               style={styles.gradient}
             >
               <Text style={styles.submitText}>Submit Feedback</Text>

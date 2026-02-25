@@ -249,11 +249,10 @@ const AdminLicensingEditScreen = () => {
       borderColor: theme.effects.cardBorder,
     },
     infoLabel: {
-      fontSize: 11,
-      color: theme.colors.textSecondary,
+      fontSize: 14,
       fontWeight: "600",
-      marginBottom: 4,
-      textTransform: "uppercase",
+      color: theme.colors.textSecondary,
+      marginBottom: 8,
     },
     infoValue: {
       fontSize: 13,
@@ -317,17 +316,17 @@ const AdminLicensingEditScreen = () => {
     },
     featureInput: {
       flex: 1,
-      height: 40,
       color: theme.colors.text,
+      fontSize: 16,
     },
     billingInfo: {
       flex: 1,
-      //   backgroundColor: theme.colors.background,
-      padding: 10,
-      borderRadius: 8,
+      backgroundColor: theme.effects.glassBackground,
+      paddingHorizontal: 16,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: theme.effects.cardBorder,
-      height: 40,
+      height: 46,
       justifyContent: "center",
     },
     billingText: {
@@ -511,7 +510,7 @@ const AdminLicensingEditScreen = () => {
         </View>
 
         {/* Service Provider & Referral Partner */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>Assignments</Text>
 
           <Card style={styles.card}>
@@ -544,7 +543,7 @@ const AdminLicensingEditScreen = () => {
               }
             />
           </Card>
-        </View>
+        </View> */}
 
         {/* Feature Licenses Section */}
         <View style={styles.section}>
@@ -626,10 +625,10 @@ const AdminLicensingEditScreen = () => {
                         style={styles.featureInput}
                       />
                     </View>
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1, marginBottom: 16 }}>
                       <Text style={styles.infoLabel}>Used Licenses</Text>
                       <View style={styles.billingInfo}>
-                        <Text style={styles.billingText}>
+                        <Text style={[styles.billingText, { fontSize: 16 }]}>
                           {feature.usedLicenses || 0}
                         </Text>
                       </View>

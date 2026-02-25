@@ -441,11 +441,11 @@ const ClientDetailsScreen = () => {
                 </Text>
               </View>
             </Card>
-            <Button
+            {/* <Button
               title="Edit Client"
               onPress={() => showAlert("Edit", "Edit Client functionality")}
               variant="primary"
-            />
+            /> */}
           </View>
         )}
 
@@ -832,7 +832,11 @@ const ClientDetailsScreen = () => {
                         ]}
                       >
                         {isSelected && (
-                          <Icon name="checkmark" size={16} color="#FFF" />
+                          <Icon
+                            name="checkmark"
+                            size={16}
+                            color={theme.colors.textOnPrimary}
+                          />
                         )}
                       </View>
                       <View>
