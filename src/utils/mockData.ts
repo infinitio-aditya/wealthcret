@@ -27,7 +27,13 @@ export const mockClients: Client[] = [
         assignedSP: 'Sarah Johnson',
         referralPartner: 'James Wilson',
         netWorth: 2500000,
-        services: ['1', '2', '7'],
+        onboardingProgress: {
+            percentage: 40,
+            uploadedDocs: 2,
+            totalDocs: 5,
+            signedDocs: 1,
+            totalSignedDocs: 4,
+        },
     },
     {
         id: '2',
@@ -39,7 +45,13 @@ export const mockClients: Client[] = [
         assignedSP: 'John Smith',
         referralPartner: 'Linda Parker',
         netWorth: 850000,
-        services: ['3', '4'],
+        onboardingProgress: {
+            percentage: 75,
+            uploadedDocs: 3,
+            totalDocs: 4,
+            signedDocs: 2,
+            totalSignedDocs: 3,
+        },
     },
     {
         id: '3',
@@ -51,7 +63,13 @@ export const mockClients: Client[] = [
         assignedSP: 'Michael Brown',
         referralPartner: 'James Wilson',
         netWorth: 4200000,
-        services: ['1', '5', '8'],
+        onboardingProgress: {
+            percentage: 100,
+            uploadedDocs: 4,
+            totalDocs: 4,
+            signedDocs: 4,
+            totalSignedDocs: 4,
+        },
     },
     {
         id: '4',

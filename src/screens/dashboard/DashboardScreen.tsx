@@ -216,10 +216,20 @@ const DashboardScreen = () => {
         <View style={styles.metricsGrid}>
           {metrics.map((metric, index) => (
             <View key={index} style={styles.metricCard}>
-              <Text style={styles.metricLabel}>{metric.label}</Text>
-              <Text style={[styles.metricValue]}>{metric.value}</Text>
+              <Text style={[styles.metricLabel, { alignSelf: "center" }]}>
+                {metric.label}
+              </Text>
+              <Text style={[styles.metricValue, { alignSelf: "center" }]}>
+                {metric.value}
+              </Text>
               {metric.change !== 0 && (
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
                   <Text
                     style={[
                       styles.metricChange,
@@ -274,7 +284,7 @@ const DashboardScreen = () => {
                   {
                     name: "Debt",
                     value: 30,
-                    color: theme.colors.secondary,
+                    color: theme.colors.error + "80",
                     legendFontColor: theme.colors.textSecondary,
                   },
                   {

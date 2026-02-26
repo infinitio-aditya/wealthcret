@@ -76,6 +76,14 @@ export interface Theme {
     };
 }
 
+export interface OnboardingProgress {
+    percentage: number;
+    uploadedDocs: number;
+    totalDocs: number;
+    signedDocs: number;
+    totalSignedDocs: number;
+}
+
 export interface Client {
     id: string;
     name: string;
@@ -89,6 +97,7 @@ export interface Client {
     lastContact?: string;
     services?: string[]; // Array of service IDs
     referralPartner?: string; // Referral partner name
+    onboardingProgress?: OnboardingProgress;
 }
 
 export interface FamilyMember {

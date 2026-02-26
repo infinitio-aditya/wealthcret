@@ -27,6 +27,7 @@ import Button from "../../../components/ui/Button";
 import { Client } from "../../../types";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
+import CircularProgress from "../../../components/ui/CircularProgress";
 
 const ClientListScreen = () => {
   const { showAlert } = useAlert();
@@ -272,12 +273,68 @@ const ClientListScreen = () => {
       >
         <Card style={itemStyles.clientCard}>
           <View style={itemStyles.clientHeader}>
-            <View style={itemStyles.avatar}>
-              <Icon
-                name="person"
-                size={24}
-                color={theme.colors.textOnPrimary}
-              />
+            <View style={{ marginRight: 16, alignItems: "center" }}>
+              {item.onboardingProgress ? (
+                <CircularProgress
+                  size={68}
+                  strokeWidth={4}
+                  percentage={item.onboardingProgress.percentage}
+                  color={
+                    item.onboardingProgress.percentage === 100
+                      ? theme.colors.success
+                      : item.onboardingProgress.percentage < 50
+                        ? theme.colors.error
+                        : item.onboardingProgress.percentage < 80
+                          ? theme.colors.warning
+                          : theme.colors.primary
+                  }
+                >
+                  <View
+                    style={[
+                      itemStyles.avatar,
+                      {
+                        marginRight: 0,
+                        width: 52,
+                        height: 52,
+                        borderRadius: 26,
+                      },
+                    ]}
+                  >
+                    <Icon
+                      name="person"
+                      size={24}
+                      color={theme.colors.textOnPrimary}
+                    />
+                  </View>
+                </CircularProgress>
+              ) : (
+                <View style={itemStyles.avatar}>
+                  <Icon
+                    name="person"
+                    size={24}
+                    color={theme.colors.textOnPrimary}
+                  />
+                </View>
+              )}
+              {item.onboardingProgress && (
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: "bold",
+                    color:
+                      item.onboardingProgress.percentage === 100
+                        ? theme.colors.success
+                        : item.onboardingProgress.percentage < 50
+                          ? theme.colors.error
+                          : item.onboardingProgress.percentage < 80
+                            ? theme.colors.warning
+                            : theme.colors.primary,
+                    marginTop: 4,
+                  }}
+                >
+                  {item.onboardingProgress.percentage}%
+                </Text>
+              )}
             </View>
             <View style={itemStyles.clientInfo}>
               <Text style={itemStyles.clientName}>{item.name}</Text>

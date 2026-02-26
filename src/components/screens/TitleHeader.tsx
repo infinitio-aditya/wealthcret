@@ -95,7 +95,30 @@ const TitleHeader: React.FC<TitleHeaderProps> = ({
       color: theme.colors.textOnPrimary,
       fontSize: 12,
     },
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    badgeText: {
+      fontSize: 10,
+      fontWeight: "600",
+      textTransform: "uppercase",
+    },
   });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending":
+        return theme.colors.warning;
+      case "approved":
+        return theme.colors.success;
+      case "rejected":
+        return theme.colors.error;
+      default:
+        return theme.colors.textSecondary;
+    }
+  };
 
   const fullName =
     `${user.first_name || ""} ${user.last_name || ""}`.trim() || "-";
@@ -112,7 +135,7 @@ const TitleHeader: React.FC<TitleHeaderProps> = ({
             <Text style={styles.phone}>{user.mobile_number || "-"}</Text>
           </View>
 
-          <View style={styles.actions}>
+          {/* <View style={styles.actions}>
             <TouchableOpacity
               style={[
                 styles.actionBtn,
@@ -145,6 +168,21 @@ const TitleHeader: React.FC<TitleHeaderProps> = ({
                 </Text>
               </TouchableOpacity>
             )}
+          </View> */}
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: getStatusColor(requestStatus) + "20" },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: getStatusColor(requestStatus) },
+              ]}
+            >
+              {requestStatus}
+            </Text>
           </View>
         </View>
 
