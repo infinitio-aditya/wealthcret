@@ -16,19 +16,16 @@ import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Icon from "react-native-vector-icons/Ionicons";
 import { CustomerMapping } from "../../../types";
-import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import {
-  mockMappings,
-  mockServiceProviders,
-  mockReferralPartners,
-} from "../../../utils/mockData";
+  useGetProspectsClientsQuery,
+  useUpdateProspectAssociationMutation,
+} from "../../../services/backend/prospectApi";
+import { useGetOrgnizationByOrgTypeQuery } from "../../../services/backend/authApi";
+import { ProspectAssociation } from "../../../types/backend/prospect";
+import { mockReferralPartners } from "../../../utils/mockData";
+import ThemeDropdown from "@components/ui/ThemeDropdown";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-const availableServiceProviders = mockServiceProviders.map((sp) => ({
-  label: sp.name,
-  value: sp.name,
-}));
 
 const availableReferralPartners = mockReferralPartners.map((rp) => ({
   label: rp.name,
@@ -57,12 +54,42 @@ const CustomerMappingScreen = () => {
     referralPartner: "all",
   });
 
+  const {
+    data: clientsData,
+    isLoading: isFetching,
+    refetch,
+  } = useGetProspectsClientsQuery({ page: 1, page_size: 100 });
+  const [updateAssociation] = useUpdateProspectAssociationMutation();
+  const { data: spsData } = useGetOrgnizationByOrgTypeQuery("advisor");
+
+  const availableServiceProviders =
+    spsData?.map((sp) => ({
+      label: sp.name,
+      value: sp.id.toString(),
+    })) || [];
+
   useEffect(() => {
-    setTimeout(() => {
-      setMappings(mockMappings);
+    if (clientsData) {
+      const mapped: CustomerMapping[] = clientsData.results.map(
+        (pa: ProspectAssociation) => ({
+          id: pa.id.toString(),
+          internalId: pa.id.toString(), // Added missing internalId
+          customerName: `${pa.user.first_name} ${pa.user.last_name}`,
+          externalId: pa.user.email,
+          system: pa.organization.name,
+          serviceProvider: pa.owner_name,
+          serviceProviderId: pa.owner?.toString(),
+          lastSync: new Date(pa.created).toLocaleDateString(),
+          status: pa.invitation_accepted ? "active" : "pending",
+          referralPartner: "Wealthcret", // Backend doesn't seem to store RP name directly in association
+        }),
+      );
+      setMappings(mapped);
       setLoading(false);
-    }, 500);
-  }, []);
+    } else if (!isFetching) {
+      setLoading(false);
+    }
+  }, [clientsData, isFetching]);
 
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) =>
@@ -78,18 +105,27 @@ const CustomerMappingScreen = () => {
     }
   };
 
-  const handleBulkReassign = () => {
+  const handleBulkReassign = async () => {
     if (!bulkProvider.value) return;
-    setMappings((prev) =>
-      prev.map((m) =>
-        selectedIds.includes(m.id)
-          ? { ...m, serviceProvider: bulkProvider.value }
-          : m,
-      ),
-    );
-    setSelectedIds([]);
-    setShowBulkModal(false);
-    setBulkProvider({ label: "", value: "" });
+    try {
+      setLoading(true);
+      await Promise.all(
+        selectedIds.map((id) =>
+          updateAssociation({
+            id: Number(id),
+            owner: Number(bulkProvider.value),
+          }).unwrap(),
+        ),
+      );
+      refetch();
+      setSelectedIds([]);
+      setShowBulkModal(false);
+      setBulkProvider({ label: "", value: "" });
+    } catch (error) {
+      console.error("Bulk reassignment failed:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleApplyFilters = () => {
@@ -107,15 +143,22 @@ const CustomerMappingScreen = () => {
     setShowFilters(false);
   };
 
-  const handleAssignProvider = (id: string) => {
+  const handleAssignProvider = async (id: string) => {
     if (!tempProvider.value) return;
-    setMappings((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, serviceProvider: tempProvider.value } : m,
-      ),
-    );
-    setEditingId(null);
-    setTempProvider({ label: "", value: "" });
+    try {
+      setLoading(true);
+      await updateAssociation({
+        id: Number(id),
+        owner: Number(tempProvider.value),
+      }).unwrap();
+      refetch();
+      setEditingId(null);
+      setTempProvider({ label: "", value: "" });
+    } catch (error) {
+      console.error("Assignment failed:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredMappings = mappings.filter((m) => {

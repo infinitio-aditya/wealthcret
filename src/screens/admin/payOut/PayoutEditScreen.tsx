@@ -21,6 +21,18 @@ import Input from "../../../components/ui/Input";
 import { Payout } from "../../../types";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { PayoutStackParamList } from "../../../navigation/NavigationParams";
+import {
+  useGetCommissionQuery,
+  useUpdateCommissionMutation,
+  useDeleteCommissionMutation,
+  useCalculatePayoutMutation,
+  useCreateCommissionItemMutation,
+  useUpdateCommissionItemMutation,
+  useDeleteCommissionItemMutation,
+} from "../../../services/backend/commissionApi";
+import { useGetServicesQuery } from "../../../services/backend/userServicesApi";
+import { useGetOrgnizationByOrgTypeQuery } from "../../../services/backend/authApi";
+import { Commission, CommissionItem } from "../../../types/backend/commission";
 
 type RouteParams = {
   PayoutEdit: {
@@ -42,8 +54,27 @@ interface Service {
 const PayoutEditScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
-  const route = useRoute<RouteProp<RouteParams, "PayoutEdit">>();
+  const route =
+    useRoute<RouteProp<{ PayoutEdit: { payoutId: string } }, "PayoutEdit">>();
   const navigation = useNavigation<NavigationProp>();
+  const payoutId = Number(route.params?.payoutId);
+
+  // API Hooks
+  const {
+    data: commissionData,
+    isLoading: loadingPayout,
+    refetch,
+  } = useGetCommissionQuery(payoutId);
+  const { data: servicesData } = useGetServicesQuery();
+  const { data: advisors } = useGetOrgnizationByOrgTypeQuery("advisor");
+  const { data: partners } =
+    useGetOrgnizationByOrgTypeQuery("referral_partner");
+
+  const [updateCommission] = useUpdateCommissionMutation();
+  const [calculatePayout] = useCalculatePayoutMutation();
+  const [createItem] = useCreateCommissionItemMutation();
+  const [updateItem] = useUpdateCommissionItemMutation();
+  const [deleteItem] = useDeleteCommissionItemMutation();
 
   // State
   const [payout, setPayout] = useState<Payout | null>(null);
@@ -53,66 +84,46 @@ const PayoutEditScreen = () => {
   const [editingService, setEditingService] = useState<Service | null>(null);
 
   // Services State
-  const [selectedServices, setSelectedServices] = useState<Service[]>([
-    {
-      id: "1",
-      name: "Wealth Management",
-      revenue: 25000,
-      commission: 5000,
-      partnerId: "p1",
-      partnerName: "Elite Financial Services",
-    },
-    {
-      id: "2",
-      name: "Investment Advisory",
-      revenue: 15000,
-      commission: 3500,
-      partnerId: "p1",
-      partnerName: "Elite Financial Services",
-    },
-  ]);
-
-  const availableServices = [
-    { id: "s1", name: "Wealth Management" },
-    { id: "s2", name: "Investment Advisory" },
-    { id: "s3", name: "Portfolio Management" },
-    { id: "s4", name: "Financial Planning" },
-    { id: "s5", name: "Tax Consulting" },
-    { id: "s6", name: "Estate Planning" },
-    { id: "s7", name: "Risk Assessment" },
-    { id: "s8", name: "Retirement Planning" },
-  ];
-
-  const referralPartners = [
-    { id: "p1", name: "Elite Financial Services" },
-    { id: "p2", name: "Global Wealth Partners" },
-    { id: "p3", name: "Alpha Advisors" },
-    { id: "p4", name: "Premium Wealth" },
-  ];
+  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
 
   const [newServiceSelection, setNewServiceSelection] = useState({
     serviceId: "",
     partnerId: "",
   });
 
-  useEffect(() => {
-    // Mock loading payout data
-    // In real app, fetch from API
-    setTimeout(() => {
-      setPayout({
-        id: route.params?.payoutId || "1",
-        partnerId: "p1",
-        partnerName: "Elite Financial Services",
-        amount: 2500.0,
-        status: "pending",
-        requestDate: "2023-11-15",
-        payoutDate: "2023-11-25",
-      });
-      setLoading(false);
-    }, 500);
-  }, [route.params?.payoutId]);
+  const referralPartners = [...(advisors || []), ...(partners || [])].map(
+    (org) => ({ id: org.id.toString(), name: org.name }),
+  );
 
-  const handleAddServices = () => {
+  const availableServices = (servicesData || []).map((s) => ({
+    id: s.id.toString(),
+    name: s.label,
+  }));
+
+  useEffect(() => {
+    if (commissionData) {
+      // Map backend commission items to selectedServices
+      const items: Service[] = (commissionData.task_items || []).map(
+        (ci: CommissionItem) => ({
+          id: ci.id?.toString() || "",
+          name:
+            availableServices.find((s) => s.id === ci.service.toString())
+              ?.name || `Service ${ci.service}`,
+          revenue: Number(ci.earnings?.revenue || 0),
+          commission: Number(ci.earnings?.commission || 0),
+          partnerId: ci.referral_partner.toString(),
+          partnerName:
+            referralPartners.find(
+              (p) => p.id === ci.referral_partner.toString(),
+            )?.name || `Partner ${ci.referral_partner}`,
+        }),
+      );
+      setSelectedServices(items);
+      setLoading(false);
+    }
+  }, [commissionData, servicesData, advisors, partners]);
+
+  const handleAddServices = async () => {
     if (!newServiceSelection.serviceId || !newServiceSelection.partnerId) {
       showAlert(
         "Selection Required",
@@ -121,25 +132,23 @@ const PayoutEditScreen = () => {
       return;
     }
 
-    const serviceInfo = availableServices.find(
-      (s) => s.id === newServiceSelection.serviceId,
-    );
-    const partnerInfo = referralPartners.find(
-      (p) => p.id === newServiceSelection.partnerId,
-    );
+    try {
+      await createItem({
+        id: payoutId,
+        commissionItem: {
+          service: Number(newServiceSelection.serviceId),
+          referral_partner: Number(newServiceSelection.partnerId),
+          commission_task: payoutId,
+          earnings: { revenue: 0, commission: 0 },
+        },
+      }).unwrap();
 
-    if (serviceInfo && partnerInfo) {
-      const newService: Service = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: serviceInfo.name,
-        revenue: 0,
-        commission: 0,
-        partnerId: partnerInfo.id,
-        partnerName: partnerInfo.name,
-      };
-      setSelectedServices([...selectedServices, newService]);
+      showAlert("Success", "Service added to payout");
       setNewServiceSelection({ serviceId: "", partnerId: "" });
       setShowServiceSelector(false);
+      refetch();
+    } catch (error) {
+      showAlert("Error", "Failed to add service");
     }
   };
 
@@ -148,15 +157,33 @@ const PayoutEditScreen = () => {
     setShowEditServiceModal(true);
   };
 
-  const handleSaveService = () => {
+  const handleSaveService = async () => {
     if (editingService) {
-      setSelectedServices(
-        selectedServices.map((s) =>
-          s.id === editingService.id ? editingService : s,
-        ),
-      );
-      setShowEditServiceModal(false);
-      setEditingService(null);
+      try {
+        await updateItem({
+          task_id: payoutId,
+          id: Number(editingService.id),
+          commissionItem: {
+            id: Number(editingService.id),
+            service:
+              (commissionData?.task_items || []).find(
+                (i) => i.id === Number(editingService.id),
+              )?.service || 0,
+            referral_partner: Number(editingService.partnerId),
+            commission_task: payoutId,
+            earnings: {
+              revenue: editingService.revenue,
+              commission: editingService.commission,
+            },
+          },
+        }).unwrap();
+
+        setShowEditServiceModal(false);
+        setEditingService(null);
+        refetch();
+      } catch (error) {
+        showAlert("Error", "Failed to update service details");
+      }
     }
   };
 
@@ -169,10 +196,17 @@ const PayoutEditScreen = () => {
         {
           text: "Remove",
           style: "destructive",
-          onPress: () =>
-            setSelectedServices(
-              selectedServices.filter((s) => s.id !== serviceId),
-            ),
+          onPress: async () => {
+            try {
+              await deleteItem({
+                task_id: payoutId,
+                id: Number(serviceId),
+              }).unwrap();
+              refetch();
+            } catch (error) {
+              showAlert("Error", "Failed to remove service");
+            }
+          },
         },
       ],
     );
@@ -183,6 +217,21 @@ const PayoutEditScreen = () => {
     0,
   );
 
+  const mapStatus = (status?: number): Payout["status"] => {
+    switch (status) {
+      case 1:
+        return "pending";
+      case 2:
+        return "processing";
+      case 3:
+        return "completed";
+      case 4:
+        return "rejected";
+      default:
+        return "pending";
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
@@ -191,7 +240,7 @@ const PayoutEditScreen = () => {
         return theme.colors.warning;
       case "processing":
         return theme.colors.info;
-      case "failed":
+      case "rejected":
         return theme.colors.error;
       default:
         return theme.colors.textSecondary;
@@ -418,11 +467,19 @@ const PayoutEditScreen = () => {
           <View style={{ marginTop: 16 }}>
             <Button
               title="Calculate Payout"
-              onPress={() =>
-                showAlert("Calculate", "Running calculation logic...")
-              }
+              onPress={async () => {
+                try {
+                  setLoading(true);
+                  await calculatePayout(payoutId).unwrap();
+                  showAlert("Success", "Payout calculated successfully");
+                  refetch();
+                } catch (error) {
+                  showAlert("Error", "Calculation failed");
+                } finally {
+                  setLoading(false);
+                }
+              }}
               variant="primary"
-              // icon="calculator-outline"
             />
           </View>
         </View>

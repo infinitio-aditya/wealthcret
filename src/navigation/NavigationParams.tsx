@@ -1,3 +1,5 @@
+import { NewsItem } from "../types";
+
 export type MainTabParamList = {
   HomeTab: undefined;
   RoleTab1: undefined;
@@ -10,7 +12,7 @@ export type DashboardStackParamList = {
   Dashboard: undefined;
   Notifications: undefined;
   NewsList: undefined;
-  NewsDetails: { newsId: string };
+  NewsDetails: { newsItem: NewsItem };
 };
 
 export type ClientStackParamList = {

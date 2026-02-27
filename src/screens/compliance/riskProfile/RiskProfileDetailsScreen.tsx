@@ -14,6 +14,7 @@ import Header from "../../../components/Header";
 import Card from "../../../components/ui/Card";
 import Icon from "react-native-vector-icons/Ionicons";
 import { RiskProfile, Assessment } from "../../../types";
+import { useRetrieveRiskProfileQuery } from "../../../services/backend/complianceApi";
 import Svg, { Path, Circle, Line, G, Text as SvgText } from "react-native-svg";
 
 type RouteParams = {
@@ -22,116 +23,59 @@ type RouteParams = {
   };
 };
 
-// Mock Assessment History
-const mockAssessments: { [key: string]: Assessment[] } = {
-  "1": [
-    {
-      id: "1",
-      date: "2025-11-15",
-      score: 35,
-      status: "low",
-      assessedBy: "Sarah Mitchell",
-      notes: "Conservative investment approach confirmed.",
-    },
-    {
-      id: "2",
-      date: "2025-08-22",
-      score: 32,
-      status: "low",
-      assessedBy: "Sarah Mitchell",
-      notes: "Initial risk assessment.",
-    },
-  ],
-  "2": [
-    {
-      id: "1",
-      date: "2025-11-20",
-      score: 65,
-      status: "medium",
-      assessedBy: "Michael Roberts",
-      notes: "Balanced risk appetite.",
-    },
-  ],
-  "3": [
-    {
-      id: "1",
-      date: "2025-11-10",
-      score: 85,
-      status: "high",
-      assessedBy: "Sarah Mitchell",
-      notes: "Aggressive growth strategy.",
-    },
-  ],
-  "4": [],
-  "5": [],
-};
-
-const mockProfiles: RiskProfile[] = [
-  {
-    id: "1",
-    clientId: "1",
-    clientName: "John Anderson",
-    score: 35,
-    status: "low",
-    lastAssessmentDate: "2025-11-15",
-    nextReviewDate: "2026-11-15",
-  },
-  {
-    id: "2",
-    clientId: "2",
-    clientName: "Emily Chen",
-    score: 65,
-    status: "medium",
-    lastAssessmentDate: "2025-11-20",
-    nextReviewDate: "2026-11-20",
-  },
-  {
-    id: "3",
-    clientId: "3",
-    clientName: "Robert Martinez",
-    score: 85,
-    status: "high",
-    lastAssessmentDate: "2025-11-10",
-    nextReviewDate: "2026-11-10",
-  },
-  {
-    id: "4",
-    clientId: "4",
-    clientName: "Sarah Wilson",
-    score: 45,
-    status: "medium",
-    lastAssessmentDate: "2025-10-05",
-    nextReviewDate: "2026-10-05",
-  },
-  {
-    id: "5",
-    clientId: "5",
-    clientName: "David Lee",
-    score: 20,
-    status: "low",
-    lastAssessmentDate: "2025-09-12",
-    nextReviewDate: "2026-09-12",
-  },
-];
-
 const RiskProfileDetailsScreen = () => {
   const theme = useTheme();
   const route = useRoute<RouteProp<RouteParams, "RiskProfileDetails">>();
   const navigation = useNavigation();
+  const { data: rpData, isLoading: isFetching } = useRetrieveRiskProfileQuery(
+    Number(route.params?.profileId),
+  );
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<RiskProfile | null>(null);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
 
   useEffect(() => {
-    setTimeout(() => {
-      const foundProfile = mockProfiles.find(
-        (p) => p.id === route.params?.profileId,
-      );
-      setProfile(foundProfile || null);
-      setAssessments(mockAssessments[route.params?.profileId] || []);
+    if (rpData) {
+      const mappedProfile: RiskProfile = {
+        id: rpData.id.toString(),
+        clientId: rpData.user?.id.toString() || "",
+        clientName: `${rpData.user?.first_name} ${rpData.user?.last_name}`,
+        score: rpData.current_score,
+        status:
+          rpData.current_score < 40
+            ? "low"
+            : rpData.current_score < 70
+              ? "medium"
+              : "high",
+        lastAssessmentDate: new Date(
+          rpData.last_calculated,
+        ).toLocaleDateString(),
+        nextReviewDate: new Date(
+          new Date(rpData.last_calculated).setFullYear(
+            new Date(rpData.last_calculated).getFullYear() + 1,
+          ),
+        ).toLocaleDateString(),
+      };
+      setProfile(mappedProfile);
+
+      // Attempt to parse history if it's an array
+      if (Array.isArray(rpData.history)) {
+        setAssessments(
+          rpData.history.map((h: any, idx: number) => ({
+            id: idx.toString(),
+            date: new Date(h.date).toLocaleDateString(),
+            score: h.score,
+            status: h.score < 40 ? "low" : h.score < 70 ? "medium" : "high",
+            assessedBy: "System", // Backend doesn't seem to store assessor
+            notes: h.notes || "",
+          })),
+        );
+      }
       setLoading(false);
-    }, 500);
-  }, [route.params?.profileId]);
+    } else if (!isFetching) {
+      setLoading(false);
+    }
+  }, [rpData, isFetching]);
 
   const getScoreColor = (score: number) => {
     if (score < 40) return theme.colors.success;

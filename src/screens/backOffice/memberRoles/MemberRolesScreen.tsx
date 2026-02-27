@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,13 @@ import Input from "../../../components/ui/Input";
 import Icon from "react-native-vector-icons/Ionicons";
 import Modal from "react-native-modal";
 import LinearGradient from "react-native-linear-gradient";
+import {
+  useGetOrganizationRolesQuery,
+  useCreateOrganizationRoleMutation,
+  useUpdateOrganizationRoleMutation,
+  useDeleteOrganizationRoleMutation,
+} from "../../../services/backend/rolesApi";
+import { Role as BackendRole } from "../../../types/backend/roles";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -31,40 +38,30 @@ interface Role {
 const MemberRolesScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
-  const [roles, setRoles] = useState<Role[]>([
-    {
-      id: "1",
-      name: "Administrator",
-      key: "ADMINISTRATOR",
-      description: "Full system access and control",
-      membersCount: 3,
-      color: "#ef4444",
-    },
-    {
-      id: "2",
-      name: "Service Provider",
-      key: "SERVICE_PROVIDER",
-      description: "Manage clients and services",
-      membersCount: 12,
-      color: "#3b82f6",
-    },
-    {
-      id: "3",
-      name: "Referral Partner",
-      key: "REFERRAL_PARTNER",
-      description: "Limited access for partners",
-      membersCount: 8,
-      color: "#8b5cf6",
-    },
-    {
-      id: "4",
-      name: "Support Staff",
-      key: "SUPPORT_STAFF",
-      description: "Customer support team",
-      membersCount: 5,
-      color: "#f59e0b",
-    },
-  ]);
+  const {
+    data: rolesData,
+    isLoading,
+    refetch,
+  } = useGetOrganizationRolesQuery();
+  const [createRole] = useCreateOrganizationRoleMutation();
+  const [updateRole] = useUpdateOrganizationRoleMutation();
+  const [deleteRole] = useDeleteOrganizationRoleMutation();
+
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  useEffect(() => {
+    if (rolesData) {
+      const mapped = rolesData.map((r: BackendRole) => ({
+        id: r.id.toString(),
+        name: r.name,
+        key: r.name.toUpperCase().replace(/\s+/g, "_"),
+        description: r.description || "No description provided",
+        membersCount: 0, // Backend might not return count directly here
+        color: presetColors[Math.floor(Math.random() * presetColors.length)],
+      }));
+      setRoles(mapped);
+    }
+  }, [rolesData]);
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
@@ -103,7 +100,7 @@ const MemberRolesScreen = () => {
     setModalVisible(true);
   };
 
-  const handleSaveRole = () => {
+  const handleSaveRole = async () => {
     if (!formData.name || !formData.description) {
       showAlert("Error", `Please fill in all required fields`, [
         { text: "OK" },
@@ -111,21 +108,25 @@ const MemberRolesScreen = () => {
       return;
     }
 
-    if (editingRole) {
-      setRoles(
-        roles.map((r) =>
-          r.id === editingRole.id ? { ...editingRole, ...formData } : r,
-        ),
-      );
-    } else {
-      const newRole: Role = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...formData,
-        membersCount: 0,
-      };
-      setRoles([...roles, newRole]);
+    try {
+      if (editingRole) {
+        await updateRole({
+          id: Number(editingRole.id),
+          name: formData.name,
+          description: formData.description,
+        }).unwrap();
+      } else {
+        await createRole({
+          name: formData.name,
+          description: formData.description,
+        }).unwrap();
+      }
+      refetch();
+      setModalVisible(false);
+    } catch (error) {
+      console.error("Failed to save role:", error);
+      showAlert("Error", "Failed to save role. Please try again.");
     }
-    setModalVisible(false);
   };
 
   const handleDeleteRole = (id: string) => {
@@ -137,7 +138,14 @@ const MemberRolesScreen = () => {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => setRoles(roles.filter((r) => r.id !== id)),
+          onPress: async () => {
+            try {
+              await deleteRole(Number(id)).unwrap();
+              refetch();
+            } catch (error) {
+              console.error("Failed to delete role:", error);
+            }
+          },
         },
       ],
     );

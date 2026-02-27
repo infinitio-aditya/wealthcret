@@ -1,7 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ENV } from '../config/env';
 
-const API_BASE_URL = 'https://api.wealthcret.com'; // Replace with actual API URL
+const API_BASE_URL = ENV.API_BASE_URL;
 
 const api = axios.create({
     baseURL: API_BASE_URL,

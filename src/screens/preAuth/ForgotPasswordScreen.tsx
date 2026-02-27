@@ -13,17 +13,30 @@ import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../hooks/useTheme";
 import Icon from "react-native-vector-icons/Ionicons";
 import LinearGradient from "react-native-linear-gradient";
+import { useForgotPasswordSendMutation } from "../../services/backend/authApi";
+import { useAlert } from "../../context/AlertContext";
 
 const ForgotPasswordScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [forgotPasswordSend, { isLoading: loading }] =
+    useForgotPasswordSendMutation();
 
-  const handleSubmit = () => {
-    if (!email) return;
-    setSubmitted(true);
-    // In a real app, send reset link
+  const handleSubmit = async () => {
+    if (!email) {
+      showAlert("Error", "Please enter your email address");
+      return;
+    }
+
+    try {
+      await forgotPasswordSend({ email }).unwrap();
+      setSubmitted(true);
+    } catch (error: any) {
+      showAlert("Error", error?.data?.message || "Failed to send reset link");
+    }
   };
 
   const styles = StyleSheet.create({

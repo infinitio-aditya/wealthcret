@@ -1,18 +1,17 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
-import { RouteProp, useRoute } from '@react-navigation/native';
-import { DashboardStackParamList } from '../../navigation/NavigationParams';
-import { useTheme } from '../../hooks/useTheme';
-import Header from '../../components/Header';
-import { mockNews } from '../../utils/mockData';
+import React from "react";
+import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
+import { RouteProp, useRoute } from "@react-navigation/native";
+import { DashboardStackParamList } from "../../navigation/NavigationParams";
+import { useTheme } from "../../hooks/useTheme";
+import Header from "../../components/Header";
+import { mockNews } from "../../utils/mockData";
 
-type ScreenRouteProp = RouteProp<DashboardStackParamList, 'NewsDetails'>;
+type ScreenRouteProp = RouteProp<DashboardStackParamList, "NewsDetails">;
 
 const NewsDetailsScreen = () => {
   const theme = useTheme();
-  const route = useRoute<ScreenRouteProp>();
-  const { newsId } = route.params;
-  const newsItem = mockNews.find(n => n.id === newsId);
+  const route = useRoute<any>();
+  const { newsItem } = route.params;
 
   const styles = StyleSheet.create({
     container: {
@@ -24,7 +23,7 @@ const NewsDetailsScreen = () => {
     },
     title: {
       fontSize: 24,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       color: theme.colors.text,
       marginBottom: 12,
     },
@@ -41,7 +40,7 @@ const NewsDetailsScreen = () => {
     errorText: {
       fontSize: 18,
       color: theme.colors.error,
-      textAlign: 'center',
+      textAlign: "center",
       marginTop: 50,
     },
   });
@@ -69,7 +68,7 @@ const NewsDetailsScreen = () => {
                 */}
         <Text style={styles.body}>
           {newsItem.description}
-          {'\n\n'}
+          {"\n\n"}
           Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
           eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
           minim veniam, quis nostrud exercitation ullamco laboris nisi ut

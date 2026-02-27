@@ -11,14 +11,25 @@ import {
   Alert,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
+import { useAlert } from "context/AlertContext";
+import {
+  useRetrieveSupportTicketQuery,
+  useGetSupportTicketMessagesQuery,
+  useCreateSupportTicketMessageMutation,
+  useUpdateSupportTicketMutation,
+} from "../../../services/backend/supportApi";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../store";
+import {
+  SupportTicket,
+  SupportTicketMessage as BackendMessage,
+} from "../../../types/backend/support";
 import Icon from "react-native-vector-icons/Feather";
 import { useTheme } from "../../../hooks/useTheme";
-import { mockTickets, mockServiceProviders } from "../../../utils/mockData";
-import { TicketMessage } from "../../../types";
 import LinearGradient from "react-native-linear-gradient";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import Header from "../../../components/Header";
-import { useAlert } from "context/AlertContext";
+import { mockServiceProviders } from "../../../utils/mockData";
 
 const TicketDetailsScreen = () => {
   const theme = useTheme();
@@ -209,23 +220,36 @@ const TicketDetailsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation();
   const { ticketId } = route.params;
+  const user = useSelector((state: RootState) => state.auth.user);
 
-  // In real app, we would fetch or select from store. Here we find in mockData.
-  const ticket = mockTickets.find((t) => t.id === ticketId);
+  const { data: ticket, isLoading: isLoadingTicket } =
+    useRetrieveSupportTicketQuery(Number(ticketId));
+  const { data: backendMessages, refetch: refetchMessages } =
+    useGetSupportTicketMessagesQuery(Number(ticketId));
+  const [createMessage] = useCreateSupportTicketMessageMutation();
+  const [updateTicket] = useUpdateSupportTicketMutation();
 
   const [messageText, setMessageText] = useState("");
-  const [messages, setMessages] = useState<TicketMessage[]>(
-    ticket?.messages || [],
-  );
-  const [assignedSP, setAssignedSP] = useState(ticket?.assignedTo || "");
   const [ticketStatus, setTicketStatus] = useState<
     "open" | "in-progress" | "resolved" | "closed"
-  >(ticket?.status || "open");
+  >("open");
+
+  useEffect(() => {
+    if (ticket) {
+      const statusMap: Record<number, any> = {
+        0: "open",
+        1: "in-progress",
+        2: "resolved",
+        3: "closed",
+      };
+      setTicketStatus(statusMap[ticket.status] || "open");
+    }
+  }, [ticket]);
+
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Mock current user
-  const currentUser = { name: "Admin User", role: "admin" };
-  const isAdmin = currentUser.role === "admin"; // Logic for user role check
+  // User role check
+  const isAdmin = user?.role === "admin";
 
   const STATUSES = ["open", "in-progress", "resolved", "closed"];
 
@@ -289,32 +313,49 @@ const TicketDetailsScreen = () => {
     }
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!messageText.trim()) return;
 
-    const newMessage: TicketMessage = {
-      id: Date.now().toString(),
-      ticketId: ticket.id,
-      sender: currentUser.name,
-      message: messageText,
-      timestamp: new Date().toISOString(),
-    };
+    try {
+      await createMessage({
+        support_ticket: Number(ticketId),
+        message: messageText,
+        user: Number(user?.id),
+      }).unwrap();
 
-    setMessages([...messages, newMessage]);
-    setMessageText("");
-    setTimeout(
-      () => scrollViewRef.current?.scrollToEnd({ animated: true }),
-      100,
-    );
+      setMessageText("");
+      refetchMessages();
+      setTimeout(
+        () => scrollViewRef.current?.scrollToEnd({ animated: true }),
+        100,
+      );
+    } catch (error) {
+      showAlert("Error", "Failed to send message");
+    }
   };
 
-  const handleStatusChange = (newStatus: string) => {
-    setTicketStatus(newStatus as any);
-    // In a real app, you would send this update to your backend
-    showAlert(
-      "Status Updated",
-      `Ticket status changed to ${newStatus.replace("-", " ")}`,
-    );
+  const handleStatusChange = async (newStatus: string) => {
+    const statusReverseMap: Record<string, number> = {
+      open: 0,
+      "in-progress": 1,
+      resolved: 2,
+      closed: 3,
+    };
+
+    try {
+      await updateTicket({
+        id: Number(ticketId),
+        status: statusReverseMap[newStatus],
+      }).unwrap();
+
+      setTicketStatus(newStatus as any);
+      showAlert(
+        "Status Updated",
+        `Ticket status changed to ${newStatus.replace("-", " ")}`,
+      );
+    } catch (error) {
+      showAlert("Error", "Failed to update status");
+    }
   };
 
   // const handleCloseTicket = () => {
@@ -448,17 +489,23 @@ const TicketDetailsScreen = () => {
         <View style={styles.content}>
           {renderStatusProgress()}
 
-          {(currentUser.role === "admin" ||
-            currentUser.role === "service_provider") && (
+          {(user?.role === "admin" || user?.role === "service_provider") && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Ticket Management</Text>
               <ThemeDropdown
                 label="Assign Service Provider"
                 options={spOptions}
-                selectedValue={assignedSP}
-                onValueChange={(value) => {
-                  setAssignedSP(value);
-                  showAlert("Success", `Ticket assigned to ${value}`);
+                selectedValue={ticket?.assigned_to_user || ""}
+                onValueChange={async (value) => {
+                  try {
+                    await updateTicket({
+                      id: Number(ticketId),
+                      assigned_to_user: value,
+                    }).unwrap();
+                    showAlert("Success", `Ticket assigned to ${value}`);
+                  } catch (error) {
+                    showAlert("Error", "Failed to assign provider");
+                  }
                 }}
                 placeholder="Select Service Provider"
               />
@@ -467,13 +514,7 @@ const TicketDetailsScreen = () => {
                   label="Update Status"
                   options={statusOptions}
                   selectedValue={ticketStatus}
-                  onValueChange={(value) => {
-                    setTicketStatus(value as any);
-                    showAlert(
-                      "Success",
-                      `Status updated to ${value.replace("-", " ")}`,
-                    );
-                  }}
+                  onValueChange={handleStatusChange}
                   placeholder="Select Status"
                 />
               </View>
@@ -518,20 +559,22 @@ const TicketDetailsScreen = () => {
 
             <View style={[styles.detailRow, { width: "50%" }]}>
               <Text style={styles.detailLabel}>Created By</Text>
-              <Text style={styles.detailValue}>{ticket.createdBy}</Text>
+              <Text
+                style={styles.detailValue}
+              >{`${ticket.user?.first_name} ${ticket.user?.last_name}`}</Text>
             </View>
 
             <View style={[styles.detailRow, { width: "50%" }]}>
               <Text style={styles.detailLabel}>Assigned To</Text>
               <Text style={styles.detailValue}>
-                {assignedSP || "Unassigned"}
+                {ticket.assigned_to_user || "Unassigned"}
               </Text>
             </View>
 
             <View style={[styles.detailRow, { width: "50%" }]}>
               <Text style={styles.detailLabel}>Created Date</Text>
               <Text style={styles.detailValue}>
-                {new Date(ticket.createdAt).toLocaleString()}
+                {new Date(ticket.created).toLocaleString()}
               </Text>
             </View>
 
@@ -541,12 +584,7 @@ const TicketDetailsScreen = () => {
                 style={[
                   styles.priorityBadge,
                   {
-                    backgroundColor:
-                      (ticket.priority === "high"
-                        ? theme.colors.error
-                        : ticket.priority === "medium"
-                          ? theme.colors.warning
-                          : theme.colors.success) + "20",
+                    backgroundColor: theme.colors.warning + "20",
                   },
                 ]}
               >
@@ -554,16 +592,11 @@ const TicketDetailsScreen = () => {
                   style={[
                     styles.priorityText,
                     {
-                      color:
-                        ticket.priority === "high"
-                          ? theme.colors.error
-                          : ticket.priority === "medium"
-                            ? theme.colors.warning
-                            : theme.colors.success,
+                      color: theme.colors.warning,
                     },
                   ]}
                 >
-                  {ticket.priority}
+                  Medium
                 </Text>
               </View>
             </View>
@@ -576,8 +609,8 @@ const TicketDetailsScreen = () => {
               style={{ maxHeight: 300 }}
               nestedScrollEnabled
             >
-              {messages.map((msg, index) => {
-                const isOwn = msg.sender === currentUser.name;
+              {(backendMessages || []).map((msg, index) => {
+                const isOwn = Number(msg.user) === Number(user?.id);
                 return (
                   <View
                     key={msg.id || index}
@@ -613,7 +646,7 @@ const TicketDetailsScreen = () => {
                             },
                           ]}
                         >
-                          {msg.sender}
+                          {msg.sender_name || "System"}
                         </Text>
                       </View>
                       <Text
@@ -638,7 +671,7 @@ const TicketDetailsScreen = () => {
                           },
                         ]}
                       >
-                        {new Date(msg.timestamp).toLocaleTimeString([], {
+                        {new Date(msg.created).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}

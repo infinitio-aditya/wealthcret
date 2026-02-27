@@ -16,56 +16,41 @@ import { useAlert } from "../../../context/AlertContext";
 import { RootState } from "../../../store";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
+import { PayoutStackParamList } from "../../../navigation/NavigationParams";
+import {
+  useLazySearchCommissionQuery,
+  useLazyGetCommissionForAdminQuery,
+  useCreateCommissionMutation,
+} from "../../../services/backend/commissionApi";
+import { useGetOrgnizationByOrgTypeQuery } from "../../../services/backend/authApi";
+import { SearchItem, Commission } from "../../../types/backend/commission";
 import Input from "../../../components/ui/Input";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import { Payout } from "../../../types";
 import Icon1 from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { PayoutStackParamList } from "../../../navigation/NavigationParams";
 
 type NavigationProp = StackNavigationProp<PayoutStackParamList, "Payout">;
 
-const mockPayouts: Payout[] = [
-  {
-    id: "1",
-    partnerId: "p1",
-    partnerName: "Elite Financial Services",
-    amount: 2500.0,
-    status: "pending",
-    requestDate: "2023-11-15",
-    payoutDate: "2023-11-25",
-  },
-  {
-    id: "2",
-    partnerId: "p2",
-    partnerName: "Sunset Advisory",
-    amount: 3200.5,
-    status: "completed",
-    requestDate: "2023-10-10",
-    payoutDate: "2023-10-20",
-  },
-  {
-    id: "3",
-    partnerId: "p3",
-    partnerName: "Capital Partners",
-    amount: 1500.0,
-    status: "processing",
-    requestDate: "2023-11-18",
-    payoutDate: "2023-11-30",
-  },
-];
+// Mock data removed in favor of API
 
 const PayoutScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const user = useSelector((state: RootState) => state.auth.user);
+  const [getAdminPayouts] = useLazyGetCommissionForAdminQuery();
+  const [searchPayouts] = useLazySearchCommissionQuery();
+  const [createPayout] = useCreateCommissionMutation();
+  const { data: advisors } = useGetOrgnizationByOrgTypeQuery("advisor");
+  const { data: partners } =
+    useGetOrgnizationByOrgTypeQuery("referral_partner");
+
   const [loading, setLoading] = useState(true);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
 
-  // New Payout Form State
   const [newPayout, setNewPayout] = useState({
     name: "",
     month: "",
@@ -100,30 +85,74 @@ const PayoutScreen = () => {
     { label: "File Upload", value: "file" },
   ];
 
-  const referralPartners = [
-    { id: "p1", name: "Elite Financial Services" },
-    { id: "p2", name: "Global Wealth Partners" },
-    { id: "p3", name: "Alpha Advisors" },
-    { id: "p4", name: "Premium Wealth" },
-  ];
+  const referralPartners = [...(advisors || []), ...(partners || [])].map(
+    (org) => ({ id: org.id.toString(), name: org.name }),
+  );
 
   useEffect(() => {
-    // Mock loading payout data with role filtering
-    setTimeout(() => {
-      let filteredPayouts = mockPayouts;
-      if (
-        user?.role === "service_provider" ||
-        user?.role === "referral_partner"
-      ) {
-        filteredPayouts = mockPayouts.filter(
-          (p) => p.partnerName === user.name,
-        );
-      }
-      // For demo purposes, if filtered results are empty, show all but with a note
-      setPayouts(filteredPayouts.length > 0 ? filteredPayouts : mockPayouts);
-      setLoading(false);
-    }, 500);
+    fetchPayouts();
   }, [user]);
+
+  const fetchPayouts = async () => {
+    setLoading(true);
+    try {
+      if (user?.role === "admin") {
+        const response = await getAdminPayouts({
+          page: 1,
+          page_size: 100,
+        }).unwrap();
+        const mapped: Payout[] = response.results.map((c: Commission) => ({
+          id: c.id?.toString() || "",
+          partnerId: c.service_provider.toString(),
+          partnerName:
+            referralPartners.find((p) => p.id === c.service_provider.toString())
+              ?.name || `Partner ${c.service_provider}`,
+          amount: Object.values(c.earnings || {}).reduce(
+            (a: number, b: any) => a + (Number(b) || 0),
+            0,
+          ) as number,
+          status: mapStatus(c.payout_status),
+          requestDate: `${c.year}-${c.month}-01`,
+          payoutDate: `${c.year}-${c.month}-25`,
+        }));
+        setPayouts(mapped);
+      } else {
+        const results = await searchPayouts({}).unwrap();
+        // searchCommission returns SearchItem[] which is active earnings,
+        // but PayoutScreen expects historical tasks.
+        // For non-admin, we'll show a limited view or just the earnings.
+        const mapped: Payout[] = results.map((si: SearchItem, idx: number) => ({
+          id: `search-${idx}`,
+          partnerId: user?.id || "",
+          partnerName: si.service,
+          amount: si.commission,
+          status: "completed",
+          requestDate: new Date().toISOString().split("T")[0],
+          payoutDate: new Date().toISOString().split("T")[0],
+        }));
+        setPayouts(mapped);
+      }
+    } catch (error) {
+      console.error("Failed to fetch payouts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const mapStatus = (status?: number): Payout["status"] => {
+    switch (status) {
+      case 1:
+        return "pending";
+      case 2:
+        return "processing";
+      case 3:
+        return "completed";
+      case 4:
+        return "rejected";
+      default:
+        return "pending";
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -140,7 +169,7 @@ const PayoutScreen = () => {
     }
   };
 
-  const handleCreatePayout = () => {
+  const handleCreatePayout = async () => {
     if (
       !newPayout.name ||
       !newPayout.month ||
@@ -151,33 +180,29 @@ const PayoutScreen = () => {
       return;
     }
 
-    const partner = referralPartners.find(
-      (p) => p.id === newPayout.serviceProviderId,
-    );
-    if (!partner) return;
+    setLoading(true);
+    try {
+      const response = await createPayout({
+        name: newPayout.name,
+        month: Number(newPayout.month),
+        year: Number(newPayout.year),
+        service_provider: Number(newPayout.serviceProviderId),
+        task_type: newPayout.commissionType === "manual" ? 1 : 2,
+      }).unwrap();
 
-    const payout: Payout = {
-      id: Math.random().toString(36).substr(2, 9),
-      partnerId: partner.id,
-      partnerName: partner.name,
-      amount: 0,
-      status: "pending",
-      requestDate: new Date().toISOString().split("T")[0],
-      payoutDate: `${newPayout.year}-${newPayout.month}-25`,
-    };
+      showAlert("Success", "Payout created successfully");
+      setIsAddModalVisible(false);
+      fetchPayouts();
 
-    setPayouts([payout, ...payouts]);
-    setIsAddModalVisible(false);
-    setNewPayout({
-      name: "",
-      month: "",
-      year: "",
-      commissionType: "manual",
-      serviceProviderId: "",
-    });
-
-    // Navigate to edit screen immediately to add services
-    navigation.navigate("PayoutEdit", { payoutId: payout.id });
+      navigation.navigate("PayoutEdit", {
+        payoutId: response.id?.toString() || "",
+      });
+    } catch (error) {
+      console.error("Failed to create payout:", error);
+      showAlert("Error", "Failed to create payout. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderPayoutItem = ({ item }: { item: Payout }) => (

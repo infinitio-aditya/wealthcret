@@ -14,8 +14,8 @@ import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../../hooks/useTheme";
 import { useAlert } from "../../context/AlertContext";
 import { setUser, setToken } from "../../store/slices/authSlice";
-import { login } from "../../services/authService";
-import { UserRole } from "../../types";
+import { useLoginMutation } from "../../services/backend/authApi";
+import { User, UserRole } from "../../types";
 
 const LoginScreen = () => {
   const { showAlert } = useAlert();
@@ -24,8 +24,7 @@ const LoginScreen = () => {
   const dispatch = useDispatch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
-  const [loading, setLoading] = useState(false);
+  const [login, { isLoading: loading }] = useLoginMutation();
 
   const roles: { value: UserRole; label: string }[] = [
     { value: "admin", label: "Admin" },
@@ -40,33 +39,34 @@ const LoginScreen = () => {
       return;
     }
 
-    setLoading(true);
-
-    // 1. Determine the role locally
-    let roleToUse: UserRole = "admin"; // Default
-    const trimmedEmail = email.trim().toLowerCase();
-
-    if (trimmedEmail == "s") {
-      roleToUse = "service_provider";
-    } else if (trimmedEmail == "r") {
-      roleToUse = "referral_partner";
-    } else if (trimmedEmail == "c") {
-      roleToUse = "client";
-    }
-
-    // 2. Update the state for future renders
-    setSelectedRole(roleToUse);
-    console.log("Determined Role:", roleToUse);
-
     try {
-      // 3. Use the local variable 'roleToUse' for the API call
-      const response = await login({ email, password, role: roleToUse });
-      dispatch(setUser(response.user));
+      const response = await login({ email, password }).unwrap();
+
+      // Mapping Backend CustomUser to Mobile User type
+      const roleMap: Record<string, UserRole> = {
+        "0": "admin",
+        "1": "referral_partner",
+        "2": "service_provider",
+        "3": "client",
+      };
+
+      const mappedUser: User = {
+        id: response.user.id.toString(),
+        name: `${response.user.first_name} ${response.user.last_name}`,
+        email: response.user.email,
+        role: roleMap[response.user.organization?.org_type] || "client",
+        organization: response.user.organization?.name,
+      };
+
+      dispatch(setUser(mappedUser));
       dispatch(setToken(response.token));
-    } catch (error) {
-      showAlert("Error", "Login failed. Please try again.");
-    } finally {
-      setLoading(false);
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      const errorMessage =
+        error?.data?.detail ||
+        error?.data?.message ||
+        `Login failed: ${error?.error || error?.message || "Unknown error"}`;
+      showAlert("Error", errorMessage);
     }
   };
 

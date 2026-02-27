@@ -31,6 +31,16 @@ import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { SupportStackParamList } from "../../../navigation/NavigationParams";
 import LinearGradient from "react-native-linear-gradient";
+import {
+  useLazyGetRiskProfilesQuery,
+  useGetClientRiskProfileQuery,
+  useGetQuestionsQuery,
+  useSubmitAssessmentMutation,
+} from "../../../services/backend/complianceApi";
+import {
+  RiskProfile as BackendRiskProfile,
+  RiskProfileQuestion,
+} from "../../../types/backend/compliance";
 
 type RiskProfileScreenNavigationProp = StackNavigationProp<
   SupportStackParamList,
@@ -78,6 +88,7 @@ const RiskProfileScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<RiskProfileScreenNavigationProp>();
   const user = useSelector((state: RootState) => state.auth.user);
+  const isClient = user?.role === "client";
   const [loading, setLoading] = useState(true);
   const [showAssessment, setShowAssessment] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -99,13 +110,51 @@ const RiskProfileScreen = () => {
     referralPartner: "all",
   });
 
-  useEffect(() => {
-    setTimeout(() => {
-      setProfiles(mockRiskProfiles);
-      setFilteredProfiles(mockRiskProfiles);
+  const [getProfiles, { isFetching }] = useLazyGetRiskProfilesQuery();
+  const { data: clientProfile, refetch: refetchClientProfile } =
+    useGetClientRiskProfileQuery(undefined, { skip: !isClient });
+  const { data: qData } = useGetQuestionsQuery();
+  const [submitAssessment, { isLoading: isSubmitting }] =
+    useSubmitAssessmentMutation();
+
+  const fetchProfiles = async () => {
+    try {
+      const response = await getProfiles({ page: 1, page_size: 100 }).unwrap();
+      const mapped: RiskProfile[] = response.results.map((rp) => ({
+        id: rp.id.toString(),
+        clientName: `${rp.user?.first_name} ${rp.user?.last_name}`,
+        score: rp.current_score,
+        status:
+          rp.current_score < 40
+            ? "low"
+            : rp.current_score < 70
+              ? "medium"
+              : "high",
+        lastAssessmentDate: new Date(rp.last_calculated).toLocaleDateString(),
+        assignedSP: "Advisor", // Backend RiskProfile doesn't seem to have SP info directly
+        clientId: rp.user?.id.toString() || "",
+        nextReviewDate: new Date(
+          new Date(rp.last_calculated).setFullYear(
+            new Date(rp.last_calculated).getFullYear() + 1,
+          ),
+        ).toLocaleDateString(),
+      }));
+      setProfiles(mapped);
+      setFilteredProfiles(mapped);
       setLoading(false);
-    }, 500);
-  }, []);
+    } catch (error) {
+      console.error("Failed to fetch profiles:", error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isClient) {
+      fetchProfiles();
+    } else {
+      setLoading(false);
+    }
+  }, [isClient]);
 
   useEffect(() => {
     let result = profiles;
@@ -127,8 +176,6 @@ const RiskProfileScreen = () => {
     }
     setFilteredProfiles(result);
   }, [searchQuery, filters, profiles]);
-
-  const isClient = user?.role === "client";
 
   const getScoreColor = (score: number) => {
     if (score < 40) return theme.colors.success; // Low Risk
@@ -186,7 +233,7 @@ const RiskProfileScreen = () => {
             Risk Assessment
           </Text>
           <Text style={styles.assessmentStep}>
-            Question {currentQuestion + 1} of {mockQuizQuestions.length}
+            Question {currentQuestion + 1} of {qData?.length || 0}
           </Text>
         </View>
         <View style={{ width: 24 }} />
@@ -197,7 +244,7 @@ const RiskProfileScreen = () => {
           style={[
             styles.progressFill,
             {
-              width: `${((currentQuestion + 1) / mockQuizQuestions.length) * 100}%`,
+              width: `${((currentQuestion + 1) / (qData?.length || 1)) * 100}%`,
               backgroundColor: theme.colors.primary,
             },
           ]}
@@ -205,17 +252,14 @@ const RiskProfileScreen = () => {
       </View>
 
       <Card style={styles.questionCard}>
-        <Text style={[styles.categoryLabel, { color: theme.colors.primary }]}>
-          {mockQuizQuestions[currentQuestion].category?.toUpperCase()}
-        </Text>
         <Text style={[styles.questionText, { color: theme.colors.text }]}>
-          {mockQuizQuestions[currentQuestion].text}
+          {qData && qData[currentQuestion]?.label}
         </Text>
 
         <View style={styles.optionsContainer}>
-          {(mockQuizQuestions[currentQuestion].options as any[]).map(
+          {((qData && qData[currentQuestion]?.options) || []).map(
             (option, idx) => {
-              const isSelected = answers[currentQuestion] === option.score;
+              const isSelected = answers[currentQuestion] === option.value;
               return (
                 <TouchableOpacity
                   key={option.id}
@@ -230,7 +274,7 @@ const RiskProfileScreen = () => {
                         : theme.colors.surface,
                     },
                   ]}
-                  onPress={() => handleAnswerSelect(option.score)}
+                  onPress={() => handleAnswerSelect(option.value)}
                 >
                   <View
                     style={[
@@ -261,7 +305,7 @@ const RiskProfileScreen = () => {
                       },
                     ]}
                   >
-                    {option.text}
+                    {option.label}
                   </Text>
                 </TouchableOpacity>
               );
@@ -280,12 +324,10 @@ const RiskProfileScreen = () => {
         />
         <Button
           title={
-            currentQuestion === mockQuizQuestions.length - 1
-              ? "Complete"
-              : "Next"
+            currentQuestion === (qData?.length || 0) - 1 ? "Complete" : "Next"
           }
           onPress={handleNext}
-          disabled={answers[currentQuestion] === undefined}
+          disabled={answers[currentQuestion] === undefined || isSubmitting}
           style={{ flex: 1 }}
         />
       </View>
@@ -604,10 +646,13 @@ const RiskProfileScreen = () => {
           </Text>
           <Text style={styles.largeScoreLabel}>Low Risk</Text>
         </View> */}
-        <Gauge score={35} />
+        <Gauge score={clientProfile?.current_score || 0} />
         <Text style={styles.clientNotice}>
-          Your risk profile was last updated on 2025-11-15. We recommend
-          reviewing this annually or after major life changes.
+          Your risk profile was last updated on{" "}
+          {clientProfile
+            ? new Date(clientProfile.last_calculated).toLocaleDateString()
+            : "N/A"}
+          . We recommend reviewing this annually or after major life changes.
         </Text>
         <Button title="Retake Assessment" onPress={handleStartAssessment} />
       </LinearGradient>

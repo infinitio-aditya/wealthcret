@@ -13,20 +13,67 @@ import Icon from "react-native-vector-icons/Feather";
 import { useTheme } from "../../../hooks/useTheme";
 import { mockTickets } from "../../../utils/mockData";
 import Icon1 from "react-native-vector-icons/Ionicons";
-import { Ticket } from "../../../types";
+import { Ticket, TicketMessage } from "../../../types";
 import LinearGradient from "react-native-linear-gradient";
+import {
+  useLazyGetSupportTicketsQuery,
+  useGetSupportDashboardQuery,
+} from "../../../services/backend/supportApi";
+import { SupportTicket } from "../../../types/backend/support";
 
 const SupportScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<any>();
   const [refreshing, setRefreshing] = useState(false);
-  // In a real app we might filter data, here we use mockTickets directly
-  const [tickets, setTickets] = useState<Ticket[]>(mockTickets);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
 
-  const handleRefresh = () => {
+  const [getTickets, { isFetching }] = useLazyGetSupportTicketsQuery();
+  const { data: dashboardStats, refetch: refetchStats } =
+    useGetSupportDashboardQuery();
+
+  const fetchTickets = async () => {
+    try {
+      const response = await getTickets({ page: 1, page_size: 100 }).unwrap();
+
+      const mappedTickets: Ticket[] = response.results.map(
+        (st: SupportTicket) => {
+          const statusMap: Record<number, Ticket["status"]> = {
+            0: "open",
+            1: "pending" as any, // backend pending -> mobile in-progress?
+            2: "resolved",
+            3: "closed",
+          };
+
+          return {
+            id: st.id.toString(),
+            organizationId: st.assigned_to_org.toString(),
+            organizationName: st.user?.organization?.name || "Unknown Org",
+            title: st.title,
+            description: st.description,
+            status: (statusMap[st.status] || "open") as Ticket["status"],
+            priority: "medium", // Backend SupportTicket doesn't seem to have priority? Defaulting to medium
+            createdBy: `${st.user?.first_name} ${st.user?.last_name}`,
+            createdAt: st.created,
+            messages: [], // Messages are fetched separately in details screen
+          };
+        },
+      );
+
+      setTickets(mappedTickets);
+    } catch (error) {
+      console.error("Failed to fetch tickets:", error);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => setRefreshing(false), 1000);
+    await fetchTickets();
+    await refetchStats();
+    setRefreshing(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -60,22 +107,22 @@ const SupportScreen = () => {
   const stats = [
     {
       label: "Open",
-      count: tickets.filter((t) => t.status === "open").length,
+      count: dashboardStats?.open_tickets || 0,
       color: theme.colors.info,
     },
     {
       label: "In Progress",
-      count: tickets.filter((t) => t.status === "in-progress").length,
+      count: dashboardStats?.pending_tickets || 0,
       color: theme.colors.warning,
     },
     {
       label: "Resolved",
-      count: tickets.filter((t) => t.status === "resolved").length,
+      count: tickets.filter((t) => t.status === "resolved").length, // Backend dashboard doesn't have resolved?
       color: theme.colors.success,
     },
     {
       label: "Closed",
-      count: tickets.filter((t) => t.status === "closed").length,
+      count: dashboardStats?.closed_tickets || 0,
       color: theme.colors.textSecondary,
     },
   ];

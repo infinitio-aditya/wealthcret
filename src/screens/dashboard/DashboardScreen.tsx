@@ -10,9 +10,11 @@ import { useSelector } from "react-redux";
 import { RootState } from "../../store";
 import { useTheme } from "../../hooks/useTheme";
 import NewsCard from "../../components/NewsCard";
-import { mockNews } from "../../utils/mockData";
 import Chart from "../../components/Chart";
 import { useNavigation } from "@react-navigation/native";
+import { useGetUserAggregatedDataQuery } from "../../services/backend/dashboardApi";
+import { useGetNewsQuery } from "../../services/backend/newsApi";
+import { NewsItem } from "../../types";
 
 import LinearGradient from "react-native-linear-gradient";
 
@@ -20,6 +22,13 @@ const DashboardScreen = () => {
   const theme = useTheme();
   const user = useSelector((state: RootState) => state.auth.user);
   const navigation = useNavigation<any>();
+
+  const { data: dashboardData, isLoading: isDashboardLoading } =
+    useGetUserAggregatedDataQuery();
+  const { data: newsData, isLoading: isNewsLoading } = useGetNewsQuery({
+    page: 1,
+    page_size: 5,
+  });
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -131,24 +140,29 @@ const DashboardScreen = () => {
       case "service_provider":
       case "referral_partner":
         return [
-          { label: "Total Clients", value: "156", change: 8, icon: "people" },
+          {
+            label: "Total Clients",
+            value: dashboardData?.active_customers || 0,
+            change: dashboardData?.active_customers_change || 0,
+            icon: "people",
+          },
           {
             label: "Active Prospects",
-            value: "42",
-            change: 15,
+            value: dashboardData?.active_prospects || 0,
+            change: dashboardData?.active_prospects_change || 0,
             icon: "person-add",
           },
           {
             label: "Total AUM",
-            value: "$45.8M",
-            change: 12,
+            value: `₹${(dashboardData?.aum || 0).toLocaleString()}`,
+            change: dashboardData?.aum_change || 0,
             icon: "trending-up",
           },
           {
-            label: "Open Tickets",
-            value: "7",
-            change: -3,
-            icon: "chatbubbles",
+            label: "Total Earnings",
+            value: `₹${(dashboardData?.earnings || 0).toLocaleString()}`,
+            change: 0,
+            icon: "cash",
           },
         ];
       case "client":
@@ -356,16 +370,25 @@ const DashboardScreen = () => {
               </Text>
             </TouchableOpacity>
           </View>
-          {mockNews.map((news, index) => (
-            <TouchableOpacity
-              key={news.id}
-              onPress={() =>
-                navigation.navigate("NewsDetails", { newsId: news.id })
-              }
-            >
-              <NewsCard news={news} index={index} />
-            </TouchableOpacity>
-          ))}
+          {newsData?.results.map((news, index) => {
+            const newsItem: NewsItem = {
+              id: news.id?.toString() || `${index}`,
+              title: news.title,
+              description: news.description,
+              domain: news.url,
+              date: news.created,
+              category: news.category,
+              sub_category: news.sub_category,
+            };
+            return (
+              <TouchableOpacity
+                key={index}
+                onPress={() => navigation.navigate("NewsDetails", { newsItem })}
+              >
+                <NewsCard news={newsItem} index={index} />
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
     </View>

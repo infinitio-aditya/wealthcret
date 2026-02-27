@@ -230,6 +230,8 @@ export interface NewsItem {
     domain: string;
     date: string;
     image?: string;
+    category?: string;
+    sub_category?: string;
 }
 
 export interface DashboardMetric {

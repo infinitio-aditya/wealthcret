@@ -21,6 +21,11 @@ import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
 import Button from "../../../components/ui/Button";
 import Icon1 from "react-native-vector-icons/Ionicons";
+import {
+  useGetUserDocumentsQuery,
+  useUploadUserDocumentMutation,
+} from "../../../services/backend/documentsApi";
+import { UserDocument } from "../../../types/backend/documents";
 
 const { width } = Dimensions.get("window");
 
@@ -70,18 +75,30 @@ const mockMyDocuments: any[] = [
 const MyDocumentsScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
-  const [loading, setLoading] = useState(true);
+  const {
+    data: docsData,
+    isFetching: loadingDocs,
+    refetch,
+  } = useGetUserDocumentsQuery();
+  const [uploadDocument] = useUploadUserDocumentMutation();
   const [documents, setDocuments] = useState<any[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [newDocCategory, setNewDocCategory] = useState("Tax Documents");
 
   useEffect(() => {
-    setTimeout(() => {
-      setDocuments(mockMyDocuments);
-      setLoading(false);
-    }, 500);
-  }, []);
+    if (docsData) {
+      const mapped = docsData.map((d: UserDocument) => ({
+        id: d.id.toString(),
+        name: d.file_name,
+        type: d.file_name?.split(".").pop()?.toUpperCase() || "FILE",
+        size: "0 KB",
+        uploadDate: d.created_at?.split("T")[0] || "",
+        category: d.document_type || "General",
+      }));
+      setDocuments(mapped);
+    }
+  }, [docsData]);
 
   const categories = [
     "all",
@@ -93,9 +110,18 @@ const MyDocumentsScreen = () => {
       ? documents
       : documents.filter((d) => d.category === selectedCategory);
 
-  const handleUpload = () => {
-    setShowUpload(false);
-    showAlert("Success", "Document uploaded successfully (Mock)");
+  const handleUpload = async () => {
+    // In a real app, you'd use a file picker. For now, we'll simulate the call with a dummy file.
+    try {
+      // await uploadDocument({ ... }).unwrap();
+      setShowUpload(false);
+      showAlert(
+        "Info",
+        "File picker integration required for real upload. API call prepared.",
+      );
+    } catch (error) {
+      showAlert("Error", "Upload failed");
+    }
   };
 
   const stats = [
@@ -419,7 +445,7 @@ const MyDocumentsScreen = () => {
     headerButtons: { flexDirection: "row", gap: 12 },
   });
 
-  if (loading) {
+  if (loadingDocs) {
     return (
       <View
         style={[
@@ -431,7 +457,6 @@ const MyDocumentsScreen = () => {
       </View>
     );
   }
-
   return (
     <View style={styles.container}>
       <ScrollView

@@ -21,13 +21,17 @@ import {
   setSearchQuery,
   setSelectedClient,
 } from "../../../store/slices/clientSlice";
-import { mockClients } from "../../../utils/mockData";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import { Client } from "../../../types";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
 import CircularProgress from "../../../components/ui/CircularProgress";
+import {
+  useLazyGetProspectsClientsQuery,
+  useCreateProspectMutation,
+} from "../../../services/backend/prospectApi";
+import { ProspectAssociation } from "../../../types/backend/prospect";
 
 const ClientListScreen = () => {
   const { showAlert } = useAlert();
@@ -40,6 +44,10 @@ const ClientListScreen = () => {
   );
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("all");
+
+  const [getProspects, { data: prospectsData, isFetching: loadingProspects }] =
+    useLazyGetProspectsClientsQuery();
+  const [createProspect] = useCreateProspectMutation();
 
   // Filter Modal State
   const [showFilters, setShowFilters] = useState(false);
@@ -89,15 +97,74 @@ const ClientListScreen = () => {
   ];
 
   const uniqueAdvisors = Array.from(
-    new Set(mockClients.map((c) => c.assignedSP).filter(Boolean)),
+    new Set(clients.map((c: Client) => c.assignedSP).filter(Boolean)),
   ) as string[];
   const uniqueReferralPartners = Array.from(
-    new Set(mockClients.map((c) => c.referralPartner).filter(Boolean)),
+    new Set(clients.map((c: Client) => c.referralPartner).filter(Boolean)),
   ) as string[];
 
   useEffect(() => {
-    dispatch(setClients(mockClients));
-  }, [dispatch]);
+    fetchClients();
+  }, [user, selectedStatus]);
+
+  useEffect(() => {
+    if (prospectsData) {
+      const mappedClients: Client[] = prospectsData.results.map(
+        (pa: ProspectAssociation) => {
+          const u = pa.user;
+          const roleMap: Record<string, string> = {
+            "0": "Admin",
+            "1": "Referral Partner",
+            "2": "Service Provider",
+            "3": "Client",
+          };
+
+          const statusMap: Record<string, "active" | "inactive" | "pending"> = {
+            "1": "pending",
+            "2": "pending",
+            "3": "pending",
+            "4": "active",
+            "5": "active",
+            "6": "active",
+          };
+
+          return {
+            id: pa.id.toString(),
+            name: `${u.first_name} ${u.last_name}`,
+            email: u.email,
+            phone: u.mobile_number,
+            role: roleMap[pa.organization.org_type] || "Client",
+            status: statusMap[u.application_status] || "pending",
+            assignedSP: pa.owner_name,
+            // Note: Net worth and onboarding progress would come from other specific endpoints or fields if available
+            onboardingProgress: {
+              percentage: parseInt(u.pipeline_status || "0"),
+              uploadedDocs: 0,
+              totalDocs: 0,
+              signedDocs: 0,
+              totalSignedDocs: 0,
+            },
+          };
+        },
+      );
+      dispatch(setClients(mappedClients));
+    }
+  }, [prospectsData, dispatch]);
+
+  const fetchClients = () => {
+    const user_types =
+      selectedStatus === "all"
+        ? undefined
+        : selectedStatus === "active"
+          ? "4,5,6"
+          : "1,2,3";
+    getProspects({
+      page: 1,
+      page_size: 100,
+      user_types,
+      q: searchQuery,
+    });
+  };
 
   const filteredClients = clients.filter((client) => {
     const matchesSearch =
@@ -144,10 +211,8 @@ const ClientListScreen = () => {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => {
-      dispatch(setClients(mockClients));
-      setRefreshing(false);
-    }, 1000);
+    fetchClients();
+    setRefreshing(false);
   };
 
   const handleClientPress = (client: Client) => {
@@ -167,7 +232,7 @@ const ClientListScreen = () => {
     setShowFilters(false);
   };
 
-  const handleAddClient = () => {
+  const handleAddClient = async () => {
     if (
       !newClient.firstName ||
       !newClient.lastName ||
@@ -177,21 +242,31 @@ const ClientListScreen = () => {
       showAlert("Error", "Please fill in all required fields");
       return;
     }
-    if (clientType === "non-individual" && !newClient.companyName) {
-      showAlert("Error", "Please enter company name");
-      return;
-    }
 
-    // Logic to add client would go here (API call of sorts)
-    setShowAddClient(false);
-    setNewClient({
-      firstName: "",
-      lastName: "",
-      email: "",
-      license: "",
-      companyName: "",
-    });
-    setClientType("individual");
+    try {
+      await createProspect({
+        first_name: newClient.firstName,
+        last_name: newClient.lastName,
+        email: newClient.email,
+        individual: clientType === "individual",
+        company: newClient.companyName,
+        licenses: [newClient.license],
+      }).unwrap();
+
+      showAlert("Success", "Prospect created successfully");
+      setShowAddClient(false);
+      setNewClient({
+        firstName: "",
+        lastName: "",
+        email: "",
+        license: "",
+        companyName: "",
+      });
+      setClientType("individual");
+      fetchClients();
+    } catch (error: any) {
+      showAlert("Error", error?.data?.detail || "Failed to create prospect");
+    }
   };
 
   const formatNetWorth = (amount: number) => {

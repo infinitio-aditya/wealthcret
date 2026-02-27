@@ -8,7 +8,7 @@ import {
   Alert,
   Platform,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useTheme } from "../../../hooks/useTheme";
 import LinearGradient from "react-native-linear-gradient";
@@ -16,34 +16,55 @@ import { mockTickets, mockMappings } from "../../../utils/mockData";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
 import { useAlert } from "context/AlertContext";
+import { useCreateSupportTicketMutation } from "../../../services/backend/supportApi";
+import { useGetOrgnizationsQuery } from "../../../services/backend/authApi";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../store";
 
 const CreateTicketScreen = () => {
   const theme = useTheme();
+  const navigation = useNavigation<any>();
   const { showAlert } = useAlert();
-  const navigation = useNavigation();
+  const route = useRoute<any>();
+  const user = useSelector((state: RootState) => state.auth.user);
 
-  // Derived organization list for dropdown
-  const organizations = Array.from(
-    new Set([
-      ...mockTickets.map((t) => t.organizationName),
-      ...mockMappings.map((m) => m.customerName),
-    ]),
-  ).filter(Boolean);
+  const { data: orgData } = useGetOrgnizationsQuery({
+    page: 1,
+    page_size: 100,
+    q: "",
+  });
+  const [createTicket, { isLoading }] = useCreateSupportTicketMutation();
 
-  const [organization, setOrganization] = useState(organizations[0] || "");
+  const organizations = orgData?.results || [];
+
+  const [organizationId, setOrganizationId] = useState<string>("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
-  const handleSubmit = () => {
-    if (!title.trim() || !description.trim()) {
-      showAlert("Error", "Please fill in all fields");
+  const handleSubmit = async () => {
+    if (!title.trim() || !description.trim() || !organizationId) {
+      showAlert(
+        "Error",
+        "Please fill in all fields and select an organization",
+      );
       return;
     }
 
-    // In real app, dispatch action or call API
-    showAlert("Success", "Ticket created successfully", [
-      { text: "OK", onPress: () => navigation.goBack() },
-    ]);
+    try {
+      await createTicket({
+        title,
+        description,
+        assigned_to_org: Number(organizationId),
+        sender_id: Number(user?.id),
+        status: 0, // open
+      }).unwrap();
+
+      showAlert("Success", "Ticket created successfully", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
+    } catch (error) {
+      showAlert("Error", "Failed to create ticket");
+    }
   };
 
   const styles = StyleSheet.create({
@@ -153,9 +174,12 @@ const CreateTicketScreen = () => {
       >
         <ThemeDropdown
           label="Organization"
-          options={organizations.map((org) => ({ label: org, value: org }))}
-          selectedValue={organization}
-          onValueChange={(value) => setOrganization(value)}
+          options={organizations.map((org) => ({
+            label: org.name,
+            value: org.id.toString(),
+          }))}
+          selectedValue={organizationId}
+          onValueChange={(value) => setOrganizationId(value)}
         />
 
         <View style={styles.formGroup}>
