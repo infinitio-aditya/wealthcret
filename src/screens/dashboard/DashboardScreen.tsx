@@ -5,21 +5,29 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { useSelector } from "react-redux";
 import { RootState } from "../../store";
 import { useTheme } from "../../hooks/useTheme";
 import NewsCard from "../../components/NewsCard";
-import { mockNews } from "../../utils/mockData";
 import Chart from "../../components/Chart";
 import { useNavigation } from "@react-navigation/native";
-
+import { useGetUserQuery } from "../../app/services/authApi";
+import { useGetUserAggregatedDataQuery } from "../../app/services/dashboardApi";
 import LinearGradient from "react-native-linear-gradient";
 
 const DashboardScreen = () => {
   const theme = useTheme();
-  const user = useSelector((state: RootState) => state.auth.user);
   const navigation = useNavigation<any>();
+  
+  // Get real user data from API
+  const { data: user, isLoading } = useGetUserQuery();
+  const { data: aggregatedData = {}, isFetching } = useGetUserAggregatedDataQuery();
+  
+  // Fallback to Redux user if needed
+  const reduxUser = useSelector((state: RootState) => state.auth.user);
+  const displayUser = user || reduxUser;
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -29,7 +37,7 @@ const DashboardScreen = () => {
         : hour < 18
           ? "Good Afternoon"
           : "Good Evening";
-    return `${greeting}, ${user?.name?.split(" ")[0]}!`;
+    return `${greeting}, ${displayUser?.name?.split(" ")[0]}!`;
   };
 
   const styles = StyleSheet.create({
@@ -110,7 +118,7 @@ const DashboardScreen = () => {
   });
 
   const getMetrics = () => {
-    switch (user?.role) {
+    switch (displayUser?.role) {
       case "admin":
         return [
           {
@@ -179,7 +187,7 @@ const DashboardScreen = () => {
   };
 
   const getHeroDescription = () => {
-    switch (user?.role) {
+    switch (displayUser?.role) {
       case "admin":
         return "Manage your organization, review requests, and oversee operations.";
       case "service_provider":
@@ -193,6 +201,21 @@ const DashboardScreen = () => {
   };
 
   const metrics = getMetrics();
+
+  if (isLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -261,7 +284,7 @@ const DashboardScreen = () => {
         {/* Analytics Section */}
         <Text style={styles.sectionTitle}>Analytics</Text>
         <View style={styles.chartsContainer}>
-          {user?.role === "client" && (
+          {displayUser?.role === "client" && (
             <>
               <Chart
                 type="line"
@@ -303,8 +326,8 @@ const DashboardScreen = () => {
               />
             </>
           )}
-          {(user?.role === "service_provider" ||
-            user?.role === "referral_partner") && (
+          {(displayUser?.role === "service_provider" ||
+            displayUser?.role === "referral_partner") && (
             <>
               <Chart
                 type="bar"
@@ -324,7 +347,7 @@ const DashboardScreen = () => {
               />
             </>
           )}
-          {user?.role === "admin" && (
+          {displayUser?.role === "admin" && (
             <>
               <Chart
                 type="bar"
@@ -356,16 +379,11 @@ const DashboardScreen = () => {
               </Text>
             </TouchableOpacity>
           </View>
-          {mockNews.map((news, index) => (
-            <TouchableOpacity
-              key={news.id}
-              onPress={() =>
-                navigation.navigate("NewsDetails", { newsId: news.id })
-              }
-            >
-              <NewsCard news={news} index={index} />
-            </TouchableOpacity>
-          ))}
+          <View style={{ alignItems: "center", paddingVertical: 24 }}>
+            <Text style={{ color: theme.colors.textSecondary }}>
+              Financial news will be displayed here
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </View>

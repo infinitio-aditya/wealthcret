@@ -18,6 +18,7 @@ import { TeamMember } from '../../../types';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Modal from 'react-native-modal';
 import LinearGradient from 'react-native-linear-gradient';
+import { ErrorState, EmptyState } from '../../../app/components/StateComponents';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -70,6 +71,7 @@ const TeamMembersScreen = () => {
     const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Modal states
     const [isAddModalVisible, setAddModalVisible] = useState(false);
@@ -88,16 +90,35 @@ const TeamMembersScreen = () => {
         loadTeamMembers();
     }, []);
 
-    const loadTeamMembers = () => {
-        setTimeout(() => {
+    const loadTeamMembers = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            // TODO: Replace with real API call
+            // const { data } = await useGetTeamMembersQuery();
+            await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
             setTeamMembers(mockTeamMembers);
+        } catch (err) {
+            setError('Failed to load team members');
+            console.error(err);
+        } finally {
             setLoading(false);
-        }, 500);
+        }
     };
 
-    const handleRefresh = () => {
-        setRefreshing(true);
-        setTimeout(() => {
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            // TODO: Replace with real API call
+            await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+            setTeamMembers(mockTeamMembers);
+        } catch (err) {
+            setError('Failed to refresh team members');
+            console.error(err);
+        } finally {
+            setRefreshing(false);
+        }
+    };
             setTeamMembers(mockTeamMembers);
             setRefreshing(false);
         }, 1000);
@@ -530,6 +551,35 @@ const TeamMembersScreen = () => {
         return (
             <View style={[styles.container, styles.loadingContainer]}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+        );
+    }
+
+    if (error) {
+        return (
+            <View style={styles.container}>
+                <ErrorState
+                    title="Failed to Load"
+                    message={error}
+                    onRetry={loadTeamMembers}
+                    fullScreen={true}
+                />
+            </View>
+        );
+    }
+
+    if (teamMembers.length === 0) {
+        return (
+            <View style={styles.container}>
+                <EmptyState
+                    title="No Team Members"
+                    message="You haven't added any team members yet"
+                    action={{
+                        label: "Add Team Member",
+                        onPress: () => setAddModalVisible(true),
+                    }}
+                    fullScreen={true}
+                />
             </View>
         );
     }

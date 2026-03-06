@@ -1,7 +1,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { ActivityIndicator, View } from 'react-native';
+import { useAuth } from '../app/contexts/AuthContext';
 import LoginScreen from '../screens/preAuth/LoginScreen';
 import MainDrawerNavigator from './drawer/MainDrawerNavigator';
 
@@ -20,15 +20,26 @@ export type RootStackParamList = {
 const Stack = createStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
-  const isAuthenticated = useSelector(
-    (state: RootState) => state.auth.isAuthenticated,
-  );
+  const { isLoggedIn, loading } = useAuth();
+
+  if (loading) {
+    // Show a splash/loading screen while checking authentication
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!isAuthenticated ? (
+      {!isLoggedIn ? (
         <>
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen 
+            name="Login" 
+            component={LoginScreen}
+            options={{ animationEnabled: false }}
+          />
           <Stack.Screen
             name="ForgotPassword"
             component={ForgotPasswordScreen}
@@ -40,7 +51,11 @@ const AppNavigator = () => {
           <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         </>
       ) : (
-        <Stack.Screen name="Main" component={MainDrawerNavigator} />
+        <Stack.Screen 
+          name="Main" 
+          component={MainDrawerNavigator}
+          options={{ animationEnabled: false }}
+        />
       )}
     </Stack.Navigator>
   );

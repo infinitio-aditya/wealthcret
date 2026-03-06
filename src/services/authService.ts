@@ -1,5 +1,6 @@
 import api from './api';
 import { User, UserRole } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface LoginCredentials {
     email: string;
@@ -12,35 +13,99 @@ export interface LoginResponse {
     token: string;
 }
 
-// Mock login function - replace with actual API call
+/**
+ * Login function - replaced with RTK Query mutation
+ * 
+ * Use the RTK Query hook instead:
+ * import { useLoginMutation } from '../app/services/authApi';
+ * const [login] = useLoginMutation();
+ * const response = await login({ email, password }).unwrap();
+ * 
+ * @deprecated Use useLoginMutation hook from authApi instead
+ */
 export const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
-    // For now, return mock data
-    const mockUsers = {
-        admin: { id: '1', name: 'Alex Johnson', email: 'admin@wealthcret.com', role: 'admin' as UserRole },
-        service_provider: { id: '2', name: 'Sarah Johnson', email: 'sarah@wealthcret.com', role: 'service_provider' as UserRole },
-        referral_partner: { id: '3', name: 'James Wilson', email: 'james@wealthcret.com', role: 'referral_partner' as UserRole },
-        client: { id: '4', name: 'John Anderson', email: 'john@email.com', role: 'client' as UserRole },
-    };
+    try {
+        // Use the axios instance to call the API
+        const response = await api.post<any>('/api/accounts/token/obtain/', {
+            email: credentials.email,
+            password: credentials.password,
+        });
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(() => resolve(null), 1000));
+        const data = response.data;
+        const token = data.access || data.token;
 
-    return {
-        user: mockUsers[credentials.role],
-        token: 'mock-jwt-token-' + credentials.role,
-    };
+        // Store token
+        if (token) {
+            await AsyncStorage.setItem('token', token);
+        }
 
-    // Actual API call would look like:
-    // const response = await api.post<LoginResponse>('/auth/login', credentials);
-    // return response.data;
+        return {
+            user: {
+                id: data.user?.id || '1',
+                name: data.user?.first_name || 'User',
+                email: data.user?.email || credentials.email,
+                role: credentials.role,
+                avatar: data.user?.avatar,
+                organization: data.user?.organization,
+            },
+            token,
+        };
+    } catch (error: any) {
+        console.error('Login error:', error.response?.data || error.message);
+        throw error;
+    }
 };
 
+/**
+ * Logout function
+ * @deprecated Use useAuth hook's logout function instead
+ */
 export const logout = async (): Promise<void> => {
-    // Actual API call would look like:
-    // await api.post('/auth/logout');
+    try {
+        await AsyncStorage.removeItem('token');
+        // Optional: Call backend logout endpoint if it exists
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
 };
 
+/**
+ * Refresh token function
+ * @deprecated Use RTK Query mutation for token refresh
+ */
 export const refreshToken = async (): Promise<string> => {
-    const response = await api.post<{ token: string }>('/auth/refresh');
-    return response.data.token;
+    try {
+        const refreshToken = await AsyncStorage.getItem('refresh_token');
+        if (!refreshToken) {
+            throw new Error('No refresh token available');
+        }
+
+        const response = await api.post<{ access: string }>('/api/accounts/token/refresh/', {
+            refresh: refreshToken,
+        });
+
+        const newToken = response.data.access;
+        await AsyncStorage.setItem('token', newToken);
+        return newToken;
+    } catch (error: any) {
+        console.error('Token refresh error:', error);
+        await logout();
+        throw error;
+    }
 };
+
+/**
+ * Check if user is authenticated
+ */
+export const isAuthenticated = async (): Promise<boolean> => {
+    const token = await AsyncStorage.getItem('token');
+    return !!token;
+};
+
+/**
+ * Get stored token
+ */
+export const getToken = async (): Promise<string | null> => {
+    return AsyncStorage.getItem('token');
+};
+

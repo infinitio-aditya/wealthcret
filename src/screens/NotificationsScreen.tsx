@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -6,9 +6,11 @@ import {
     FlatList,
     TouchableOpacity,
     Switch,
+    ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
 import Card from '../components/ui/Card';
+import { ErrorState, EmptyState } from '../app/components/StateComponents';
 
 interface Notification {
     id: string;
@@ -19,53 +21,31 @@ interface Notification {
     read: boolean;
 }
 
-const mockNotifications: Notification[] = [
-    {
-        id: '1',
-        title: 'New Client Added',
-        message: 'John Anderson has been added to your client list',
-        type: 'success',
-        timestamp: '2025-12-09T10:30:00Z',
-        read: false,
-    },
-    {
-        id: '2',
-        title: 'Document Approved',
-        message: 'Investment Agreement 2025 has been approved',
-        type: 'success',
-        timestamp: '2025-12-09T09:15:00Z',
-        read: false,
-    },
-    {
-        id: '3',
-        title: 'Payment Received',
-        message: 'Payment of $5,000 received from Emily Chen',
-        type: 'info',
-        timestamp: '2025-12-08T16:45:00Z',
-        read: true,
-    },
-    {
-        id: '4',
-        title: 'Action Required',
-        message: 'Please review pending document from Lisa Thompson',
-        type: 'warning',
-        timestamp: '2025-12-08T14:20:00Z',
-        read: true,
-    },
-    {
-        id: '5',
-        title: 'System Maintenance',
-        message: 'Scheduled maintenance on Dec 15, 2025 at 2:00 AM',
-        type: 'info',
-        timestamp: '2025-12-07T11:00:00Z',
-        read: true,
-    },
-];
-
 const NotificationsScreen = () => {
     const theme = useTheme();
-    const [notifications, setNotifications] = useState(mockNotifications);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
     const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        loadNotifications();
+    }, []);
+
+    const loadNotifications = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+            // TODO: Replace with real API call when backend is ready
+            // For now using placeholder
+            setNotifications([]);
+        } catch (err) {
+            setError('Failed to load notifications');
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const filteredNotifications = showUnreadOnly
         ? notifications.filter((n) => !n.read)
@@ -257,6 +237,39 @@ const NotificationsScreen = () => {
     });
 
     const unreadCount = notifications.filter((n) => !n.read).length;
+
+    if (isLoading) {
+        return (
+            <View style={styles.container}>
+                <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 100 }} />
+            </View>
+        );
+    }
+
+    if (error) {
+        return (
+            <View style={styles.container}>
+                <ErrorState
+                    title="Failed to Load"
+                    message={error}
+                    onRetry={loadNotifications}
+                    fullScreen={true}
+                />
+            </View>
+        );
+    }
+
+    if (filteredNotifications.length === 0) {
+        return (
+            <View style={styles.container}>
+                <EmptyState
+                    title={showUnreadOnly ? 'All Caught Up!' : 'No Notifications'}
+                    message={showUnreadOnly ? 'You have no unread notifications' : 'You will see notifications here'}
+                    fullScreen={true}
+                />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>

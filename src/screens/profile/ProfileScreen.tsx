@@ -5,14 +5,17 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../../hooks/useTheme";
 import { useAlert } from "../../context/AlertContext";
 import { RootState } from "../../store";
-import { logout } from "../../store/slices/authSlice";
 import { setTheme } from "../../store/slices/themeSlice";
+import { useAuth } from "../../app/contexts/AuthContext";
+import { useGetUserQuery } from "../../app/services/authApi";
+import { useAppDispatch } from "../../app/hooks/useAppDispatch";
 import Card from "../../components/ui/Card";
 import { themes } from "../../theme/themes";
 import { useNavigation } from "@react-navigation/native";
@@ -20,9 +23,17 @@ import { useNavigation } from "@react-navigation/native";
 const ProfileScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const navigation = useNavigation<any>();
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { logout: authLogout } = useAuth();
+  
+  // Get user from API with real data
+  const { data: user, isLoading, error } = useGetUserQuery();
+  
+  // Fallback to Redux user if needed
+  const reduxUser = useSelector((state: RootState) => state.auth.user);
+  const displayUser = user || reduxUser;
+  
   const currentTheme = useSelector(
     (state: RootState) => state.theme.currentTheme,
   );
@@ -33,7 +44,13 @@ const ProfileScreen = () => {
       {
         text: "Logout",
         style: "destructive",
-        onPress: () => dispatch(logout()),
+        onPress: async () => {
+          try {
+            await authLogout();
+          } catch (err) {
+            showAlert("Error", "Failed to logout");
+          }
+        },
       },
     ]);
   };
@@ -88,7 +105,6 @@ const ProfileScreen = () => {
       textTransform: "capitalize",
     },
     section: {
-      // marginBottom: 24,
       marginBottom: 12,
     },
     sectionTitle: {
@@ -156,24 +172,38 @@ const ProfileScreen = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-      >
-        {/* Profile Header */}
-        <View style={styles.profileHeader}>
-          <LinearGradient
-            colors={theme.effects.buttonGradient}
-            style={styles.avatarGradient}
-          >
-            <Text style={styles.avatarText}>
-              {user ? getInitials(user.name) : "U"}
-            </Text>
-          </LinearGradient>
-          <Text style={styles.userName}>{user?.name}</Text>
-          <Text style={styles.userEmail}>{user?.email}</Text>
-          <Text style={styles.userRole}>{user?.role.replace("_", " ")}</Text>
+      {isLoading && (
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
+      )}
+      {!isLoading && (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+        >
+          {/* Profile Header */}
+          <View style={styles.profileHeader}>
+            <LinearGradient
+              colors={theme.effects.buttonGradient}
+              style={styles.avatarGradient}
+            >
+              <Text style={styles.avatarText}>
+                {displayUser ? getInitials(displayUser.name) : "U"}
+              </Text>
+            </LinearGradient>
+            <Text style={styles.userName}>{displayUser?.name}</Text>
+            <Text style={styles.userEmail}>{displayUser?.email}</Text>
+            <Text style={styles.userRole}>
+              {displayUser?.role.replace("_", " ")}
+            </Text>
+          </View>
 
         {/* Account Information */}
         <View style={styles.section}>
@@ -181,22 +211,22 @@ const ProfileScreen = () => {
           <Card>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>User ID</Text>
-              <Text style={styles.infoValue}>{user?.id}</Text>
+              <Text style={styles.infoValue}>{displayUser?.id}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>{user?.email}</Text>
+              <Text style={styles.infoValue}>{displayUser?.email}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Role</Text>
               <Text style={styles.infoValue}>
-                {user?.role.replace("_", " ")}
+                {displayUser?.role.replace("_", " ")}
               </Text>
             </View>
-            {user?.organization && (
+            {displayUser?.organization && (
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Organization</Text>
-                <Text style={styles.infoValue}>{user.organization}</Text>
+                <Text style={styles.infoValue}>{displayUser.organization}</Text>
               </View>
             )}
           </Card>
@@ -266,7 +296,8 @@ const ProfileScreen = () => {
             <Text style={styles.logoutButtonText}>Logout</Text>
           </LinearGradient>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      )}
     </View>
   );
 };

@@ -8,31 +8,20 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../../hooks/useTheme";
 import { useAlert } from "../../context/AlertContext";
-import { setUser, setToken } from "../../store/slices/authSlice";
-import { login } from "../../services/authService";
-import { UserRole } from "../../types";
+import { useAuth } from "../../app/contexts/AuthContext";
 
 const LoginScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation();
-  const dispatch = useDispatch();
+  const { login, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
-  const [loading, setLoading] = useState(false);
-
-  const roles: { value: UserRole; label: string }[] = [
-    { value: "admin", label: "Admin" },
-    { value: "service_provider", label: "Service Provider" },
-    { value: "referral_partner", label: "Referral Partner" },
-    { value: "client", label: "Client" },
-  ];
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -40,33 +29,23 @@ const LoginScreen = () => {
       return;
     }
 
-    setLoading(true);
-
-    // 1. Determine the role locally
-    let roleToUse: UserRole = "admin"; // Default
-    const trimmedEmail = email.trim().toLowerCase();
-
-    if (trimmedEmail == "s") {
-      roleToUse = "service_provider";
-    } else if (trimmedEmail == "r") {
-      roleToUse = "referral_partner";
-    } else if (trimmedEmail == "c") {
-      roleToUse = "client";
-    }
-
-    // 2. Update the state for future renders
-    setSelectedRole(roleToUse);
-    console.log("Determined Role:", roleToUse);
+    setIsLoading(true);
 
     try {
-      // 3. Use the local variable 'roleToUse' for the API call
-      const response = await login({ email, password, role: roleToUse });
-      dispatch(setUser(response.user));
-      dispatch(setToken(response.token));
-    } catch (error) {
-      showAlert("Error", "Login failed. Please try again.");
+      // Call the authentication context's login function
+      // It will handle token storage, Redux state updates, etc.
+      await login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      // Navigation will be handled automatically by AppNavigator
+      // based on the isLoggedIn state
+    } catch (error: any) {
+      const errorMessage = error?.data?.detail || error?.message || "Login failed";
+      showAlert("Error", errorMessage);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -128,25 +107,6 @@ const LoginScreen = () => {
       color: theme.colors.textSecondary,
       marginBottom: 8,
     },
-    roleContainer: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-      marginBottom: 24,
-    },
-    roleButton: {
-      flex: 1,
-      minWidth: "48%",
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 12,
-      borderWidth: 1,
-      alignItems: "center",
-    },
-    roleButtonText: {
-      fontSize: 14,
-      fontWeight: "500",
-    },
     inputContainer: {
       backgroundColor: theme.effects.glassBackground,
       borderRadius: 12,
@@ -185,23 +145,9 @@ const LoginScreen = () => {
       color: theme.colors.primary,
       fontWeight: "600",
     },
-    footer: {
-      flexDirection: "row",
-      justifyContent: "center",
-      alignItems: "center",
-      marginTop: 32,
-      gap: 4,
-    },
-    footerText: {
-      fontSize: 14,
-      color: theme.colors.textSecondary,
-    },
-    signUpText: {
-      fontSize: 14,
-      color: theme.colors.primary,
-      fontWeight: "700",
-    },
   });
+
+  const currentLoading = isLoading || loading;
 
   return (
     <View style={styles.container}>
@@ -230,39 +176,6 @@ const LoginScreen = () => {
             Sign in to your Wealthcret account
           </Text>
 
-          {/* Role Selection */}
-          {/* <Text style={styles.label}>Select Role</Text>
-                    <View style={styles.roleContainer}>
-                        {roles.map((role) => (
-                            <TouchableOpacity
-                                key={role.value}
-                                onPress={() => setSelectedRole(role.value)}
-                                style={[
-                                    styles.roleButton,
-                                    {
-                                        borderColor: theme.effects.cardBorder,
-                                        backgroundColor:
-                                            selectedRole === role.value
-                                                ? theme.colors.primary
-                                                : theme.effects.glassBackground,
-                                    },
-                                ]}>
-                                <Text
-                                    style={[
-                                        styles.roleButtonText,
-                                        {
-                                            color:
-                                                selectedRole === role.value
-                                                    ? theme.colors.textOnPrimary
-                                                    : theme.colors.text,
-                                        },
-                                    ]}>
-                                    {role.label}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View> */}
-
           {/* Email Input */}
           <Text style={styles.label}>Email</Text>
           <View style={styles.inputContainer}>
@@ -274,6 +187,7 @@ const LoginScreen = () => {
               placeholderTextColor={theme.colors.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!currentLoading}
             />
           </View>
 
@@ -287,6 +201,7 @@ const LoginScreen = () => {
               placeholder="Enter your password"
               placeholderTextColor={theme.colors.textSecondary}
               secureTextEntry
+              editable={!currentLoading}
             />
           </View>
 
@@ -294,6 +209,7 @@ const LoginScreen = () => {
           <TouchableOpacity
             style={styles.forgotPassword}
             onPress={() => navigation.navigate("ForgotPassword" as never)}
+            disabled={currentLoading}
           >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
@@ -302,13 +218,13 @@ const LoginScreen = () => {
           <TouchableOpacity
             style={styles.loginButton}
             onPress={handleLogin}
-            disabled={loading}
+            disabled={currentLoading}
           >
             <LinearGradient
               colors={[theme.colors.primary, theme.colors.primary + "80"]}
               style={styles.loginButtonGradient}
             >
-              {loading ? (
+              {currentLoading ? (
                 <ActivityIndicator color={theme.colors.textOnPrimary} />
               ) : (
                 <Text style={styles.loginButtonText}>Sign In</Text>
@@ -316,14 +232,6 @@ const LoginScreen = () => {
             </LinearGradient>
           </TouchableOpacity>
         </View>
-
-        {/* Footer */}
-        {/* <View style={styles.footer}>
-                    <Text style={styles.footerText}>Don't have an account?</Text>
-                    <TouchableOpacity onPress={() => console.log('Sign Up')}>
-                        <Text style={styles.signUpText}>Sign Up</Text>
-                    </TouchableOpacity>
-                </View> */}
       </ScrollView>
     </View>
   );
