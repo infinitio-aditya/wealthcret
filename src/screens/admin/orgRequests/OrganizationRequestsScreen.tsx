@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   FlatList,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
@@ -16,52 +18,59 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { OrganizationRequest } from "../../../types";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { OrgRequestsStackParamList } from "../../../navigation/stacks/OrgRequestsStack";
-
-const mockOrgRequests: OrganizationRequest[] = [
-  {
-    id: "1",
-    organizationName: "Anderson Financial Group",
-    requestType: "service_provider",
-    contactPerson: "John Anderson",
-    email: "john@andersonfinancial.com",
-    phone: "+1 (555) 123-4567",
-    status: "pending",
-    requestDate: "2025-12-08",
-    description: "Looking to provide comprehensive financial planning services",
-  },
-  {
-    id: "2",
-    organizationName: "Chen Wealth Partners",
-    requestType: "referral_partner",
-    contactPerson: "Emily Chen",
-    email: "emily@chenwealthpartners.com",
-    phone: "+1 (555) 234-5678",
-    status: "pending",
-    requestDate: "2025-12-07",
-    description: "Interested in referring high-net-worth clients",
-  },
-  {
-    id: "3",
-    organizationName: "Martinez Holdings",
-    requestType: "admin",
-    contactPerson: "Robert Martinez",
-    email: "robert@martinezholdings.com",
-    phone: "+1 (555) 345-6789",
-    status: "approved",
-    requestDate: "2025-12-05",
-    description: "Enterprise-level wealth management platform",
-  },
-];
+import {
+  useGetApprovalRequestListQuery,
+  useUpdateApprovalRequestMutation,
+} from "../../../services/backend/adminApi";
+import { ApprovalRequest } from "../../../types/backend/onboarding";
 
 const OrganizationRequestsScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation =
     useNavigation<StackNavigationProp<OrgRequestsStackParamList>>();
-  const [requests, setRequests] = useState(mockOrgRequests);
+
+  const {
+    data: requestList,
+    isLoading,
+    refetch,
+    isFetching,
+  } = useGetApprovalRequestListQuery();
+  const [updateRequest] = useUpdateApprovalRequestMutation();
   const [filter, setFilter] = useState<
     "all" | "pending" | "approved" | "rejected"
   >("all");
+
+  const mapRequestType = (
+    type: string,
+  ): "service_provider" | "referral_partner" | "admin" => {
+    switch (type.toLowerCase()) {
+      case "advisor":
+        return "service_provider";
+      case "rp":
+        return "referral_partner";
+      case "admin":
+        return "admin";
+      default:
+        return "service_provider";
+    }
+  };
+
+  const requests: OrganizationRequest[] = (requestList || []).map((req) => ({
+    id: req.id.toString(),
+    organizationName: req.user?.organization?.name || "N/A",
+    requestType: mapRequestType(req.user?.organization?.org_type || "advisor"),
+    contactPerson: `${req.user?.first_name} ${req.user?.last_name}`,
+    email: req.user?.email || "N/A",
+    phone: req.user?.mobile_number || "N/A",
+    status: (req.status.toLowerCase() === "approved"
+      ? "approved"
+      : req.status.toLowerCase() === "rejected"
+        ? "rejected"
+        : "pending") as any,
+    requestDate: req.created,
+    description: req.approval_comments || "Organization onboarding request",
+  }));
 
   const filteredRequests =
     filter === "all" ? requests : requests.filter((r) => r.status === filter);
@@ -72,7 +81,7 @@ const OrganizationRequestsScreen = () => {
     });
   };
 
-  const handleApprove = (id: string) => {
+  const handleApprove = async (id: string) => {
     showAlert(
       "Approve Request",
       "Are you sure you want to approve this organization request?",
@@ -80,19 +89,25 @@ const OrganizationRequestsScreen = () => {
         { text: "Cancel", style: "cancel" },
         {
           text: "Approve",
-          onPress: () => {
-            setRequests((prev) =>
-              prev.map((req) =>
-                req.id === id ? { ...req, status: "approved" as const } : req,
-              ),
-            );
+          onPress: async () => {
+            try {
+              await updateRequest({
+                id: parseInt(id),
+                status: "approved",
+              }).unwrap();
+              showAlert("Success", "Request approved successfully");
+              refetch();
+            } catch (error) {
+              console.error("Failed to approve request:", error);
+              showAlert("Error", "Failed to approve request");
+            }
           },
         },
       ],
     );
   };
 
-  const handleReject = (id: string) => {
+  const handleReject = async (id: string) => {
     showAlert(
       "Reject Request",
       "Are you sure you want to reject this organization request?",
@@ -101,12 +116,18 @@ const OrganizationRequestsScreen = () => {
         {
           text: "Reject",
           style: "destructive",
-          onPress: () => {
-            setRequests((prev) =>
-              prev.map((req) =>
-                req.id === id ? { ...req, status: "rejected" as const } : req,
-              ),
-            );
+          onPress: async () => {
+            try {
+              await updateRequest({
+                id: parseInt(id),
+                status: "rejected",
+              }).unwrap();
+              showAlert("Success", "Request rejected successfully");
+              refetch();
+            } catch (error) {
+              console.error("Failed to reject request:", error);
+              showAlert("Error", "Failed to reject request");
+            }
           },
         },
       ],
@@ -265,16 +286,14 @@ const OrganizationRequestsScreen = () => {
         </View>
 
         <View style={styles.actionButtons}>
-          <View style={{ flex: 1 }}>
-            <Button
-              title="View Details"
-              onPress={() => handleViewDetails(item.id)}
-              variant="secondary"
-              fullWidth
-            />
-          </View>
+          <Button
+            title="View Details"
+            onPress={() => handleViewDetails(item.id)}
+            variant="secondary"
+            fullWidth
+          />
           {item.status === "pending" && (
-            <>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
               <View style={{ flex: 1 }}>
                 <Button
                   title="Approve"
@@ -291,7 +310,7 @@ const OrganizationRequestsScreen = () => {
                   fullWidth
                 />
               </View>
-            </>
+            </View>
           )}
         </View>
       </Card>
@@ -302,6 +321,11 @@ const OrganizationRequestsScreen = () => {
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
     },
     header: {
       padding: 16,
@@ -402,6 +426,14 @@ const OrganizationRequestsScreen = () => {
     },
   ];
 
+  if (isLoading && !isFetching) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -467,6 +499,13 @@ const OrganizationRequestsScreen = () => {
         renderItem={renderRequest}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={refetch}
+            tintColor={theme.colors.primary}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No organization requests found</Text>

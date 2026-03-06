@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
 import Card from "../ui/Card";
-import { useGetSupportDashboardQuery } from "../../services/supportApi";
+import { useGetSupportDashboardQuery } from "../../services/backend/supportApi";
 
 const SupportDashboard = () => {
   const theme = useTheme();

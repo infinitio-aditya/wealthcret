@@ -9,180 +9,122 @@ import {
   Modal,
   TextInput,
   Platform,
+  RefreshControl,
 } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
 import { useAlert } from "../../../context/AlertContext";
-import {
-  mockClients,
-  mockActivities,
-  mockDocuments,
-} from "../../../utils/mockData";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Icon from "react-native-vector-icons/Ionicons";
-import { Client, Activity, Document, FamilyMember } from "../../../types";
+import { useRetrieveProspectQuery } from "../../../services/backend/prospectApi";
+import { useGetUserServicesQuery } from "../../../services/backend/userServicesApi";
+import { useGetUserDocumentsByIdQuery } from "../../../services/backend/documentsApi";
+import { useGetNomineesQuery } from "../../../services/backend/nomineeApi";
+import { Prospect, Activity } from "../../../types/backend/prospect";
+import { Nominee } from "../../../types/backend/nominee";
+import { UserDocument } from "../../../types/backend/documents";
+import { UserService } from "../../../types/backend/userservices";
 
 type RouteParams = {
-  ClientDetails: {
-    clientId: string;
-  };
+  clientId: string;
 };
 
 const ClientDetailsScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation<any>();
-  const route = useRoute<RouteProp<RouteParams, "ClientDetails">>();
-  const [client, setClient] = useState<Client | null>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
-  const [services, setServices] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const route = useRoute<RouteProp<{ params: RouteParams }, "params">>();
+  const clientIdString = route.params?.clientId;
+  const clientId = clientIdString ? parseInt(clientIdString) : 0;
+
+  const {
+    data: prospect,
+    isLoading: loadingProspect,
+    refetch: refetchProspect,
+  } = useRetrieveProspectQuery(clientId, { skip: !clientId });
+
+  const userId = prospect?.user?.id;
+  const uuid = prospect?.user?.uuid;
+
+  const { data: userServices = [], isLoading: loadingServices } =
+    useGetUserServicesQuery(userId!, { skip: !userId });
+
+  const { data: userDocuments = [], isLoading: loadingDocuments } =
+    useGetUserDocumentsByIdQuery(uuid!, { skip: !uuid });
+
+  const { data: allNominees = [], isLoading: loadingNominees } =
+    useGetNomineesQuery(undefined);
+
   const [activeTab, setActiveTab] = useState<
     "overview" | "services" | "family" | "activities" | "documents"
   >("overview");
 
-  // Modal States
-  const [showAddActivity, setShowAddActivity] = useState(false);
-  const [showAddFamily, setShowAddFamily] = useState(false);
-  const [showAddServices, setShowAddServices] = useState(false);
+  // Placeholder for nominees filtering - since Nominee type in the file doesn't seem to have a user field,
+  // we might need to check if there's a different nominee type or rely on a different query.
+  // For now, let's assume allNominees returned are for the context if any.
+  const clientNominees = allNominees;
 
-  // Form States
-  const [activityForm, setActivityForm] = useState({
-    title: "",
-    description: "",
-    type: "call",
-  });
-  const [familyForm, setFamilyForm] = useState({
-    name: "",
-    relation: "",
-    email: "",
-  });
-  const [tempSelectedServices, setTempSelectedServices] = useState<string[]>(
-    [],
-  );
-
-  const availableServices = [
-    { id: "1", name: "Wealth Management", category: "Advisory" },
-    { id: "2", name: "Investment Advisory", category: "Advisory" },
-    { id: "3", name: "Portfolio Management", category: "Management" },
-    { id: "4", name: "Tax Planning", category: "Planning" },
-    { id: "5", name: "Estate Planning", category: "Planning" },
-  ];
-
-  useEffect(() => {
-    loadClientDetails();
-  }, []);
-
-  const loadClientDetails = () => {
-    setTimeout(() => {
-      const clientData =
-        mockClients.find((c) => c.id === route.params?.clientId) ||
-        mockClients[0];
-      setClient(clientData);
-      setActivities(mockActivities.filter((a) => a.clientId === clientData.id));
-      setDocuments(mockDocuments.filter((d) => d.clientId === clientData.id));
-      setFamilyMembers([
-        {
-          id: "1",
-          clientId: clientData.id,
-          name: "Jane Smith",
-          relation: "Spouse",
-          email: "jane.smith@email.com",
-        },
-        {
-          id: "2",
-          clientId: clientData.id,
-          name: "Tom Smith",
-          relation: "Son",
-          email: "tom.smith@email.com",
-        },
-      ]);
-      setServices(["1", "3", "5"]);
-      setLoading(false);
-    }, 500);
-  };
+  const loading =
+    loadingProspect || loadingServices || loadingDocuments || loadingNominees;
 
   const handleAddActivity = () => {
-    if (!activityForm.title || !activityForm.description) {
-      showAlert("Error", "Please fill in all fields");
-      return;
-    }
-    const newActivity: Activity = {
-      id: Date.now().toString(),
-      clientId: client!.id,
-      title: activityForm.title,
-      description: activityForm.description,
-      date: new Date().toISOString().split("T")[0],
-      // createdAt: new Date().toISOString(),
-      // type: 'system',
-      meetType: activityForm.type as any,
-      createdBy: "Admin",
-    };
-    setActivities([newActivity, ...activities]);
-    setShowAddActivity(false);
-    setActivityForm({ title: "", description: "", type: "call" });
-    showAlert("Success", "Activity added successfully");
+    showAlert(
+      "Info",
+      "Add Activity functionality not yet implemented with API",
+    );
   };
 
   const handleAddFamily = () => {
-    if (!familyForm.name || !familyForm.relation) {
-      showAlert("Error", "Name and Relation are required");
-      return;
-    }
-    const newMember: FamilyMember = {
-      id: Date.now().toString(),
-      clientId: client!.id,
-      name: familyForm.name,
-      relation: familyForm.relation,
-      email: familyForm.email,
-    };
-    setFamilyMembers([...familyMembers, newMember]);
-    setShowAddFamily(false);
-    setFamilyForm({ name: "", relation: "", email: "" });
-    showAlert("Success", "Family member added successfully");
-  };
-
-  const handleSaveServices = () => {
-    const uniqueServices = Array.from(
-      new Set([...services, ...tempSelectedServices]),
+    showAlert(
+      "Info",
+      "Add Family Member functionality not yet implemented with API",
     );
-    setServices(uniqueServices);
-    setShowAddServices(false);
-    setTempSelectedServices([]);
-    showAlert("Success", "Services updated successfully");
   };
 
   const toggleServiceSelection = (id: string) => {
-    if (tempSelectedServices.includes(id)) {
-      setTempSelectedServices(tempSelectedServices.filter((s) => s !== id));
-    } else {
-      setTempSelectedServices([...tempSelectedServices, id]);
-    }
+    // Logic for toggling
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-IN", {
       style: "currency",
-      currency: "USD",
+      currency: "INR",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    if (!status) return theme.colors.textSecondary;
+    switch (status.toLowerCase()) {
       case "active":
+      case "4":
+      case "5":
+      case "6":
         return theme.colors.success;
       case "inactive":
-        return theme.colors.textSecondary;
+        return theme.colors.error;
       case "pending":
+      case "1":
+      case "2":
+      case "3":
         return theme.colors.warning;
       default:
         return theme.colors.textSecondary;
     }
+  };
+
+  const getDisplayStatus = (status: string) => {
+    const statusMap: Record<string, string> = {
+      "1": "pending",
+      "2": "pending",
+      "3": "pending",
+      "4": "active",
+      "5": "active",
+      "6": "active",
+    };
+    return statusMap[status] || status || "pending";
   };
 
   const styles = StyleSheet.create({
@@ -335,7 +277,7 @@ const ClientDetailsScreen = () => {
     },
   });
 
-  if (loading || !client) {
+  if (loading || !prospect) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -343,32 +285,48 @@ const ClientDetailsScreen = () => {
     );
   }
 
+  const clientUser = prospect.user;
+
   return (
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refetchProspect}
+            colors={[theme.colors.primary]}
+          />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.clientName}>{client.name}</Text>
+          <Text style={styles.clientName}>
+            {clientUser.first_name} {clientUser.last_name}
+          </Text>
           <View style={styles.clientInfo}>
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: getStatusColor(client.status) + "20" },
+                {
+                  backgroundColor:
+                    getStatusColor(clientUser.application_status) + "20",
+                },
               ]}
             >
               <Text
                 style={[
                   styles.statusText,
-                  { color: getStatusColor(client.status) },
+                  { color: getStatusColor(clientUser.application_status) },
                 ]}
               >
-                {client.status}
+                {getDisplayStatus(clientUser.application_status)}
               </Text>
             </View>
-            <Text style={styles.clientRole}>{client.role}</Text>
+            <Text style={styles.clientRole}>
+              {clientUser.user_type_display || "Client"}
+            </Text>
           </View>
         </View>
 
@@ -378,39 +336,41 @@ const ClientDetailsScreen = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabContainer}
         >
-          {["overview", "services", "family", "activities"].map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab as any)}
-              style={[
-                styles.tab,
-                {
-                  borderColor:
-                    activeTab === tab
-                      ? theme.colors.primary
-                      : theme.effects.cardBorder,
-                  backgroundColor:
-                    activeTab === tab
-                      ? theme.colors.primary + "20"
-                      : "transparent",
-                },
-              ]}
-            >
-              <Text
+          {["overview", "services", "family", "activities", "documents"].map(
+            (tab) => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab as any)}
                 style={[
-                  styles.tabText,
+                  styles.tab,
                   {
-                    color:
+                    borderColor:
                       activeTab === tab
                         ? theme.colors.primary
-                        : theme.colors.text,
+                        : theme.effects.cardBorder,
+                    backgroundColor:
+                      activeTab === tab
+                        ? theme.colors.primary + "20"
+                        : "transparent",
                   },
                 ]}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color:
+                        activeTab === tab
+                          ? theme.colors.primary
+                          : theme.colors.text,
+                    },
+                  ]}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ),
+          )}
         </ScrollView>
 
         {/* Overview Tab */}
@@ -420,32 +380,23 @@ const ClientDetailsScreen = () => {
             <Card>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>{client.email}</Text>
+                <Text style={styles.infoValue}>{clientUser.email}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Phone</Text>
-                <Text style={styles.infoValue}>{client.phone}</Text>
+                <Text style={styles.infoValue}>{clientUser.mobile_number}</Text>
               </View>
-              {client.netWorth && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Net Worth</Text>
-                  <Text style={styles.infoValue}>
-                    {formatCurrency(client.netWorth)}
-                  </Text>
-                </View>
-              )}
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Assigned SP</Text>
+                <Text style={styles.infoLabel}>Organization</Text>
                 <Text style={styles.infoValue}>
-                  {client.assignedSP || "None"}
+                  {clientUser.organization?.name}
                 </Text>
               </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Owner</Text>
+                <Text style={styles.infoValue}>{prospect.owner || "None"}</Text>
+              </View>
             </Card>
-            {/* <Button
-              title="Edit Client"
-              onPress={() => showAlert("Edit", "Edit Client functionality")}
-              variant="primary"
-            /> */}
           </View>
         )}
 
@@ -454,68 +405,55 @@ const ClientDetailsScreen = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeaderBtn}>
               <Text style={styles.sectionTitle}>Assigned Services</Text>
-              <TouchableOpacity onPress={() => setShowAddServices(true)}>
-                <Icon
-                  name="add-circle"
-                  size={28}
-                  color={theme.colors.primary}
-                />
-              </TouchableOpacity>
             </View>
-            {services.length > 0 ? (
-              services.map((serviceId) => {
-                const service = availableServices.find(
-                  (s) => s.id === serviceId,
-                );
-                if (!service) return null;
-                return (
-                  <Card key={serviceId} style={{ marginBottom: 12 }}>
+            {userServices.length > 0 ? (
+              userServices.map((us: UserService) => (
+                <Card key={us.id} style={{ marginBottom: 12 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
                     <View
                       style={{
-                        flexDirection: "row",
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: theme.colors.secondary + "20",
+                        justifyContent: "center",
                         alignItems: "center",
-                        gap: 12,
                       }}
                     >
-                      <View
+                      <Icon
+                        name="briefcase"
+                        size={20}
+                        color={theme.colors.secondary}
+                      />
+                    </View>
+                    <View>
+                      <Text
                         style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          backgroundColor: theme.colors.secondary + "20",
-                          justifyContent: "center",
-                          alignItems: "center",
+                          fontSize: 16,
+                          fontWeight: "bold",
+                          color: theme.colors.text,
                         }}
                       >
-                        <Icon
-                          name="briefcase"
-                          size={20}
-                          color={theme.colors.secondary}
-                        />
-                      </View>
-                      <View>
-                        <Text
-                          style={{
-                            fontSize: 16,
-                            fontWeight: "bold",
-                            color: theme.colors.text,
-                          }}
-                        >
-                          {service.name}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            color: theme.colors.textSecondary,
-                          }}
-                        >
-                          {service.category}
-                        </Text>
-                      </View>
+                        {us.service.name}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: theme.colors.textSecondary,
+                        }}
+                      >
+                        {us.pipeline_status} • {formatCurrency(us.amount)}
+                      </Text>
                     </View>
-                  </Card>
-                );
-              })
+                  </View>
+                </Card>
+              ))
             ) : (
               <Text
                 style={{
@@ -533,62 +471,66 @@ const ClientDetailsScreen = () => {
         {activeTab === "family" && (
           <View style={styles.section}>
             <View style={styles.sectionHeaderBtn}>
-              <Text style={styles.sectionTitle}>Family Members</Text>
-              <TouchableOpacity onPress={() => setShowAddFamily(true)}>
-                <Icon
-                  name="add-circle"
-                  size={28}
-                  color={theme.colors.primary}
-                />
-              </TouchableOpacity>
+              <Text style={styles.sectionTitle}>Family Members (Nominees)</Text>
             </View>
-            {familyMembers.map((member) => (
-              <Card key={member.id} style={{ marginBottom: 12 }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
+            {clientNominees.length > 0 ? (
+              clientNominees.map((member: Nominee) => (
+                <Card key={member.id} style={{ marginBottom: 12 }}>
                   <View
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      backgroundColor: theme.colors.success + "20",
-                      justifyContent: "center",
+                      flexDirection: "row",
                       alignItems: "center",
+                      gap: 12,
                     }}
                   >
-                    <Icon
-                      name="person"
-                      size={20}
-                      color={theme.colors.success}
-                    />
-                  </View>
-                  <View>
-                    <Text
+                    <View
                       style={{
-                        fontSize: 16,
-                        fontWeight: "bold",
-                        color: theme.colors.text,
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: theme.colors.success + "20",
+                        justifyContent: "center",
+                        alignItems: "center",
                       }}
                     >
-                      {member.name}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: theme.colors.textSecondary,
-                      }}
-                    >
-                      {member.relation} • {member.email}
-                    </Text>
+                      <Icon
+                        name="person"
+                        size={20}
+                        color={theme.colors.success}
+                      />
+                    </View>
+                    <View>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "bold",
+                          color: theme.colors.text,
+                        }}
+                      >
+                        {member.first_name} {member.last_name}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: theme.colors.textSecondary,
+                        }}
+                      >
+                        {member.relationship} • {member.mobile}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              </Card>
-            ))}
+                </Card>
+              ))
+            ) : (
+              <Text
+                style={{
+                  textAlign: "center",
+                  color: theme.colors.textSecondary,
+                }}
+              >
+                No family members found
+              </Text>
+            )}
           </View>
         )}
 
@@ -597,36 +539,44 @@ const ClientDetailsScreen = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeaderBtn}>
               <Text style={styles.sectionTitle}>Recent Activities</Text>
-              <TouchableOpacity onPress={() => setShowAddActivity(true)}>
-                <Icon
-                  name="add-circle"
-                  size={28}
-                  color={theme.colors.primary}
-                />
-              </TouchableOpacity>
             </View>
-            {activities.map((activity) => (
-              <Card key={activity.id} style={styles.activityItem}>
-                <View style={styles.activityHeader}>
-                  <Text style={styles.activityTitle}>{activity.title}</Text>
-                  <Text style={styles.activityDate}>{activity.date}</Text>
-                </View>
-                <Text style={styles.activityDescription}>
-                  {activity.description}
-                </Text>
-                <View style={{ marginTop: 8 }}>
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      color: theme.colors.primary,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {activity.meetType}
+            {prospect.activities && prospect.activities.length > 0 ? (
+              prospect.activities.map((activity: Activity, index: number) => (
+                <Card key={index} style={styles.activityItem}>
+                  <View style={styles.activityHeader}>
+                    <Text style={styles.activityTitle}>{activity.name}</Text>
+                    <Text style={styles.activityDate}>
+                      {activity.created
+                        ? new Date(activity.created).toLocaleDateString()
+                        : ""}
+                    </Text>
+                  </View>
+                  <Text style={styles.activityDescription}>
+                    {activity.details}
                   </Text>
-                </View>
-              </Card>
-            ))}
+                  <View style={{ marginTop: 8 }}>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: theme.colors.primary,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {activity.activity_type}
+                    </Text>
+                  </View>
+                </Card>
+              ))
+            ) : (
+              <Text
+                style={{
+                  textAlign: "center",
+                  color: theme.colors.textSecondary,
+                }}
+              >
+                No activities found
+              </Text>
+            )}
           </View>
         )}
 
@@ -634,16 +584,30 @@ const ClientDetailsScreen = () => {
         {activeTab === "documents" && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Documents</Text>
-            {documents.map((doc) => (
-              <Card key={doc.id} style={styles.documentItem}>
-                <Text style={styles.documentName}>{doc.name}</Text>
-                <Text style={styles.documentType}>{doc.type}</Text>
-              </Card>
-            ))}
+            {userDocuments.length > 0 ? (
+              userDocuments.map((doc: UserDocument) => (
+                <Card key={doc.id} style={styles.documentItem}>
+                  <Text style={styles.documentName}>{doc.file_name}</Text>
+                  <Text style={styles.documentType}>{doc.document_type}</Text>
+                </Card>
+              ))
+            ) : (
+              <Text
+                style={{
+                  textAlign: "center",
+                  color: theme.colors.textSecondary,
+                  marginBottom: 12,
+                }}
+              >
+                No documents found
+              </Text>
+            )}
             <Button
               title="View All Documents"
               onPress={() =>
-                navigation.navigate("ClientDocuments", { clientId: client.id })
+                navigation.navigate("ClientDocuments", {
+                  clientId: clientIdString,
+                })
               }
               variant="secondary"
               style={{ marginTop: 12 }}
@@ -651,236 +615,6 @@ const ClientDetailsScreen = () => {
           </View>
         )}
       </ScrollView>
-
-      {/* Add Activity Modal */}
-      <Modal
-        visible={showAddActivity}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddActivity(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Activity</Text>
-              <TouchableOpacity onPress={() => setShowAddActivity(false)}>
-                <Icon name="close" size={24} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.label}>Title</Text>
-            <TextInput
-              style={styles.input}
-              value={activityForm.title}
-              onChangeText={(text) =>
-                setActivityForm({ ...activityForm, title: text })
-              }
-              placeholder="Meeting title"
-            />
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, { height: 100 }]}
-              value={activityForm.description}
-              onChangeText={(text) =>
-                setActivityForm({ ...activityForm, description: text })
-              }
-              placeholder="Meeting notes..."
-              multiline
-            />
-            <Text style={styles.label}>Type</Text>
-            <View style={styles.typeSelector}>
-              {["call", "email", "physical"].map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.typeButton,
-                    {
-                      backgroundColor:
-                        activityForm.type === type
-                          ? theme.colors.primary + "20"
-                          : "transparent",
-                      borderColor:
-                        activityForm.type === type
-                          ? theme.colors.primary
-                          : theme.effects.cardBorder,
-                    },
-                  ]}
-                  onPress={() => setActivityForm({ ...activityForm, type })}
-                >
-                  <Text
-                    style={{
-                      color:
-                        activityForm.type === type
-                          ? theme.colors.primary
-                          : theme.colors.textSecondary,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Button
-              title="Save Activity"
-              onPress={handleAddActivity}
-              variant="primary"
-            />
-          </View>
-        </View>
-      </Modal>
-
-      {/* Add Family Member Modal */}
-      <Modal
-        visible={showAddFamily}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddFamily(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Family Member</Text>
-              <TouchableOpacity onPress={() => setShowAddFamily(false)}>
-                <Icon name="close" size={24} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.label}>Name</Text>
-            <TextInput
-              style={styles.input}
-              value={familyForm.name}
-              onChangeText={(text) =>
-                setFamilyForm({ ...familyForm, name: text })
-              }
-              placeholder="Full Name"
-            />
-            <Text style={styles.label}>Relation</Text>
-            <TextInput
-              style={styles.input}
-              value={familyForm.relation}
-              onChangeText={(text) =>
-                setFamilyForm({ ...familyForm, relation: text })
-              }
-              placeholder="Spouse, Child, etc."
-            />
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={familyForm.email}
-              onChangeText={(text) =>
-                setFamilyForm({ ...familyForm, email: text })
-              }
-              placeholder="email@example.com"
-              keyboardType="email-address"
-            />
-            <Button
-              title="Add Member"
-              onPress={handleAddFamily}
-              variant="primary"
-            />
-          </View>
-        </View>
-      </Modal>
-
-      {/* Add Services Modal */}
-      <Modal
-        visible={showAddServices}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddServices(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Services</Text>
-              <TouchableOpacity onPress={() => setShowAddServices(false)}>
-                <Icon name="close" size={24} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={{ marginBottom: 16 }}>
-              {availableServices
-                .filter((s) => !services.includes(s.id))
-                .map((service) => {
-                  const isSelected = tempSelectedServices.includes(service.id);
-                  return (
-                    <TouchableOpacity
-                      key={service.id}
-                      style={[
-                        styles.serviceOption,
-                        {
-                          borderColor: isSelected
-                            ? theme.colors.primary
-                            : theme.effects.cardBorder,
-                          backgroundColor: isSelected
-                            ? theme.colors.primary + "10"
-                            : theme.colors.surface,
-                        },
-                      ]}
-                      onPress={() => toggleServiceSelection(service.id)}
-                    >
-                      <View
-                        style={[
-                          styles.checkbox,
-                          {
-                            borderColor: isSelected
-                              ? theme.colors.primary
-                              : theme.colors.textSecondary,
-                            backgroundColor: isSelected
-                              ? theme.colors.primary
-                              : "transparent",
-                          },
-                        ]}
-                      >
-                        {isSelected && (
-                          <Icon
-                            name="checkmark"
-                            size={16}
-                            color={theme.colors.textOnPrimary}
-                          />
-                        )}
-                      </View>
-                      <View>
-                        <Text
-                          style={{
-                            fontSize: 16,
-                            fontWeight: "600",
-                            color: theme.colors.text,
-                          }}
-                        >
-                          {service.name}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            color: theme.colors.textSecondary,
-                          }}
-                        >
-                          {service.category}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              {availableServices.filter((s) => !services.includes(s.id))
-                .length === 0 && (
-                <Text
-                  style={{
-                    textAlign: "center",
-                    color: theme.colors.textSecondary,
-                  }}
-                >
-                  All available services assigned.
-                </Text>
-              )}
-            </ScrollView>
-            <Button
-              title="Add Selected"
-              onPress={handleSaveServices}
-              variant="primary"
-            />
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };

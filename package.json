@@ -3,8 +3,14 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "copy:stg": "cp src/environments/env.stg.ts src/environments/env.ts",
+    "copy": "cp src/environments/env.main.ts src/environments/env.ts",
+    "android:local": "react-native run-android",
+    "ios:local": "react-native run-ios",
+    "android:stg": "npm run copy:stg && react-native run-android",
+    "ios:stg": "npm run copy:stg && react-native run-ios",
+    "android": "npm run copy && react-native run-android",
+    "ios": "npm run copy && react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest"

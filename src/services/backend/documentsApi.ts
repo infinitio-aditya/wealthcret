@@ -127,6 +127,7 @@ export const {
   useGetAgreementDocumentTypesQuery,
   useGetUserAgreementDocumentsQuery,
   useGenerateDocumentQuery,
+  useGetUserDocumentsByIdQuery,
   useLazyGetUserDocumentsByIdQuery,
   useGetExpectedDocumentsQuery,
   useUploadUserDocumentMutation,

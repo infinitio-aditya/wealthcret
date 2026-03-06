@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Modal,
+  RefreshControl,
 } from "react-native";
 import { useTheme } from "../../../hooks/useTheme";
 import { useAlert } from "../../../context/AlertContext";
@@ -16,62 +17,29 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { ServiceRequest } from "../../../types";
 import Button from "../../../components/ui/Button";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
-
-const mockServiceRequests: ServiceRequest[] = [
-  {
-    id: "1",
-    serviceName: "Portfolio Analysis",
-    clientId: "1",
-    clientName: "John Anderson",
-    organizationId: "org-1",
-    status: "assigned",
-    requestDate: "2025-12-08",
-    priority: "high",
-  },
-  {
-    id: "2",
-    serviceName: "Tax Planning Consultation",
-    clientId: "2",
-    clientName: "Emily Chen",
-    status: "pending",
-    requestDate: "2025-12-07",
-    priority: "medium",
-  },
-  {
-    id: "3",
-    serviceName: "Estate Planning Review",
-    clientId: "3",
-    clientName: "Robert Martinez",
-    organizationId: "org-3",
-    status: "completed",
-    requestDate: "2025-12-05",
-    priority: "low",
-  },
-  {
-    id: "4",
-    serviceName: "Investment Strategy Session",
-    clientId: "4",
-    clientName: "Lisa Thompson",
-    status: "pending",
-    requestDate: "2025-12-09",
-    priority: "high",
-  },
-];
-
-// Mock organizations
-const mockOrganizations = [
-  { label: "Acme Financial Services", value: "org-1" },
-  { label: "Global Wealth Management", value: "org-2" },
-  { label: "Elite Financial Group", value: "org-3" },
-  { label: "Premier Wealth Advisors", value: "org-4" },
-];
+import {
+  useLazyGetAssignmentRequestsQuery,
+  useUpdateUserServiceMutation,
+} from "../../../services/backend/userServicesApi";
+import { useGetOrgnizationsQuery } from "../../../services/backend/authApi";
+import { UserService } from "../../../types/backend/userservices";
 
 const ServiceRequestsScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
+
+  const [
+    getAssignmentRequests,
+    { data: assignmentData, isLoading, isFetching },
+  ] = useLazyGetAssignmentRequestsQuery();
+  const [updateUserService] = useUpdateUserServiceMutation();
+  const { data: orgData } = useGetOrgnizationsQuery({
+    page: 1,
+    page_size: 100,
+    q: "",
+  });
+
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<
     "all" | "pending" | "assigned" | "completed"
   >("all");
@@ -85,19 +53,34 @@ const ServiceRequestsScreen = () => {
     loadRequests();
   }, []);
 
-  const loadRequests = () => {
-    setTimeout(() => {
-      setRequests(mockServiceRequests);
-      setLoading(false);
-    }, 500);
+  const loadRequests = async () => {
+    try {
+      const response = await getAssignmentRequests({
+        page: 1,
+        page_size: 50,
+      }).unwrap();
+      const mapped = response.results.map((item: UserService) => ({
+        id: item.id.toString(),
+        serviceName: item.service.label || item.service.name,
+        clientId: item.user?.id?.toString() || "0",
+        clientName: `${item.user?.first_name || "Unknown"} ${item.user?.last_name || ""}`,
+        organizationId: item.sp_owner_org?.toString(),
+        status: (item.pipeline_status?.toLowerCase() === "completed"
+          ? "completed"
+          : item.sp_owner_org
+            ? "assigned"
+            : "pending") as any,
+        requestDate: (item.user as any)?.created || new Date().toISOString(),
+        priority: (item.details as any)?.priority || "medium",
+      }));
+      setRequests(mapped);
+    } catch (error) {
+      console.error("Failed to load requests:", error);
+    }
   };
 
   const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRequests(mockServiceRequests);
-      setRefreshing(false);
-    }, 1000);
+    loadRequests();
   };
 
   const handleAssign = (id: string) => {
@@ -106,28 +89,48 @@ const ServiceRequestsScreen = () => {
     setAssignModalVisible(true);
   };
 
-  const handleConfirmAssign = () => {
+  const organizations = (orgData?.results || []).map((org) => ({
+    label: org.name,
+    value: org.id.toString(),
+  }));
+
+  const handleConfirmAssign = async () => {
     if (!selectedOrgId) {
       showAlert("Error", "Please select an organization");
       return;
     }
 
-    const orgName = mockOrganizations.find(
+    const orgName = organizations.find(
       (org) => org.value === selectedOrgId,
     )?.label;
 
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.id === selectedRequestId
-          ? { ...r, status: "assigned", organizationId: selectedOrgId }
-          : r,
-      ),
-    );
+    try {
+      await updateUserService({
+        service: {
+          id: parseInt(selectedRequestId!),
+          sp_owner_org: parseInt(selectedOrgId),
+        },
+        user_id: parseInt(
+          requests.find((r) => r.id === selectedRequestId)?.clientId || "0",
+        ),
+      }).unwrap();
 
-    setAssignModalVisible(false);
-    setSelectedRequestId(null);
-    setSelectedOrgId("");
-    showAlert("Success", `Request assigned to ${orgName}`);
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === selectedRequestId
+            ? { ...r, status: "assigned", organizationId: selectedOrgId }
+            : r,
+        ),
+      );
+
+      setAssignModalVisible(false);
+      setSelectedRequestId(null);
+      setSelectedOrgId("");
+      showAlert("Success", `Request assigned to ${orgName}`);
+    } catch (error) {
+      console.error("Failed to assign request:", error);
+      showAlert("Error", "Failed to assign request");
+    }
   };
 
   const filteredRequests =
@@ -359,7 +362,7 @@ const ServiceRequestsScreen = () => {
     },
   });
 
-  if (loading) {
+  if (isLoading && !isFetching) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -459,8 +462,13 @@ const ServiceRequestsScreen = () => {
         renderItem={renderRequest}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No service requests found</Text>
@@ -509,7 +517,7 @@ const ServiceRequestsScreen = () => {
 
             <ThemeDropdown
               label="Organization"
-              options={mockOrganizations}
+              options={organizations}
               selectedValue={selectedOrgId}
               onValueChange={setSelectedOrgId}
               placeholder="Select an organization"

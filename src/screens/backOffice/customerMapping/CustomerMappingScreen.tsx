@@ -22,15 +22,9 @@ import {
 } from "../../../services/backend/prospectApi";
 import { useGetOrgnizationByOrgTypeQuery } from "../../../services/backend/authApi";
 import { ProspectAssociation } from "../../../types/backend/prospect";
-import { mockReferralPartners } from "../../../utils/mockData";
 import ThemeDropdown from "@components/ui/ThemeDropdown";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-const availableReferralPartners = mockReferralPartners.map((rp) => ({
-  label: rp.name,
-  value: rp.name,
-}));
 
 const CustomerMappingScreen = () => {
   const theme = useTheme();
@@ -61,11 +55,18 @@ const CustomerMappingScreen = () => {
   } = useGetProspectsClientsQuery({ page: 1, page_size: 100 });
   const [updateAssociation] = useUpdateProspectAssociationMutation();
   const { data: spsData } = useGetOrgnizationByOrgTypeQuery("advisor");
+  const { data: rpData } = useGetOrgnizationByOrgTypeQuery("rp");
 
   const availableServiceProviders =
     spsData?.map((sp) => ({
       label: sp.name,
       value: sp.id.toString(),
+    })) || [];
+
+  const availableReferralPartners =
+    rpData?.map((rp) => ({
+      label: rp.name,
+      value: rp.name,
     })) || [];
 
   useEffect(() => {

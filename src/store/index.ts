@@ -16,6 +16,8 @@ import { nomineeApi } from '../services/backend/nomineeApi';
 import { complianceApi } from '../services/backend/complianceApi';
 import { commissionApi } from '../services/backend/commissionApi';
 import { notificationApi } from '../services/backend/notificationApi';
+import { licensingApi } from '../services/backend/licensingApi';
+import { inviteApi } from '../services/backend/invitationsApi';
 
 export const store = configureStore({
     reducer: {
@@ -36,6 +38,8 @@ export const store = configureStore({
         [complianceApi.reducerPath]: complianceApi.reducer,
         [commissionApi.reducerPath]: commissionApi.reducer,
         [notificationApi.reducerPath]: notificationApi.reducer,
+        [licensingApi.reducerPath]: licensingApi.reducer,
+        [inviteApi.reducerPath]: inviteApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
@@ -54,7 +58,9 @@ export const store = configureStore({
             nomineeApi.middleware,
             complianceApi.middleware,
             commissionApi.middleware,
-            notificationApi.middleware
+            notificationApi.middleware,
+            licensingApi.middleware,
+            inviteApi.middleware
         ),
 });
 

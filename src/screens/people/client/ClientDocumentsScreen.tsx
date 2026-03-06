@@ -10,11 +10,16 @@ import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useTheme } from "../../../hooks/useTheme";
 import { useAlert } from "../../../context/AlertContext";
-import { mockClients, mockDocuments } from "../../../utils/mockData";
-import { Document } from "../../../types";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
+import { useRetrieveProspectQuery } from "../../../services/backend/prospectApi";
+import {
+  useGetUserDocumentsByIdQuery,
+  useRequestDocumentMutation,
+} from "../../../services/backend/documentsApi";
+import { UserDocument } from "../../../types/backend/documents";
+import { ActivityIndicator, RefreshControl } from "react-native";
 
 type RouteParams = {
   ClientDocuments: { clientId: string };
@@ -25,12 +30,32 @@ const ClientDocumentsScreen = () => {
   const theme = useTheme();
   const route = useRoute<RouteProp<RouteParams, "ClientDocuments">>();
   const navigation = useNavigation();
-  const clientId = route.params?.clientId;
-  const client = mockClients.find((c) => c.id === clientId);
+  const clientIdString = route.params?.clientId;
+  const clientId = clientIdString ? parseInt(clientIdString) : 0;
+
+  const {
+    data: prospect,
+    isLoading: loadingProspect,
+    refetch: refetchProspect,
+  } = useRetrieveProspectQuery(clientId, { skip: !clientId });
+
+  const uuid = prospect?.user?.uuid;
+
+  const {
+    data: clientDocuments = [],
+    isLoading: loadingDocuments,
+    refetch: refetchDocuments,
+  } = useGetUserDocumentsByIdQuery(uuid!, { skip: !uuid });
+
+  const [requestDocument, { isLoading: isRequesting }] =
+    useRequestDocumentMutation();
 
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [docType, setDocType] = useState("");
   const [description, setDescription] = useState("");
+
+  const loading = loadingProspect || loadingDocuments;
+  const client = prospect?.user;
 
   const styles = StyleSheet.create({
     container: {
@@ -131,6 +156,23 @@ const ClientDocumentsScreen = () => {
     },
   });
 
+  if (loading && !prospect) {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.colors.background,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
   if (!client) {
     return (
       <View
@@ -148,35 +190,60 @@ const ClientDocumentsScreen = () => {
     );
   }
 
-  const clientDocuments = mockDocuments.filter((d) => d.clientId === clientId);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "approved":
-        return theme.colors.success;
-      case "rejected":
-        return theme.colors.error;
-      case "pending":
-        return theme.colors.warning;
-      default:
-        return theme.colors.textSecondary;
-    }
+  const getStatusColor = (isUploaded: boolean) => {
+    return isUploaded ? theme.colors.success : theme.colors.warning;
   };
 
-  const handleRequest = () => {
-    showAlert("Success", `Requested ${docType} from ${client.name}`);
-    setShowRequestForm(false);
-    setDocType("");
-    setDescription("");
+  const getStatusText = (isUploaded: boolean) => {
+    return isUploaded ? "Uploaded" : "Pending";
+  };
+
+  const handleRequest = async () => {
+    if (!docType.trim()) {
+      showAlert("Error", "Please specify a document type");
+      return;
+    }
+
+    try {
+      await requestDocument({
+        uuid: uuid!,
+        document: {
+          document_type: docType,
+          description: description,
+          // Other required fields for UserDocument if any,
+          // but based on API it seems to expect a document object
+        } as any,
+      }).unwrap();
+
+      showAlert("Success", `Requested ${docType} from ${client.first_name}`);
+      setShowRequestForm(false);
+      setDocType("");
+      setDescription("");
+    } catch (error: any) {
+      showAlert("Error", error?.data?.message || "Failed to request document");
+    }
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView>
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={() => {
+              refetchProspect();
+              refetchDocuments();
+            }}
+            colors={[theme.colors.primary]}
+          />
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Documents</Text>
-            <Text style={styles.subtitle}>{client.name}</Text>
+            <Text style={styles.subtitle}>
+              {client.first_name} {client.last_name}
+            </Text>
           </View>
           <TouchableOpacity
             onPress={() => setShowRequestForm(!showRequestForm)}
@@ -204,9 +271,10 @@ const ClientDocumentsScreen = () => {
               multiline
             />
             <Button
-              title="Send Request"
+              title={isRequesting ? "Sending..." : "Send Request"}
               onPress={handleRequest}
               style={{ marginTop: 12 }}
+              disabled={isRequesting}
             />
           </View>
         )}
@@ -230,9 +298,9 @@ const ClientDocumentsScreen = () => {
             ]}
           >
             <Text style={[styles.statValue, { color: theme.colors.success }]}>
-              {clientDocuments.filter((d) => d.status === "approved").length}
+              {clientDocuments.filter((d) => d.is_uploaded).length}
             </Text>
-            <Text style={styles.statLabel}>Approved</Text>
+            <Text style={styles.statLabel}>Uploaded</Text>
           </View>
           <View
             style={[
@@ -241,46 +309,53 @@ const ClientDocumentsScreen = () => {
             ]}
           >
             <Text style={[styles.statValue, { color: theme.colors.warning }]}>
-              {clientDocuments.filter((d) => d.status === "pending").length}
+              {clientDocuments.filter((d) => !d.is_uploaded).length}
             </Text>
             <Text style={styles.statLabel}>Pending</Text>
           </View>
         </View>
 
-        {clientDocuments.map((doc) => (
+        {clientDocuments.map((doc: UserDocument) => (
           <Card key={doc.id} style={styles.docCard}>
             <View style={styles.docHeader}>
               <View
                 style={[
                   styles.docIcon,
-                  { backgroundColor: getStatusColor(doc.status) + "20" },
+                  { backgroundColor: getStatusColor(doc.is_uploaded) + "20" },
                 ]}
               >
                 <Icon
                   name="document-text"
                   size={24}
-                  color={getStatusColor(doc.status)}
+                  color={getStatusColor(doc.is_uploaded)}
                 />
               </View>
               <View
                 style={[
                   styles.statusBadge,
-                  { backgroundColor: getStatusColor(doc.status) + "20" },
+                  { backgroundColor: getStatusColor(doc.is_uploaded) + "20" },
                 ]}
               >
                 <Text
                   style={[
                     styles.statusText,
-                    { color: getStatusColor(doc.status) },
+                    { color: getStatusColor(doc.is_uploaded) },
                   ]}
                 >
-                  {doc.status}
+                  {getStatusText(doc.is_uploaded)}
                 </Text>
               </View>
             </View>
-            <Text style={styles.docTitle}>{doc.name}</Text>
-            <Text style={styles.docInfo}>Type: {doc.type}</Text>
-            <Text style={styles.docInfo}>Uploaded: {doc.uploadDate}</Text>
+            <Text style={styles.docTitle}>
+              {doc.file_name || doc.document_type}
+            </Text>
+            <Text style={styles.docInfo}>Type: {doc.document_type}</Text>
+            <Text style={styles.docInfo}>
+              Uploaded:{" "}
+              {doc.created_at
+                ? new Date(doc.created_at).toLocaleDateString()
+                : "N/A"}
+            </Text>
 
             <View style={styles.actions}>
               <Button

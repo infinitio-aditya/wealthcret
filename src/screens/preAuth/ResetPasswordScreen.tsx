@@ -8,23 +8,48 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../hooks/useTheme";
 import Icon from "react-native-vector-icons/Ionicons";
 import LinearGradient from "react-native-linear-gradient";
+import { useAlert } from "../../context/AlertContext";
+import { useResetPasswordMutation } from "../../services/backend/authApi";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ResetPasswordScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [resetPassword, { isLoading }] = useResetPasswordMutation();
 
-  const handleSubmit = () => {
-    if (!password || password !== confirmPassword) return;
-    // Handle reset logic
-    navigation.navigate("Login" as never);
+  const handleSubmit = async () => {
+    if (!password) {
+      showAlert("Error", "Please enter a new password");
+      return;
+    }
+    if (password.length < 8) {
+      showAlert("Error", "Password must be at least 8 characters long");
+      return;
+    }
+    if (password !== confirmPassword) {
+      showAlert("Error", "Passwords do not match");
+      return;
+    }
+
+    try {
+      await resetPassword({ password, confirmPassword }).unwrap();
+      // Clear the temporary token after successful reset
+      await AsyncStorage.removeItem("token");
+      showAlert("Success", "Password updated successfully!");
+      navigation.navigate("Login" as never);
+    } catch (error: any) {
+      showAlert("Error", error?.data?.message || "Failed to reset password");
+    }
   };
 
   const styles = StyleSheet.create({
@@ -203,12 +228,20 @@ const ResetPasswordScreen = () => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+        <TouchableOpacity
+          style={styles.submitButton}
+          onPress={handleSubmit}
+          disabled={isLoading}
+        >
           <LinearGradient
-            colors={[theme.colors.primary, theme.colors.secondary]}
+            colors={[theme.colors.primary, theme.colors.primary + "80"]}
             style={styles.gradient}
           >
-            <Text style={styles.submitText}>Reset Password</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.submitText}>Reset Password</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>

@@ -20,13 +20,8 @@ import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Icon from "react-native-vector-icons/Ionicons";
-import { RiskProfile, QuizQuestion } from "../../../types";
+import { QuizQuestion } from "../../../types";
 import Gauge from "../../../components/ui/Gauge";
-import {
-  mockRiskProfiles,
-  mockServiceProviders,
-  mockReferralPartners,
-} from "../../../utils/mockData";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { SupportStackParamList } from "../../../navigation/NavigationParams";
@@ -37,150 +32,116 @@ import {
   useGetQuestionsQuery,
   useSubmitAssessmentMutation,
 } from "../../../services/backend/complianceApi";
+import { useGetOrgnizationByOrgTypeQuery } from "../../../services/backend/authApi";
 import {
-  RiskProfile as BackendRiskProfile,
+  RiskProfile,
   RiskProfileQuestion,
 } from "../../../types/backend/compliance";
-
-type RiskProfileScreenNavigationProp = StackNavigationProp<
-  SupportStackParamList,
-  "RiskProfile"
->;
-
-const mockQuizQuestions: QuizQuestion[] = [
-  {
-    id: "1",
-    text: "What is your primary investment goal?",
-    options: [
-      { id: "1a", text: "Capital Preservation", score: 1 },
-      { id: "1b", text: "Retirement Planning", score: 3 },
-      { id: "1c", text: "Wealth Creation", score: 5 },
-    ],
-    category: "Goals",
-  },
-  {
-    id: "2",
-    text: "How long do you plan to invest your money?",
-    options: [
-      { id: "2a", text: "Less than 1 year", score: 1 },
-      { id: "2b", text: "3-5 years", score: 3 },
-      { id: "2c", text: "10+ years", score: 5 },
-    ],
-    category: "Time Horizon",
-  },
-  {
-    id: "3",
-    text: "How would you react if your portfolio dropped by 20% in a month?",
-    options: [
-      { id: "3a", text: "Sell everything", score: 1 },
-      { id: "3b", text: "Do nothing", score: 3 },
-      { id: "3c", text: "Buy more", score: 5 },
-    ],
-    category: "Risk Appetite",
-  },
-];
-
-const uniqueAdvisors = mockServiceProviders.map((sp) => sp.name);
-const uniqueReferralPartners = mockReferralPartners.map((rp) => rp.name);
 
 const RiskProfileScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
-  const navigation = useNavigation<RiskProfileScreenNavigationProp>();
-  const user = useSelector((state: RootState) => state.auth.user);
-  const isClient = user?.role === "client";
-  const [loading, setLoading] = useState(true);
+  const navigation = useNavigation<any>();
+  const user = useSelector((state: RootState) => state.auth.user) as any;
+  const isClient = user?.type === "client"; // Adjusting to 'type' based on authApi types
+
   const [showAssessment, setShowAssessment] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
-  const [profiles, setProfiles] = useState<RiskProfile[]>([]);
-  const [filteredProfiles, setFilteredProfiles] = useState<RiskProfile[]>([]);
 
-  // Filters
-  const [showFilters, setShowFilters] = useState(false);
+  // Filters and Data
   const [searchQuery, setSearchQuery] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+
   const [filters, setFilters] = useState({
-    status: "all" as "all" | "low" | "medium" | "high",
+    status: "all",
     assignedSP: "all",
     referralPartner: "all",
   });
   const [tempFilters, setTempFilters] = useState({
-    status: "all" as "all" | "low" | "medium" | "high",
+    status: "all",
     assignedSP: "all",
     referralPartner: "all",
   });
 
-  const [getProfiles, { isFetching }] = useLazyGetRiskProfilesQuery();
+  const [
+    getRiskProfiles,
+    { data: riskProfilesData, isFetching: loadingProfiles },
+  ] = useLazyGetRiskProfilesQuery();
   const { data: clientProfile, refetch: refetchClientProfile } =
     useGetClientRiskProfileQuery(undefined, { skip: !isClient });
+  const { data: referralPartners } = useGetOrgnizationByOrgTypeQuery("rp");
+  const { data: serviceProviders } = useGetOrgnizationByOrgTypeQuery("advisor");
   const { data: qData } = useGetQuestionsQuery();
   const [submitAssessment, { isLoading: isSubmitting }] =
     useSubmitAssessmentMutation();
 
-  const fetchProfiles = async () => {
-    try {
-      const response = await getProfiles({ page: 1, page_size: 100 }).unwrap();
-      const mapped: RiskProfile[] = response.results.map((rp) => ({
-        id: rp.id.toString(),
-        clientName: `${rp.user?.first_name} ${rp.user?.last_name}`,
-        score: rp.current_score,
-        status:
-          rp.current_score < 40
-            ? "low"
-            : rp.current_score < 70
-              ? "medium"
-              : "high",
-        lastAssessmentDate: new Date(rp.last_calculated).toLocaleDateString(),
-        assignedSP: "Advisor", // Backend RiskProfile doesn't seem to have SP info directly
-        clientId: rp.user?.id.toString() || "",
-        nextReviewDate: new Date(
-          new Date(rp.last_calculated).setFullYear(
-            new Date(rp.last_calculated).getFullYear() + 1,
-          ),
-        ).toLocaleDateString(),
-      }));
-      setProfiles(mapped);
-      setFilteredProfiles(mapped);
-      setLoading(false);
-    } catch (error) {
-      console.error("Failed to fetch profiles:", error);
-      setLoading(false);
-    }
+  const fetchProfiles = () => {
+    getRiskProfiles({ page: 1, page_size: 100, q: searchQuery });
   };
 
   useEffect(() => {
     if (!isClient) {
       fetchProfiles();
-    } else {
-      setLoading(false);
     }
-  }, [isClient]);
+  }, [isClient, searchQuery]);
 
-  useEffect(() => {
-    let result = profiles;
-    if (searchQuery) {
-      result = result.filter((p) =>
-        p.clientName.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    if (isClient) {
+      await refetchClientProfile();
+    } else {
+      await fetchProfiles();
     }
-    if (filters.status !== "all") {
-      result = result.filter((p) => p.status === filters.status);
+    setRefreshing(false);
+  };
+
+  const mapRiskStatus = (score: number) => {
+    if (score >= 80) return "high";
+    if (score >= 40) return "medium";
+    return "low";
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "high":
+        return "Aggressive";
+      case "medium":
+        return "Moderate";
+      case "low":
+        return "Conservative";
+      default:
+        return "Unknown";
     }
-    if (filters.assignedSP !== "all") {
-      result = result.filter((p) => p.assignedSP === filters.assignedSP);
-    }
-    if (filters.referralPartner !== "all") {
-      result = result.filter(
-        (p) => (p as any).referralPartner === filters.referralPartner,
-      );
-    }
-    setFilteredProfiles(result);
-  }, [searchQuery, filters, profiles]);
+  };
+
+  const profiles =
+    riskProfilesData?.results.map((rp: RiskProfile) => ({
+      id: rp.id.toString(),
+      clientName: `${rp.user?.first_name} ${rp.user?.last_name}`,
+      status: mapRiskStatus(rp.current_score),
+      score: rp.current_score,
+      lastAssessmentDate: rp.last_calculated
+        ? rp.last_calculated.split("T")[0]
+        : "N/A",
+      referralPartner: rp.user?.organization?.name || "None",
+      assignedSP: "Advisor",
+    })) || [];
+
+  const filteredProfiles = profiles.filter((p) => {
+    const matchesPartner =
+      filters.referralPartner === "all" ||
+      p.referralPartner === filters.referralPartner;
+    const matchesStatus =
+      filters.status === "all" || p.status === filters.status;
+    return matchesPartner && matchesStatus;
+  });
 
   const getScoreColor = (score: number) => {
-    if (score < 40) return theme.colors.success; // Low Risk
-    if (score < 70) return theme.colors.warning; // Medium Risk
-    return theme.colors.error; // High Risk
+    if (score < 40) return theme.colors.success;
+    if (score < 70) return theme.colors.warning;
+    return theme.colors.error;
   };
 
   const handleStartAssessment = () => {
@@ -195,21 +156,41 @@ const RiskProfileScreen = () => {
     setAnswers(newAnswers);
   };
 
-  const handleNext = () => {
-    if (currentQuestion < mockQuizQuestions.length - 1) {
+  const handleNext = async () => {
+    if (qData && currentQuestion < qData.length - 1) {
       setCurrentQuestion((prev) => prev + 1);
-    } else {
-      // Calculate Score based on Web Logic: sum of scores / max possible * 100
-      // Simplified for this mock: average score scaled to 100
-      const totalScore = answers.reduce((a, b) => a + b, 0);
-      const maxPossible = mockQuizQuestions.length * 5;
-      const finalScore = Math.round((totalScore / maxPossible) * 100);
+    } else if (qData) {
+      // Map index-based answers to questionId-based results for the API
+      const result: Record<number, number> = {};
+      qData.forEach((q, index) => {
+        if (answers[index] !== undefined) {
+          result[q.id] = answers[index];
+        }
+      });
 
-      showAlert(
-        "Assessment Complete",
-        `Your calculated risk score is ${finalScore}`,
-        [{ text: "View Profile", onPress: () => setShowAssessment(false) }],
-      );
+      try {
+        const response = await submitAssessment({ result }).unwrap();
+        showAlert(
+          "Assessment Complete",
+          `Your calculated risk score is ${response.current_score}`,
+          [
+            {
+              text: "View Profile",
+              onPress: () => {
+                setShowAssessment(false);
+                if (isClient) {
+                  refetchClientProfile();
+                } else {
+                  fetchProfiles();
+                }
+              },
+            },
+          ],
+        );
+      } catch (error) {
+        console.error("Failed to submit assessment:", error);
+        showAlert("Error", "Failed to submit assessment. Please try again.");
+      }
     }
   };
 
@@ -445,7 +426,9 @@ const RiskProfileScreen = () => {
         label="Assigned Service Provider"
         options={[
           { label: "All Advisors", value: "all" },
-          ...uniqueAdvisors.map((ad) => ({ label: ad, value: ad })),
+          ...Array.from(new Set(profiles.map((p) => p.assignedSP)))
+            .filter(Boolean)
+            .map((ad: any) => ({ label: ad, value: ad })),
         ]}
         selectedValue={tempFilters.assignedSP}
         onValueChange={(value) =>
@@ -458,7 +441,14 @@ const RiskProfileScreen = () => {
         options={[
           { label: "All Partners", value: "all" },
           { label: "None", value: "None" },
-          ...uniqueReferralPartners.map((rp) => ({ label: rp, value: rp })),
+          ...Array.from(
+            new Set(profiles.map((p) => (p as any).referralPartner)),
+          )
+            .filter(Boolean)
+            .map((rp: any) => ({
+              label: rp,
+              value: rp,
+            })),
         ]}
         selectedValue={tempFilters.referralPartner}
         onValueChange={(value) =>
@@ -670,7 +660,7 @@ const RiskProfileScreen = () => {
     </ScrollView>
   );
 
-  if (loading)
+  if (loadingProfiles) {
     return (
       <View
         style={[styles.loading, { backgroundColor: theme.colors.background }]}
@@ -678,6 +668,7 @@ const RiskProfileScreen = () => {
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
+  }
 
   if (showAssessment) return renderAssessment();
 
@@ -901,7 +892,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     marginTop: 32,
-    marginBottom: 16,
   },
 });
 

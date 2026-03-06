@@ -147,7 +147,9 @@ const ForgotPasswordScreen = () => {
             </Text>
             <TouchableOpacity
               style={styles.resendButton}
-              onPress={() => navigation.navigate("OTPVerification" as never)}
+              onPress={() =>
+                (navigation as any).navigate("OTPVerification", { email })
+              }
             >
               <Text style={styles.resendText}>Enter Reset Code</Text>
             </TouchableOpacity>

@@ -5,70 +5,72 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from "react-native";
+import { useSelector } from "react-redux";
 import { useTheme } from "../../../hooks/useTheme";
 import Card from "../../../components/ui/Card";
-import LinearGradient from "react-native-linear-gradient";
-
-interface BillingItem {
-  id: string;
-  description: string;
-  amount: number;
-  date: string;
-  status: "paid" | "pending" | "overdue";
-}
-
-const mockBillingItems: BillingItem[] = [
-  {
-    id: "1",
-    description: "Premium Portfolio Analytics - December 2025",
-    amount: 49.99,
-    date: "2025-12-01",
-    status: "paid",
-  },
-  {
-    id: "2",
-    description: "Advanced Risk Assessment - December 2025",
-    amount: 79.99,
-    date: "2025-12-01",
-    status: "paid",
-  },
-  {
-    id: "3",
-    description: "Multi-Currency Support - Annual",
-    amount: 299.99,
-    date: "2025-11-15",
-    status: "paid",
-  },
-];
+import { RootState } from "../../../store";
 
 const BillingScreen = () => {
   const theme = useTheme();
-  const [billingItems] = useState(mockBillingItems);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const totalAmount = billingItems.reduce((sum, item) => sum + item.amount, 0);
-  const paidAmount = billingItems
-    .filter((item) => item.status === "paid")
-    .reduce((sum, item) => sum + item.amount, 0);
+  // Directly use the user's license data attached to the organization
+  const user = useSelector((state: RootState) => state.auth.user);
+  const orgLicense = user?.license || {};
+  const orgName = user?.organization || "Organization";
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "paid":
-        return theme.colors.success;
-      case "pending":
-        return theme.colors.warning;
-      case "overdue":
-        return theme.colors.error;
-      default:
-        return theme.colors.textSecondary;
-    }
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // In a fully live scenario, you might dispatch an action to refresh the user profile here
+    // For now, we simulate a quick pull-to-refresh
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  };
+
+  const featureLicenses = orgLicense?.feature_licenses || [];
+
+  // Calculate the grand total exactly as the reference project does
+  const grandTotal =
+    featureLicenses.reduce((sum: number, fl: any) => {
+      if (fl.feature?.billing_type === 1) {
+        return sum + (parseFloat(fl.lump_sum_amount) || 0);
+      }
+      if (fl.feature?.billing_type === 2) {
+        return (
+          sum + (parseFloat(fl.price_per_license) || 0) * (fl.max_licenses || 0)
+        );
+      }
+      return sum;
+    }, 0) || 0;
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
+    return `₹${amount.toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
+  const getStatusColor = (billingType: number) => {
+    switch (billingType) {
+      case 1:
+        return theme.colors.success; // Lump Sum
+      case 2:
+        return theme.colors.primary; // Per License
+      default:
+        return theme.colors.textSecondary;
+    }
   };
 
   const styles = StyleSheet.create({
@@ -87,14 +89,17 @@ const BillingScreen = () => {
       padding: 24,
       overflow: "hidden",
     },
-    summaryGradient: {
-      padding: 24,
-    },
     summaryTitle: {
       fontSize: 16,
       color: theme.colors.text,
       opacity: 0.9,
       marginBottom: 8,
+    },
+    orgName: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: theme.colors.text,
+      marginBottom: 16,
     },
     summaryAmount: {
       fontSize: 36,
@@ -115,7 +120,7 @@ const BillingScreen = () => {
     summaryValue: {
       fontSize: 14,
       fontWeight: "600",
-      color: theme.colors.primary,
+      color: theme.colors.text,
     },
     sectionTitle: {
       fontSize: 20,
@@ -123,7 +128,7 @@ const BillingScreen = () => {
       color: theme.colors.text,
       marginBottom: 16,
     },
-    billingItem: {
+    featureItem: {
       marginBottom: 12,
     },
     itemHeader: {
@@ -142,9 +147,10 @@ const BillingScreen = () => {
       color: theme.colors.text,
       marginBottom: 4,
     },
-    itemDate: {
+    itemMetrics: {
       fontSize: 14,
       color: theme.colors.textSecondary,
+      marginBottom: 2,
     },
     itemAmount: {
       fontSize: 20,
@@ -169,13 +175,13 @@ const BillingScreen = () => {
       fontWeight: "600",
       textTransform: "uppercase",
     },
-    downloadButton: {
+    actionButton: {
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 8,
       backgroundColor: theme.colors.primary + "20",
     },
-    downloadText: {
+    actionText: {
       fontSize: 12,
       fontWeight: "600",
       color: theme.colors.primary,
@@ -187,73 +193,88 @@ const BillingScreen = () => {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
       >
+        <Text style={styles.orgName}>{orgName}</Text>
+
         {/* Summary Card */}
         <Card style={styles.summaryCard}>
-          {/* <LinearGradient
-            colors={[theme.colors.background, theme.colors.background + "20"]}
-            style={styles.summaryGradient}
-          > */}
-          <Text style={styles.summaryTitle}>Total Billing</Text>
-          <Text style={styles.summaryAmount}>
-            {formatCurrency(totalAmount)}
-          </Text>
+          <Text style={styles.summaryTitle}>Total License Cost</Text>
+          <Text style={styles.summaryAmount}>{formatCurrency(grandTotal)}</Text>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Paid</Text>
+            <Text style={styles.summaryLabel}>Start Date</Text>
             <Text style={styles.summaryValue}>
-              {formatCurrency(paidAmount)}
+              {formatDate(orgLicense?.start_date)}
             </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Pending</Text>
+            <Text style={styles.summaryLabel}>End Date</Text>
             <Text style={styles.summaryValue}>
-              {formatCurrency(totalAmount - paidAmount)}
+              {formatDate(orgLicense?.end_date)}
             </Text>
           </View>
-          {/* </LinearGradient> */}
         </Card>
 
-        {/* Billing Items */}
-        <Text style={styles.sectionTitle}>Billing History</Text>
-        {billingItems.map((item) => (
-          <Card key={item.id} style={styles.billingItem}>
-            <View style={styles.itemHeader}>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemDescription}>{item.description}</Text>
-                <Text style={styles.itemDate}>
-                  {new Date(item.date).toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </Text>
-              </View>
-              <Text style={styles.itemAmount}>
-                {formatCurrency(item.amount)}
-              </Text>
-            </View>
-            <View style={styles.itemFooter}>
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: getStatusColor(item.status) + "20" },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.statusText,
-                    { color: getStatusColor(item.status) },
-                  ]}
-                >
-                  {item.status}
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.downloadButton}>
-                <Text style={styles.downloadText}>Download Invoice</Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-        ))}
+        {/* Feature/Billing Items */}
+        <Text style={styles.sectionTitle}>Features</Text>
+        {featureLicenses.length === 0 ? (
+          <Text style={{ color: theme.colors.textSecondary }}>
+            No feature licenses found for this organization.
+          </Text>
+        ) : (
+          featureLicenses.map((item: any) => {
+            const amount =
+              item.feature?.billing_type === 1
+                ? parseFloat(item.lump_sum_amount)
+                : parseFloat(item.price_per_license) * item.max_licenses;
+
+            return (
+              <Card key={item.id} style={styles.featureItem}>
+                <View style={styles.itemHeader}>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemDescription}>
+                      {item.feature?.label || "Unknown Feature"}
+                    </Text>
+                    <Text style={styles.itemMetrics}>
+                      Allocated: {item.max_licenses}
+                    </Text>
+                    <Text style={styles.itemMetrics}>
+                      Used: {item.used_licenses}
+                    </Text>
+                  </View>
+                  <Text style={styles.itemAmount}>
+                    {formatCurrency(amount || 0)}
+                  </Text>
+                </View>
+                <View style={styles.itemFooter}>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor:
+                          getStatusColor(item.feature?.billing_type) + "20",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: getStatusColor(item.feature?.billing_type) },
+                      ]}
+                    >
+                      {item.feature?.billing_type_display || "Unknown"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity style={styles.actionButton}>
+                    <Text style={styles.actionText}>View Details</Text>
+                  </TouchableOpacity>
+                </View>
+              </Card>
+            );
+          })
+        )}
       </ScrollView>
     </View>
   );

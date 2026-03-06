@@ -34,7 +34,7 @@ export const prospectApi = createApi({
       invalidatesTags: ['prospects', 'activities']
     }),
 
-    retrieveProspect: builder.query<void, number>({
+    retrieveProspect: builder.query<Prospect, number>({
       query: (id) => ({
         url: `/api/referral/prospects/${id}/`,
         method: 'GET',

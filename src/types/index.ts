@@ -44,6 +44,8 @@ export interface User {
     role: UserRole;
     avatar?: string;
     organization?: string;
+    service_providers?: { value: number; label: string }[];
+    license?: any; // Storing the full raw license object for Billing/Licensing screens
 }
 
 export interface Theme {

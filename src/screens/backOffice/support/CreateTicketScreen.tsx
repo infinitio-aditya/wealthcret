@@ -12,7 +12,6 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useTheme } from "../../../hooks/useTheme";
 import LinearGradient from "react-native-linear-gradient";
-import { mockTickets, mockMappings } from "../../../utils/mockData";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
 import { useAlert } from "context/AlertContext";
@@ -25,17 +24,11 @@ const CreateTicketScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<any>();
   const { showAlert } = useAlert();
-  const route = useRoute<any>();
   const user = useSelector((state: RootState) => state.auth.user);
 
-  const { data: orgData } = useGetOrgnizationsQuery({
-    page: 1,
-    page_size: 100,
-    q: "",
-  });
   const [createTicket, { isLoading }] = useCreateSupportTicketMutation();
 
-  const organizations = orgData?.results || [];
+  const organizations = user?.service_providers || [];
 
   const [organizationId, setOrganizationId] = useState<string>("");
   const [title, setTitle] = useState("");
@@ -55,8 +48,6 @@ const CreateTicketScreen = () => {
         title,
         description,
         assigned_to_org: Number(organizationId),
-        sender_id: Number(user?.id),
-        status: 0, // open
       }).unwrap();
 
       showAlert("Success", "Ticket created successfully", [
@@ -172,15 +163,17 @@ const CreateTicketScreen = () => {
         onClose={() => navigation.goBack()}
         title="Create Support Ticket"
       >
-        <ThemeDropdown
-          label="Organization"
-          options={organizations.map((org) => ({
-            label: org.name,
-            value: org.id.toString(),
-          }))}
-          selectedValue={organizationId}
-          onValueChange={(value) => setOrganizationId(value)}
-        />
+        {organizations.length > 0 && (
+          <ThemeDropdown
+            label="Organization"
+            options={organizations.map((org) => ({
+              label: org.label,
+              value: org.value.toString(),
+            }))}
+            selectedValue={organizationId}
+            onValueChange={(value) => setOrganizationId(value)}
+          />
+        )}
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Ticket Title</Text>

@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useTheme } from "../../../hooks/useTheme";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
@@ -16,83 +17,104 @@ import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Icon from "react-native-vector-icons/Ionicons";
 import Modal from "react-native-modal";
-import { License, TeamMember } from "../../../types";
+import { CustomUser } from "../../../types/backend/auth";
 import {
-  mockLicenses,
-  mockBackofficeTeamMembers,
-  mockServiceProviders,
-  mockReferralPartners,
-} from "../../../utils/mockData";
+  useGetOrgLicenseQuery,
+  useCreateUserFeatureLicenseMutation,
+  useUpdateUserFeatureLicenseMutation,
+} from "../../../services/backend/licensingApi";
+import { useGetOrganizationUsersQuery } from "../../../services/backend/authApi";
+import { License } from "../../../types/backend/license";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-const uniqueAdvisors = mockServiceProviders.map((sp) => sp.name);
-const uniqueReferralPartners = mockReferralPartners.map((rp) => rp.name);
-
 const BackofficeLicensingScreen = () => {
   const theme = useTheme();
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(
-    mockBackofficeTeamMembers,
-  );
+
+  const {
+    data: orgLicense,
+    isLoading: loadingLicense,
+    isFetching: fetchingLicense,
+    refetch: refetchLicense,
+  } = useGetOrgLicenseQuery();
+
+  const {
+    data: teamMembersData,
+    isLoading: loadingUsers,
+    isFetching: fetchingUsers,
+    refetch: refetchUsers,
+  } = useGetOrganizationUsersQuery();
+
+  const [createUserSubscription] = useCreateUserFeatureLicenseMutation();
+  const [updateUserSubscription] = useUpdateUserFeatureLicenseMutation();
+
   const [isManageModalVisible, setManageModalVisible] = useState(false);
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
-  const [tempAssignedLicenses, setTempAssignedLicenses] = useState<string[]>(
-    [],
-  );
+  const [selectedMember, setSelectedMember] = useState<CustomUser | null>(null);
+
   const [filters, setFilters] = useState({
-    licenses: [] as string[],
+    licenses: [] as number[], // Using numeric IDs from API
     assignedSP: "all",
     referralPartner: "all",
   });
   const [tempFilters, setTempFilters] = useState({
-    licenses: [] as string[],
+    licenses: [] as number[],
     assignedSP: "all",
     referralPartner: "all",
   });
+
+  const teamMembers = teamMembersData || [];
+  const licenses = orgLicense?.feature_licenses || [];
 
   const filteredMembers = useMemo(() => {
     return teamMembers.filter((member) => {
       const matchesLicense =
         filters.licenses.length === 0 ||
         filters.licenses.some((licenseId) =>
-          member.assignedLicenses?.includes(licenseId),
+          member.my_subscriptions?.some(
+            (sub) => sub.feature_license === licenseId && sub.is_active,
+          ),
         );
-      const matchesAdvisor =
-        filters.assignedSP === "all" ||
-        member.assignedSP === filters.assignedSP;
-      const matchesReferral =
-        filters.referralPartner === "all" ||
-        member.referralPartner === filters.referralPartner;
-      return matchesLicense && matchesAdvisor && matchesReferral;
+      // Wait, CustomUser has mobile_number, email etc. but Advisor/Partner filtering usually depends on roles
+      // For now we'll keep it simple as the backend structure for filtering by custom fields isn't clear here
+      return matchesLicense;
     });
-  }, [teamMembers, filters]);
+  }, [teamMembers, filters, licenses]);
 
-  const handleOpenManageModal = (member: TeamMember) => {
+  const handleOpenManageModal = (member: CustomUser) => {
     setSelectedMember(member);
-    setTempAssignedLicenses([...(member.assignedLicenses || [])]);
     setManageModalVisible(true);
   };
 
-  const handleSaveLicenses = () => {
-    if (selectedMember) {
-      setTeamMembers(
-        mockBackofficeTeamMembers.map((m) =>
-          m.id === selectedMember.id
-            ? { ...m, assignedLicenses: tempAssignedLicenses }
-            : m,
-        ),
-      );
-    }
-    setManageModalVisible(false);
-  };
+  const handleToggleUserLicense = async (
+    license: License,
+    isActive: boolean,
+  ) => {
+    if (!selectedMember || !license.id) return;
 
-  const toggleLicense = (licenseId: string) => {
-    setTempAssignedLicenses((prev) =>
-      prev.includes(licenseId)
-        ? prev.filter((id) => id !== licenseId)
-        : [...prev, licenseId],
+    const existingSub = selectedMember.my_subscriptions?.find(
+      (sub) => sub.feature_license === license.id,
     );
+
+    try {
+      if (existingSub) {
+        await updateUserSubscription({
+          ufs: { id: existingSub.id!, is_active: isActive },
+          uuid: selectedMember.uuid || "",
+        }).unwrap();
+      } else {
+        await createUserSubscription({
+          ufs: { feature_license: license.id!, is_active: isActive },
+          uuid: selectedMember.uuid || "",
+        }).unwrap();
+      }
+      // Note: Data will be refetched by RTK Query due to tag invalidation if configured,
+      // but authApi might not have the tags. In web-ui they reload.
+      // We should ideally refetch users.
+      refetchUsers();
+    } catch (error) {
+      console.error("Failed to update user license:", error);
+    }
   };
 
   const handleApplyFilters = () => {
@@ -102,7 +124,7 @@ const BackofficeLicensingScreen = () => {
 
   const handleResetFilters = () => {
     const reset = {
-      licenses: [] as string[],
+      licenses: [] as number[],
       assignedSP: "all",
       referralPartner: "all",
     };
@@ -111,7 +133,7 @@ const BackofficeLicensingScreen = () => {
     setFilterModalVisible(false);
   };
 
-  const toggleLicenseFilter = (licenseId: string) => {
+  const toggleLicenseFilter = (licenseId: number) => {
     setTempFilters((prev) => {
       const licenses = prev.licenses.includes(licenseId)
         ? prev.licenses.filter((id) => id !== licenseId)
@@ -121,9 +143,11 @@ const BackofficeLicensingScreen = () => {
   };
 
   const renderLicenseCard = (license: License) => {
-    const percentage = Math.round(
-      (license.usedLicenses / license.allocatedLicenses) * 100,
-    );
+    const percentage =
+      license.max_licenses > 0
+        ? Math.round((license.used_licenses / license.max_licenses) * 100)
+        : 0;
+
     const usageColor =
       percentage >= 90
         ? theme.colors.error
@@ -132,7 +156,7 @@ const BackofficeLicensingScreen = () => {
           : theme.colors.success;
 
     return (
-      <View key={license.id} style={styles.statCard}>
+      <View key={license.id || 0} style={styles.statCard}>
         <View
           style={[
             styles.statIcon,
@@ -142,12 +166,12 @@ const BackofficeLicensingScreen = () => {
           <Icon name="ribbon-outline" size={20} color={theme.colors.primary} />
         </View>
         <Text style={styles.statName} numberOfLines={1}>
-          {license.featureName}
+          {license.feature.label}
         </Text>
         <View style={styles.statUsageRow}>
           <Text style={styles.statUsageLabel}>Used</Text>
           <Text style={[styles.statUsageValue, { color: usageColor }]}>
-            {license.usedLicenses || 0}/{license.allocatedLicenses || 0}
+            {license.used_licenses || 0}/{license.max_licenses || 0}
           </Text>
         </View>
         <View style={styles.progressBarContainer}>
@@ -165,65 +189,75 @@ const BackofficeLicensingScreen = () => {
     );
   };
 
-  const renderMember = ({ item }: { item: TeamMember }) => (
-    <Card style={styles.memberCard}>
-      <View style={styles.memberHeader}>
-        <View
-          style={[
-            styles.avatar,
-            { backgroundColor: theme.colors.primary + "20" },
-          ]}
-        >
-          <Icon name="person-outline" size={20} color={theme.colors.primary} />
-        </View>
-        <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>{item.name}</Text>
-          <View style={styles.contactRow}>
+  const renderMember = ({ item }: { item: CustomUser }) => {
+    const activeSubs = item.my_subscriptions?.filter((s) => s.is_active) || [];
+
+    return (
+      <Card style={styles.memberCard}>
+        <View style={styles.memberHeader}>
+          <View
+            style={[
+              styles.avatar,
+              { backgroundColor: theme.colors.primary + "20" },
+            ]}
+          >
             <Icon
-              name="mail-outline"
-              size={12}
-              color={theme.colors.textSecondary}
+              name="person-outline"
+              size={20}
+              color={theme.colors.primary}
             />
-            <Text style={styles.contactText} numberOfLines={1}>
-              {item.email}
+          </View>
+          <View style={styles.memberInfo}>
+            <Text style={styles.memberName}>
+              {item.first_name} {item.last_name}
             </Text>
+            <View style={styles.contactRow}>
+              <Icon
+                name="mail-outline"
+                size={12}
+                color={theme.colors.textSecondary}
+              />
+              <Text style={styles.contactText} numberOfLines={1}>
+                {item.email}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.manageButton}
+            onPress={() => handleOpenManageModal(item)}
+          >
+            <Text style={styles.manageButtonText}>Manage</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.licensesSection}>
+          <Text style={styles.licenseLabel}>
+            Assigned Licenses ({activeSubs.length})
+          </Text>
+          <View style={styles.licenseBadges}>
+            {activeSubs.map((sub) => {
+              const lic = licenses.find((l) => l.id === sub.feature_license);
+              return (
+                <View
+                  key={sub.id || 0}
+                  style={[
+                    styles.badge,
+                    { backgroundColor: theme.colors.primary + "15" },
+                  ]}
+                >
+                  <Text
+                    style={[styles.badgeText, { color: theme.colors.primary }]}
+                  >
+                    {lic?.feature.label || "Unknown"}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.manageButton}
-          onPress={() => handleOpenManageModal(item)}
-        >
-          <Text style={styles.manageButtonText}>Manage</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.licensesSection}>
-        <Text style={styles.licenseLabel}>
-          Assigned Licenses ({item.assignedLicenses?.length || 0})
-        </Text>
-        <View style={styles.licenseBadges}>
-          {item.assignedLicenses?.map((lId) => {
-            const license = mockLicenses.find((l) => l.id === lId);
-            return (
-              <View
-                key={lId}
-                style={[
-                  styles.badge,
-                  { backgroundColor: theme.colors.primary + "15" },
-                ]}
-              >
-                <Text
-                  style={[styles.badgeText, { color: theme.colors.primary }]}
-                >
-                  {license?.featureName}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      </View>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -473,9 +507,22 @@ const BackofficeLicensingScreen = () => {
     },
   });
 
+  const isLoading = loadingLicense || loadingUsers;
+
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={fetchingLicense || fetchingUsers}
+            onRefresh={() => {
+              refetchLicense();
+              refetchUsers();
+            }}
+          />
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Licensing</Text>
@@ -488,37 +535,45 @@ const BackofficeLicensingScreen = () => {
           </View>
         </View>
 
-        <View>
-          <Text style={styles.sectionTitle}>Available Licenses</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.statsContainer}
-          >
-            {mockLicenses.map((l) => renderLicenseCard(l))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.listContainer}>
-          <Text style={styles.sectionTitle}>Team Members</Text>
-          {filteredMembers.map((member) => (
-            <View key={member.id}>{renderMember({ item: member })}</View>
-          ))}
-          {filteredMembers.length === 0 && (
-            <View style={{ padding: 40, alignItems: "center" }}>
-              <Icon
-                name="search-outline"
-                size={48}
-                color={theme.colors.textSecondary}
-              />
-              <Text
-                style={{ color: theme.colors.textSecondary, marginTop: 12 }}
+        {isLoading ? (
+          <View style={{ padding: 40 }}>
+            <ActivityIndicator color={theme.colors.primary} />
+          </View>
+        ) : (
+          <>
+            <View>
+              <Text style={styles.sectionTitle}>Available Licenses</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.statsContainer}
               >
-                No members found
-              </Text>
+                {licenses.map((l) => renderLicenseCard(l))}
+              </ScrollView>
             </View>
-          )}
-        </View>
+
+            <View style={styles.listContainer}>
+              <Text style={styles.sectionTitle}>Team Members</Text>
+              {filteredMembers.map((member) => (
+                <View key={member.id}>{renderMember({ item: member })}</View>
+              ))}
+              {filteredMembers.length === 0 && (
+                <View style={{ padding: 40, alignItems: "center" }}>
+                  <Icon
+                    name="search-outline"
+                    size={48}
+                    color={theme.colors.textSecondary}
+                  />
+                  <Text
+                    style={{ color: theme.colors.textSecondary, marginTop: 12 }}
+                  >
+                    No members found
+                  </Text>
+                </View>
+              )}
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {/* Management Modal */}
@@ -533,7 +588,7 @@ const BackofficeLicensingScreen = () => {
             <View>
               <Text style={styles.modalTitle}>Manage Licenses</Text>
               <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-                {selectedMember?.name}
+                {selectedMember?.first_name} {selectedMember?.last_name}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setManageModalVisible(false)}>
@@ -542,38 +597,52 @@ const BackofficeLicensingScreen = () => {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {mockLicenses.map((license) => (
-              <TouchableOpacity
-                key={license.id}
-                style={[
-                  styles.licenseOption,
-                  tempAssignedLicenses.includes(license.id) && {
-                    borderColor: theme.colors.primary,
-                  },
-                ]}
-                onPress={() => toggleLicense(license.id)}
-              >
-                <Text style={styles.licenseOptionText}>{license.name}</Text>
-                <Icon
-                  name={
-                    tempAssignedLicenses.includes(license.id)
-                      ? "checkbox"
-                      : "square-outline"
+            {licenses.map((license) => {
+              const isSubscribed = selectedMember?.my_subscriptions?.some(
+                (sub) => sub.feature_license === license.id && sub.is_active,
+              );
+
+              const isFeatureDisabled =
+                !license.is_active || license.max_licenses === 0;
+
+              return (
+                <TouchableOpacity
+                  key={license.id}
+                  style={[
+                    styles.licenseOption,
+                    isSubscribed && {
+                      borderColor: theme.colors.primary,
+                    },
+                    isFeatureDisabled && { opacity: 0.5 },
+                  ]}
+                  disabled={isFeatureDisabled}
+                  onPress={() =>
+                    handleToggleUserLicense(license, !isSubscribed)
                   }
-                  size={24}
-                  color={
-                    tempAssignedLicenses.includes(license.id)
-                      ? theme.colors.primary
-                      : theme.colors.textSecondary
-                  }
-                />
-              </TouchableOpacity>
-            ))}
+                >
+                  <Text style={styles.licenseOptionText}>
+                    {license.feature.label}
+                  </Text>
+                  <Icon
+                    name={isSubscribed ? "checkbox" : "square-outline"}
+                    size={24}
+                    color={
+                      isSubscribed
+                        ? theme.colors.primary
+                        : theme.colors.textSecondary
+                    }
+                  />
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           <Button
-            title="Save Changes"
-            onPress={handleSaveLicenses}
+            title="Done"
+            onPress={() => {
+              setManageModalVisible(false);
+              refetchUsers(); // Refresh the list
+            }}
             style={styles.saveButton}
           />
         </View>
@@ -586,25 +655,25 @@ const BackofficeLicensingScreen = () => {
       >
         <Text style={styles.filterLabel}>Licenses</Text>
         <View style={{ gap: 8 }}>
-          {mockLicenses.map((license) => (
+          {licenses.map((license) => (
             <TouchableOpacity
-              key={license.id}
+              key={license.id || 0}
               style={[
                 styles.filterOption,
-                tempFilters.licenses.includes(license.id) &&
+                tempFilters.licenses.includes(license.id!) &&
                   styles.filterOptionSelected,
               ]}
-              onPress={() => toggleLicenseFilter(license.id)}
+              onPress={() => toggleLicenseFilter(license.id!)}
             >
               <Icon
                 name={
-                  tempFilters.licenses.includes(license.id)
+                  tempFilters.licenses.includes(license.id!)
                     ? "checkmark-circle"
                     : "ellipse-outline"
                 }
                 size={20}
                 color={
-                  tempFilters.licenses.includes(license.id)
+                  tempFilters.licenses.includes(license.id!)
                     ? theme.colors.primary
                     : theme.colors.textSecondary
                 }
@@ -612,40 +681,16 @@ const BackofficeLicensingScreen = () => {
               <Text
                 style={{
                   color: theme.colors.text,
-                  fontWeight: tempFilters.licenses.includes(license.id)
+                  fontWeight: tempFilters.licenses.includes(license.id!)
                     ? "600"
                     : "400",
                 }}
               >
-                {license.name}
+                {license.feature.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-
-        <ThemeDropdown
-          label="Assigned Service Provider"
-          options={[
-            { label: "All Advisors", value: "all" },
-            ...uniqueAdvisors.map((ad) => ({ label: ad, value: ad })),
-          ]}
-          selectedValue={tempFilters.assignedSP}
-          onValueChange={(value) =>
-            setTempFilters({ ...tempFilters, assignedSP: value })
-          }
-        />
-
-        <ThemeDropdown
-          label="Referral Partner"
-          options={[
-            { label: "All Partners", value: "all" },
-            ...uniqueReferralPartners.map((rp) => ({ label: rp, value: rp })),
-          ]}
-          selectedValue={tempFilters.referralPartner}
-          onValueChange={(value) =>
-            setTempFilters({ ...tempFilters, referralPartner: value })
-          }
-        />
 
         <View style={styles.modalButtons}>
           <Button

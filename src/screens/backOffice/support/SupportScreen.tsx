@@ -11,7 +11,6 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Feather";
 import { useTheme } from "../../../hooks/useTheme";
-import { mockTickets } from "../../../utils/mockData";
 import Icon1 from "react-native-vector-icons/Ionicons";
 import { Ticket, TicketMessage } from "../../../types";
 import LinearGradient from "react-native-linear-gradient";
@@ -46,13 +45,18 @@ const SupportScreen = () => {
 
           return {
             id: st.id.toString(),
-            organizationId: st.assigned_to_org.toString(),
+            organizationId: st.assigned_to_org
+              ? st.assigned_to_org.toString()
+              : "",
             organizationName: st.user?.organization?.name || "Unknown Org",
             title: st.title,
             description: st.description,
             status: (statusMap[st.status] || "open") as Ticket["status"],
             priority: "medium", // Backend SupportTicket doesn't seem to have priority? Defaulting to medium
-            createdBy: `${st.user?.first_name} ${st.user?.last_name}`,
+            createdBy:
+              `${st.user?.first_name || ""} ${st.user?.last_name || ""}`.trim() ||
+              "Unknown",
+            assignedTo: st.assigned_to_user,
             createdAt: st.created,
             messages: [], // Messages are fetched separately in details screen
           };
@@ -226,9 +230,14 @@ const SupportScreen = () => {
           </View>
         </View>
 
-        <Text style={styles.ticketDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
+        <View style={{ marginBottom: 12 }}>
+          <Text style={styles.ticketDescription} numberOfLines={1}>
+            Created by: {item.createdBy}
+          </Text>
+          <Text style={styles.ticketDescription} numberOfLines={1}>
+            Assigned to: {item.assignedTo || "Unassigned"}
+          </Text>
+        </View>
 
         <View style={styles.ticketFooter}>
           <Text style={styles.footerText}>#{item.id}</Text>

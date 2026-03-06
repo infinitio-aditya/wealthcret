@@ -55,7 +55,7 @@ const MemberRolesScreen = () => {
         id: r.id.toString(),
         name: r.name,
         key: r.name.toUpperCase().replace(/\s+/g, "_"),
-        description: r.description || "No description provided",
+        description: r.label || "No description provided",
         membersCount: 0, // Backend might not return count directly here
         color: presetColors[Math.floor(Math.random() * presetColors.length)],
       }));
@@ -113,12 +113,12 @@ const MemberRolesScreen = () => {
         await updateRole({
           id: Number(editingRole.id),
           name: formData.name,
-          description: formData.description,
+          label: formData.description,
         }).unwrap();
       } else {
         await createRole({
           name: formData.name,
-          description: formData.description,
+          label: formData.description,
         }).unwrap();
       }
       refetch();

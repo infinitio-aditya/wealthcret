@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
@@ -56,10 +57,17 @@ const LoginScreen = () => {
         email: response.user.email,
         role: roleMap[response.user.organization?.org_type] || "client",
         organization: response.user.organization?.name,
+        service_providers: response.user.service_providers,
+        license:
+          response.user.organization?.org_type === "0"
+            ? response.user.organization?.license
+            : response.user.organization?.license, // Both admin and non-admin can have licenses, simplify mapping
       };
 
       dispatch(setUser(mappedUser));
       dispatch(setToken(response.token));
+      await AsyncStorage.setItem("token", response.token);
+      await AsyncStorage.setItem("user", JSON.stringify(mappedUser));
     } catch (error: any) {
       console.error("Login Error:", error);
       const errorMessage =

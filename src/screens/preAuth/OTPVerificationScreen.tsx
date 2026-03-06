@@ -8,16 +8,31 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useTheme } from "../../hooks/useTheme";
 import Icon from "react-native-vector-icons/Ionicons";
 import LinearGradient from "react-native-linear-gradient";
+import {
+  useForgotPasswordVerifyMutation,
+  useForgotPasswordSendMutation,
+} from "../../services/backend/authApi";
+import { useAlert } from "../../context/AlertContext";
 
 const OTPVerificationScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation();
+  const route = useRoute();
+  const { showAlert } = useAlert();
+  const { email } = (route.params as { email: string }) || {};
+
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [verifyOtp, { isLoading: isVerifying }] =
+    useForgotPasswordVerifyMutation();
+  const [resendOtp, { isLoading: isResending }] =
+    useForgotPasswordSendMutation();
   const inputs = useRef<TextInput[]>([]);
 
   const handleOtpChange = (value: string, index: number) => {
@@ -36,9 +51,29 @@ const OTPVerificationScreen = () => {
     }
   };
 
-  const handleVerify = () => {
-    if (otp.join("").length === 6) {
-      navigation.navigate("ResetPassword" as never);
+  const handleVerify = async () => {
+    const otpCode = otp.join("");
+    if (otpCode.length === 6) {
+      try {
+        const result = await verifyOtp({ email, otp: otpCode }).unwrap();
+        if (result.token) {
+          await AsyncStorage.setItem("token", result.token);
+        }
+        (navigation as any).navigate("ResetPassword", { email, otp: otpCode });
+      } catch (error: any) {
+        showAlert("Error", error?.data?.message || "Invalid verification code");
+      }
+    } else {
+      showAlert("Error", "Please enter the 6-digit code");
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      await resendOtp({ email }).unwrap();
+      showAlert("Success", "Verification code resent to your email");
+    } catch (error: any) {
+      showAlert("Error", error?.data?.message || "Failed to resend code");
     }
   };
 
@@ -163,19 +198,31 @@ const OTPVerificationScreen = () => {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.verifyButton} onPress={handleVerify}>
+        <TouchableOpacity
+          style={styles.verifyButton}
+          onPress={handleVerify}
+          disabled={isVerifying}
+        >
           <LinearGradient
             colors={[theme.colors.primary, theme.colors.primary + "80"]}
             style={styles.gradient}
           >
-            <Text style={styles.verifyText}>Verify Code</Text>
+            {isVerifying ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.verifyText}>Verify Code</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
 
         <View style={styles.resendContainer}>
           <Text style={styles.resendLabel}>Didn't receive code?</Text>
-          <TouchableOpacity>
-            <Text style={styles.resendButton}>Resend</Text>
+          <TouchableOpacity onPress={handleResend} disabled={isResending}>
+            {isResending ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <Text style={styles.resendButton}>Resend</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>

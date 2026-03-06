@@ -29,49 +29,6 @@ import { UserDocument } from "../../../types/backend/documents";
 
 const { width } = Dimensions.get("window");
 
-const mockMyDocuments: any[] = [
-  {
-    id: "1",
-    name: "W-9 Tax Form.pdf",
-    type: "PDF",
-    size: "2.3 MB",
-    uploadDate: "2025-01-05",
-    category: "Tax Documents",
-  },
-  {
-    id: "2",
-    name: "License Agreement.pdf",
-    type: "PDF",
-    size: "1.5 MB",
-    uploadDate: "2025-01-03",
-    category: "Agreements",
-  },
-  {
-    id: "3",
-    name: "Identity Proof.jpg",
-    type: "Image",
-    size: "3.2 MB",
-    uploadDate: "2024-12-28",
-    category: "Identity",
-  },
-  {
-    id: "4",
-    name: "Bank Statement.pdf",
-    type: "PDF",
-    size: "4.1 MB",
-    uploadDate: "2024-12-15",
-    category: "Financial",
-  },
-  {
-    id: "5",
-    name: "Insurance Certificate.pdf",
-    type: "PDF",
-    size: "1.8 MB",
-    uploadDate: "2024-12-10",
-    category: "Insurance",
-  },
-];
-
 const MyDocumentsScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();

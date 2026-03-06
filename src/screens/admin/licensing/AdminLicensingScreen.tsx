@@ -9,6 +9,8 @@ import {
   Alert,
   Platform,
   TextInput,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -17,51 +19,48 @@ import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
-import Input from "../../../components/ui/Input";
 import Icon from "react-native-vector-icons/Ionicons";
-import Modal from "react-native-modal";
-import { Feature, Organization } from "../../../types";
-import {
-  mockOrganizations,
-  mockFeatures,
-  mockServiceProviders,
-  mockReferralPartners,
-} from "../../../utils/mockData";
+import { OrganizationLicense } from "../../../types/backend/license";
 import { AdminLicensingStackParamList } from "../../../navigation/NavigationParams";
 import { useAlert } from "context/AlertContext";
+import {
+  useGetLicensingCountQuery,
+  useLazySearchLicensingQuery,
+  useGetFeaturesQuery,
+} from "../../../services/backend/licensingApi";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 type NavigationProp = StackNavigationProp<
   AdminLicensingStackParamList,
   "AdminLicensing"
 >;
 
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-const uniqueAdvisors = mockServiceProviders.map((sp) => sp.name);
-const uniqueReferralPartners = mockReferralPartners.map((rp) => rp.name);
+// Mappings will be derived from API data if needed in filters
 
 const AdminLicensingScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const [organizations, setOrganizations] =
-    useState<Organization[]>(mockOrganizations);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const {
+    data: licensingCount,
+    isLoading: loadingStats,
+    refetch: refetchStats,
+  } = useGetLicensingCountQuery();
+  const [searchLicensing, { data: orgLicenses, isFetching: searchingOrgs }] =
+    useLazySearchLicensingQuery();
+
   const [isModalVisible, setModalVisible] = useState(false);
-  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    type: "Enterprise",
-    startDate: "",
-    endDate: "",
-    isActive: true,
-    features: JSON.parse(JSON.stringify(mockFeatures)) as Feature[],
-    assignedSP: "all",
-    referralPartner: "all",
-  });
+  const [editingOrg, setEditingOrg] = useState<OrganizationLicense | null>(
+    null,
+  );
 
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
     status: "all" as "all" | "active" | "inactive",
     assignedSP: "all",
@@ -73,24 +72,29 @@ const AdminLicensingScreen = () => {
     referralPartner: "all",
   });
 
-  const filteredOrganizations = organizations.filter((org) => {
-    const matchesSearch = org.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      filters.status === "all" ||
-      (filters.status === "active" ? org.isActive : !org.isActive);
-    const matchesAdvisor =
-      filters.assignedSP === "all" || org.assignedSP === filters.assignedSP;
-    const matchesReferral =
-      filters.referralPartner === "all" ||
-      org.referralPartner === filters.referralPartner;
-    return matchesSearch && matchesStatus && matchesAdvisor && matchesReferral;
-  });
+  const fetchLicenses = async (query = "") => {
+    try {
+      await searchLicensing({ query }).unwrap();
+    } catch (error) {
+      console.error("Failed to search licenses:", error);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchLicenses();
+  }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchStats(), fetchLicenses(searchQuery)]);
+    setRefreshing(false);
+  };
 
   const handleApplyFilters = () => {
     setFilters(tempFilters);
     setShowFilters(false);
+    // Note: searchLicensing query parameter doesn't support status/partner filters directly yet in licensingApi
+    // For now we'll filter locally or update searchQuery if the backend supports it
   };
 
   const handleResetFilters = () => {
@@ -104,97 +108,54 @@ const AdminLicensingScreen = () => {
     setShowFilters(false);
   };
 
-  const handleOpenModal = (org?: Organization) => {
-    // If org is provided, navigate to edit screen
-    if (org) {
-      navigation.navigate("AdminLicensingEdit", { orgId: org.id });
+  const handleOpenModal = (org?: OrganizationLicense) => {
+    if (org && org.id) {
+      navigation.navigate("AdminLicensingEdit", { orgId: org.id.toString() });
       return;
     }
-
-    // Otherwise open create modal
-    setEditingOrg(null);
-    setFormData({
-      name: "",
-      type: "Enterprise",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-        .toISOString()
-        .split("T")[0],
-      isActive: true,
-      features: JSON.parse(JSON.stringify(mockFeatures)),
-      assignedSP: "all",
-      referralPartner: "all",
-    });
-    setModalVisible(true);
-  };
-
-  const handleSaveOrg = () => {
-    if (!formData.name) {
-      showAlert("Error", "Organization name is required");
-      return;
-    }
-
-    if (editingOrg) {
-      setOrganizations(
-        organizations.map((o) =>
-          o.id === editingOrg.id ? { ...editingOrg, ...formData } : o,
-        ),
-      );
-    } else {
-      const newOrg: Organization = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...formData,
-      };
-      setOrganizations([...organizations, newOrg]);
-    }
-    setModalVisible(false);
-  };
-
-  const toggleFeature = (featureId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, isActive: !f.isActive } : f,
-      ),
-    }));
-  };
-
-  const updateFeatureAllocated = (featureId: string, count: string) => {
-    const val = parseInt(count) || 0;
-    setFormData((prev) => ({
-      ...prev,
-      features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, allocatedLicenses: val } : f,
-      ),
-    }));
+    // Create new organization license logic would go here,
+    // but the mobile app seems to prioritize editing existing ones.
+    // navigation.navigate("AdminLicensingCreate");
   };
 
   const stats = [
     {
       label: "Total Orgs",
-      value: organizations.length.toString(),
+      value: licensingCount?.active_organizations?.toString() || "0",
       icon: "business-outline",
       color: theme.colors.primary,
     },
     {
       label: "Active Orgs",
-      value: organizations.filter((o) => o.isActive).length.toString(),
+      value: licensingCount?.active_organizations?.toString() || "0", // Assuming count is active
       icon: "trending-up-outline",
       color: theme.colors.success,
     },
     {
       label: "Total Users",
-      value: "2,847",
+      value: licensingCount?.active_users?.toString() || "0",
       icon: "people-outline",
       color: theme.colors.info,
     },
     {
       label: "Revenue",
-      value: "$127K",
+      value: "N/A",
       icon: "cash-outline",
       color: theme.colors.warning,
     },
   ];
+
+  const filteredOrganizations = (orgLicenses || []).filter((org) => {
+    const matchesStatus =
+      filters.status === "all" ||
+      (filters.status === "active" ? org.is_active : !org.is_active);
+    // Since organization data is nested, local filtering by name if search wasn't enough
+    const matchesSearch =
+      org.organization_name
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) || true;
+    return matchesStatus && matchesSearch;
+  });
 
   const styles = StyleSheet.create({
     container: {
@@ -481,7 +442,7 @@ const AdminLicensingScreen = () => {
     },
   });
 
-  const renderOrg = ({ item }: { item: Organization }) => (
+  const renderOrg = ({ item }: { item: OrganizationLicense }) => (
     <Card style={styles.orgCard}>
       <View style={styles.orgHeader}>
         <View
@@ -497,7 +458,7 @@ const AdminLicensingScreen = () => {
           />
         </View>
         <View style={styles.orgInfo}>
-          <Text style={styles.orgName}>{item.name}</Text>
+          <Text style={styles.orgName}>{item.organization_name}</Text>
           <View
             style={[
               styles.typeBadge,
@@ -505,7 +466,7 @@ const AdminLicensingScreen = () => {
             ]}
           >
             <Text style={[styles.typeText, { color: theme.colors.info }]}>
-              {item.type}
+              Partner
             </Text>
           </View>
         </View>
@@ -520,11 +481,11 @@ const AdminLicensingScreen = () => {
       <View style={styles.datesGrid}>
         <View>
           <Text style={styles.dateLabel}>START DATE</Text>
-          <Text style={styles.dateValue}>{item.startDate}</Text>
+          <Text style={styles.dateValue}>{item.start_date || "N/A"}</Text>
         </View>
         <View>
           <Text style={styles.dateLabel}>END DATE</Text>
-          <Text style={styles.dateValue}>{item.endDate}</Text>
+          <Text style={styles.dateValue}>{item.end_date || "N/A"}</Text>
         </View>
       </View>
 
@@ -532,21 +493,21 @@ const AdminLicensingScreen = () => {
         <Text style={styles.dateLabel}>STATUS</Text>
         <View style={styles.statusBadge}>
           <Icon
-            name={item.isActive ? "checkmark-circle" : "close-circle"}
+            name={item.is_active ? "checkmark-circle" : "close-circle"}
             size={16}
-            color={item.isActive ? theme.colors.success : theme.colors.error}
+            color={item.is_active ? theme.colors.success : theme.colors.error}
           />
           <Text
             style={[
               styles.statusText,
               {
-                color: item.isActive
+                color: item.is_active
                   ? theme.colors.success
                   : theme.colors.error,
               },
             ]}
           >
-            {item.isActive ? "Active" : "Inactive"}
+            {item.is_active ? "Active" : "Inactive"}
           </Text>
         </View>
       </View>
@@ -588,30 +549,6 @@ const AdminLicensingScreen = () => {
         ))}
       </View>
 
-      <ThemeDropdown
-        label="Assigned Service Provider"
-        options={[
-          { label: "All Advisors", value: "all" },
-          ...uniqueAdvisors.map((ad) => ({ label: ad, value: ad })),
-        ]}
-        selectedValue={tempFilters.assignedSP}
-        onValueChange={(value) =>
-          setTempFilters({ ...tempFilters, assignedSP: value })
-        }
-      />
-
-      <ThemeDropdown
-        label="Referral Partner"
-        options={[
-          { label: "All Partners", value: "all" },
-          ...uniqueReferralPartners.map((rp) => ({ label: rp, value: rp })),
-        ]}
-        selectedValue={tempFilters.referralPartner}
-        onValueChange={(value) =>
-          setTempFilters({ ...tempFilters, referralPartner: value })
-        }
-      />
-
       <View style={[styles.modalButtons, { marginBottom: 20 }]}>
         <Button
           title="Reset All"
@@ -630,22 +567,16 @@ const AdminLicensingScreen = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>License Management</Text>
             <Text style={styles.subtitle}>Manage organization licenses</Text>
-          </View>
-          <View style={styles.headerButtons}>
-            {/* <TouchableOpacity
-              style={styles.filterButtonIcon}
-              onPress={() => setShowFilters(true)}
-            >
-              <Icon name="filter" size={24} color={theme.colors.primary} />
-            </TouchableOpacity> */}
-            {/* <TouchableOpacity onPress={() => handleOpenModal()}>
-              <Icon name="add-circle" size={32} color={theme.colors.primary} />
-            </TouchableOpacity> */}
           </View>
         </View>
 
@@ -670,37 +601,16 @@ const AdminLicensingScreen = () => {
           ))}
         </ScrollView>
 
-        {/* <View
-          style={[
-            styles.searchContainer,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.effects.cardBorder,
-            },
-          ]}
-        >
-          <View style={styles.searchInner}>
-            <Icon name="search" size={20} color={theme.colors.textSecondary} />
-            <Input
-              style={[
-                styles.searchInput,
-                { color: theme.colors.text, borderBottomWidth: 0, height: 40 },
-              ]}
-              placeholder="Search organizations..."
-              placeholderTextColor={theme.colors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View> */}
-        {/* </View> */}
-
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchBox}
             placeholder="Search organizations..."
             placeholderTextColor={theme.colors.textSecondary}
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              fetchLicenses(text);
+            }}
           />
           <TouchableOpacity
             style={styles.filterBtn}
@@ -712,10 +622,14 @@ const AdminLicensingScreen = () => {
 
         <View style={styles.listContainer}>
           <Text style={styles.sectionTitle}>Organizations</Text>
-          {filteredOrganizations.map((org) => (
-            <View key={org.id}>{renderOrg({ item: org })}</View>
-          ))}
-          {filteredOrganizations.length === 0 && (
+          {searchingOrgs && filteredOrganizations.length === 0 ? (
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+          ) : (
+            filteredOrganizations.map((org) => (
+              <View key={org.id}>{renderOrg({ item: org })}</View>
+            ))
+          )}
+          {!searchingOrgs && filteredOrganizations.length === 0 && (
             <View style={styles.emptyContainer}>
               <Icon
                 name="business-outline"

@@ -8,7 +8,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { useAlert } from "context/AlertContext";
@@ -18,6 +18,7 @@ import {
   useCreateSupportTicketMessageMutation,
   useUpdateSupportTicketMutation,
 } from "../../../services/backend/supportApi";
+import { useGetOrganizationUsersQuery } from "../../../services/backend/authApi";
 import { useSelector } from "react-redux";
 import { RootState } from "../../../store";
 import {
@@ -29,11 +30,55 @@ import { useTheme } from "../../../hooks/useTheme";
 import LinearGradient from "react-native-linear-gradient";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import Header from "../../../components/Header";
-import { mockServiceProviders } from "../../../utils/mockData";
 
 const TicketDetailsScreen = () => {
   const theme = useTheme();
   const { showAlert } = useAlert();
+  const route = useRoute<any>();
+  const navigation = useNavigation();
+  const { ticketId } = route.params;
+  const user = useSelector((state: RootState) => state.auth.user);
+
+  const { data: ticket, isLoading: isLoadingTicket } =
+    useRetrieveSupportTicketQuery(Number(ticketId));
+  const { data: backendMessages, refetch: refetchMessages } =
+    useGetSupportTicketMessagesQuery(Number(ticketId));
+  const { data: organizationUsers, isLoading: isLoadingUsers } =
+    useGetOrganizationUsersQuery();
+
+  const [createMessage] = useCreateSupportTicketMessageMutation();
+  const [updateTicket] = useUpdateSupportTicketMutation();
+
+  const [messageText, setMessageText] = useState("");
+  const [ticketStatus, setTicketStatus] = useState<
+    "open" | "in-progress" | "resolved" | "closed"
+  >("open");
+
+  useEffect(() => {
+    if (ticket) {
+      const statusMap: Record<number, any> = {
+        0: "open",
+        1: "in-progress",
+        2: "resolved",
+        3: "closed",
+      };
+      setTicketStatus(statusMap[ticket.status] || "open");
+    }
+  }, [ticket]);
+
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const STATUSES = ["open", "in-progress", "resolved", "closed"];
+
+  const spOptions = (organizationUsers || []).map((ou) => ({
+    label: `${ou.first_name} ${ou.last_name}`,
+    value: ou.id.toString(),
+  }));
+
+  const statusOptions = STATUSES.map((status) => ({
+    label: status.replace("-", " "),
+    value: status,
+  }));
 
   const styles = StyleSheet.create({
     container: {
@@ -41,6 +86,7 @@ const TicketDetailsScreen = () => {
       backgroundColor: theme.colors.background,
     },
     centered: {
+      flex: 1,
       justifyContent: "center",
       alignItems: "center",
     },
@@ -54,7 +100,6 @@ const TicketDetailsScreen = () => {
       marginBottom: 16,
       borderWidth: 1,
       borderColor: theme.effects.cardBorder,
-      // shadow
     },
     cardTitle: {
       fontSize: 16,
@@ -71,7 +116,7 @@ const TicketDetailsScreen = () => {
       backgroundColor: theme.effects.cardBorder,
       borderRadius: 2,
       position: "absolute",
-      top: 12, // Half of circle height (24/2)
+      top: 12,
       left: 0,
       right: 0,
     },
@@ -127,25 +172,20 @@ const TicketDetailsScreen = () => {
       textTransform: "capitalize",
     },
     // Chat Styles
-    messageList: {
-      maxHeight: 400,
-    },
     messageBubble: {
       maxWidth: "80%",
-      padding: 12,
       borderRadius: 16,
       marginBottom: 12,
+      overflow: "hidden",
     },
     ownMessage: {
       alignSelf: "flex-end",
-      borderBottomRightRadius: 4,
     },
     otherMessage: {
       alignSelf: "flex-start",
-      backgroundColor: theme.effects.glassBackground, // or surface
+      backgroundColor: theme.effects.glassBackground,
       borderWidth: 1,
       borderColor: theme.effects.cardBorder,
-      borderBottomLeftRadius: 4,
     },
     senderName: {
       fontSize: 12,
@@ -197,11 +237,6 @@ const TicketDetailsScreen = () => {
       fontWeight: "bold",
       textTransform: "uppercase",
     },
-    actionRow: {
-      flexDirection: "row",
-      gap: 12,
-      marginTop: 12,
-    },
     closeButton: {
       height: 48,
       borderRadius: 12,
@@ -210,6 +245,7 @@ const TicketDetailsScreen = () => {
       justifyContent: "center",
       alignItems: "center",
       paddingHorizontal: 16,
+      marginTop: 12,
     },
     closeButtonText: {
       color: theme.colors.error,
@@ -217,82 +253,26 @@ const TicketDetailsScreen = () => {
       fontSize: 14,
     },
   });
-  const route = useRoute<any>();
-  const navigation = useNavigation();
-  const { ticketId } = route.params;
-  const user = useSelector((state: RootState) => state.auth.user);
 
-  const { data: ticket, isLoading: isLoadingTicket } =
-    useRetrieveSupportTicketQuery(Number(ticketId));
-  const { data: backendMessages, refetch: refetchMessages } =
-    useGetSupportTicketMessagesQuery(Number(ticketId));
-  const [createMessage] = useCreateSupportTicketMessageMutation();
-  const [updateTicket] = useUpdateSupportTicketMutation();
-
-  const [messageText, setMessageText] = useState("");
-  const [ticketStatus, setTicketStatus] = useState<
-    "open" | "in-progress" | "resolved" | "closed"
-  >("open");
-
-  useEffect(() => {
-    if (ticket) {
-      const statusMap: Record<number, any> = {
-        0: "open",
-        1: "in-progress",
-        2: "resolved",
-        3: "closed",
-      };
-      setTicketStatus(statusMap[ticket.status] || "open");
-    }
-  }, [ticket]);
-
-  const scrollViewRef = useRef<ScrollView>(null);
-
-  // User role check
-  const isAdmin = user?.role === "admin";
-
-  const STATUSES = ["open", "in-progress", "resolved", "closed"];
-
-  const spOptions = mockServiceProviders.map((sp) => ({
-    label: sp.name,
-    value: sp.name,
-  }));
-
-  const statusOptions = STATUSES.map((status) => ({
-    label: status.replace("-", " "),
-    value: status,
-  }));
-
-  useEffect(() => {
-    // Scroll to bottom on load
-    setTimeout(
-      () => scrollViewRef.current?.scrollToEnd({ animated: false }),
-      100,
+  if (isLoadingTicket) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
     );
-  }, []);
+  }
 
   if (!ticket) {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={{ color: theme.colors.text }}>Ticket not found</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <LinearGradient
-            colors={[theme.colors.primary, theme.colors.primary + "80"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              borderRadius: 12,
-              gap: 8,
-              marginTop: 20,
-            }}
-          >
-            <Icon name="arrow-left" size={20} color="#fff" />
-            <Text style={{ color: "#fff", fontWeight: "600" }}>Go Back</Text>
-          </LinearGradient>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ marginTop: 20 }}
+        >
+          <Text style={{ color: theme.colors.primary, fontWeight: "600" }}>
+            Go Back
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -321,6 +301,7 @@ const TicketDetailsScreen = () => {
         support_ticket: Number(ticketId),
         message: messageText,
         user: Number(user?.id),
+        sender_id: Number(user?.id),
       }).unwrap();
 
       setMessageText("");
@@ -358,28 +339,7 @@ const TicketDetailsScreen = () => {
     }
   };
 
-  // const handleCloseTicket = () => {
-  //   showAlert(
-  //     "Close Ticket",
-  //     "Are you sure you want to close this ticket?",
-  //     [
-  //       {
-  //         text: "Cancel",
-  //         style: "cancel",
-  //       },
-  //       {
-  //         text: "Close",
-  //         onPress: () => handleStatusChange("closed"),
-  //         style: "destructive",
-  //       },
-  //     ],
-  //     { cancelable: true },
-  //   );
-  // };
-
   const renderStatusProgress = () => {
-    // Simple linear mapping for progress example
-    // open -> 0, in-progress -> 1, resolved -> 2, closed -> 3
     const currentIdx = STATUSES.indexOf(ticketStatus);
     const progressWidth = (currentIdx / (STATUSES.length - 1)) * 100;
 
@@ -489,11 +449,11 @@ const TicketDetailsScreen = () => {
         <View style={styles.content}>
           {renderStatusProgress()}
 
-          {(user?.role === "admin" || user?.role === "service_provider") && (
+          {user?.role === "admin" && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Ticket Management</Text>
               <ThemeDropdown
-                label="Assign Service Provider"
+                label="Assign User"
                 options={spOptions}
                 selectedValue={ticket?.assigned_to_user || ""}
                 onValueChange={async (value) => {
@@ -502,12 +462,12 @@ const TicketDetailsScreen = () => {
                       id: Number(ticketId),
                       assigned_to_user: value,
                     }).unwrap();
-                    showAlert("Success", `Ticket assigned to ${value}`);
+                    showAlert("Success", "Ticket assigned successfully");
                   } catch (error) {
-                    showAlert("Error", "Failed to assign provider");
+                    showAlert("Error", "Failed to assign user");
                   }
                 }}
-                placeholder="Select Service Provider"
+                placeholder="Select User"
               />
               <View style={{ marginTop: 12 }}>
                 <ThemeDropdown
@@ -530,10 +490,7 @@ const TicketDetailsScreen = () => {
                         {
                           text: "Close",
                           style: "destructive",
-                          onPress: () => {
-                            setTicketStatus("closed");
-                            showAlert("Success", "Ticket has been closed");
-                          },
+                          onPress: () => handleStatusChange("closed"),
                         },
                       ],
                     );
@@ -567,7 +524,9 @@ const TicketDetailsScreen = () => {
             <View style={[styles.detailRow, { width: "50%" }]}>
               <Text style={styles.detailLabel}>Assigned To</Text>
               <Text style={styles.detailValue}>
-                {ticket.assigned_to_user || "Unassigned"}
+                {organizationUsers?.find(
+                  (u) => u.id.toString() === ticket.assigned_to_user,
+                )?.first_name || "Unassigned"}
               </Text>
             </View>
 
@@ -608,6 +567,9 @@ const TicketDetailsScreen = () => {
               ref={scrollViewRef}
               style={{ maxHeight: 300 }}
               nestedScrollEnabled
+              onContentSizeChange={() =>
+                scrollViewRef.current?.scrollToEnd({ animated: true })
+              }
             >
               {(backendMessages || []).map((msg, index) => {
                 const isOwn = Number(msg.user) === Number(user?.id);
@@ -617,7 +579,6 @@ const TicketDetailsScreen = () => {
                     style={[
                       styles.messageBubble,
                       isOwn ? styles.ownMessage : styles.otherMessage,
-                      isOwn ? {} : { backgroundColor: theme.colors.background }, // fallback
                     ]}
                   >
                     <LinearGradient
@@ -626,7 +587,7 @@ const TicketDetailsScreen = () => {
                           ? [theme.colors.primary, theme.colors.primary + "80"]
                           : ["transparent", "transparent"]
                       }
-                      style={{ borderRadius: 16, padding: 12 }}
+                      style={{ padding: 12 }}
                     >
                       <View
                         style={{
@@ -646,7 +607,7 @@ const TicketDetailsScreen = () => {
                             },
                           ]}
                         >
-                          {msg.sender_name || "System"}
+                          {msg.sender_name || "User"}
                         </Text>
                       </View>
                       <Text

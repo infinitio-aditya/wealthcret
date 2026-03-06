@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -16,16 +17,15 @@ import Header from "../../../components/Header";
 import Icon from "react-native-vector-icons/Ionicons";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
-import Input from "../../../components/ui/Input";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import { AdminLicensingStackParamList } from "../../../navigation/NavigationParams";
+import { License, OrganizationLicense } from "../../../types/backend/license";
 import {
-  mockOrganizations,
-  mockFeatures,
-  mockServiceProviders,
-  mockReferralPartners,
-} from "../../../utils/mockData";
-import { Feature, Organization } from "../../../types";
+  useGetOrgLicenseByIdQuery,
+  useUpdateOrgLicenseMutation,
+  useUpdateFeatureLicenseMutation,
+  useCreateFeatureLicenseMutation,
+} from "../../../services/backend/licensingApi";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -38,142 +38,102 @@ type NavigationProp = StackNavigationProp<
   "AdminLicensingEdit"
 >;
 
-const uniqueAdvisors = mockServiceProviders.map((sp) => sp.name);
-const uniqueReferralPartners = mockReferralPartners.map((rp) => rp.name);
-
 const AdminLicensingEditScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
   const route = useRoute<RouteProp<RouteParams, "AdminLicensingEdit">>();
   const navigation = useNavigation<NavigationProp>();
+  const orgId = Number(route.params.orgId);
 
-  const [organization, setOrganization] = useState<Organization | null>(null);
+  const {
+    data: orgLicense,
+    isLoading,
+    refetch,
+  } = useGetOrgLicenseByIdQuery(orgId);
+  const [updateOrg] = useUpdateOrgLicenseMutation();
+  const [updateFeature] = useUpdateFeatureLicenseMutation();
+
   const [formData, setFormData] = useState({
     name: "",
-    type: "Enterprise",
+    isActive: true,
     startDate: "",
     endDate: "",
-    isActive: true,
-    features: [] as Feature[],
-    assignedSP: "all",
-    referralPartner: "all",
   });
 
-  const [expandedLicense, setExpandedLicense] = useState<string | null>(null);
   const [featureChanges, setFeatureChanges] = useState<{
-    [key: string]: boolean;
+    [key: number]: boolean;
   }>({});
 
   useEffect(() => {
-    loadOrganization();
-  }, []);
-
-  const loadOrganization = () => {
-    const org = mockOrganizations.find((o) => o.id === route.params.orgId);
-    if (org) {
-      setOrganization(org);
+    if (orgLicense) {
       setFormData({
-        name: org.name,
-        type: org.type,
-        startDate: org.startDate,
-        endDate: org.endDate,
-        isActive: org.isActive,
-        features: [...org.features],
-        assignedSP: org.assignedSP || "all",
-        referralPartner: org.referralPartner || "all",
+        name: orgLicense.organization_name || "",
+        isActive: orgLicense.is_active || false,
+        startDate: orgLicense.start_date || "",
+        endDate: orgLicense.end_date || "",
       });
     }
-  };
+  }, [orgLicense]);
 
-  const handleSave = () => {
-    if (!formData.name) {
-      showAlert("Error", "Organization name is required");
-      return;
-    }
+  const handleSave = async () => {
+    try {
+      await updateOrg({
+        id: orgId,
+        is_active: formData.isActive,
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+      }).unwrap();
 
-    showAlert("Success", "Organization updated successfully", [
-      {
-        text: "OK",
-        onPress: () => {
-          navigation.goBack();
+      showAlert("Success", "Organization updated successfully", [
+        {
+          text: "OK",
+          onPress: () => navigation.goBack(),
         },
-      },
-    ]);
+      ]);
+    } catch (error) {
+      showAlert("Error", "Failed to update organization");
+    }
   };
 
-  const toggleFeature = (featureId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, isActive: !f.isActive } : f,
-      ),
-    }));
-    markFeatureChanged(featureId);
+  const toggleFeature = async (featureId: number, currentActive: boolean) => {
+    try {
+      await updateFeature({
+        id: featureId,
+        organization_license: orgId,
+        is_active: !currentActive,
+      }).unwrap();
+      refetch();
+    } catch (error) {
+      showAlert("Error", "Failed to toggle feature");
+    }
   };
 
-  const updateFeatureAllocated = (featureId: string, count: string) => {
-    const val = parseInt(count) || 0;
-    setFormData((prev) => ({
-      ...prev,
-      features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, allocatedLicenses: val } : f,
-      ),
-    }));
-    markFeatureChanged(featureId);
-  };
-
-  const updateFeatureAmount = (featureId: string, amount: string) => {
-    const val = parseFloat(amount) || 0;
-    setFormData((prev) => ({
-      ...prev,
-      features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, amount: val } : f,
-      ),
-    }));
-    markFeatureChanged(featureId);
-  };
-
-  const updateFeatureBillingType = (featureId: string, billingType: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      features: prev.features.map((f) =>
-        f.id === featureId ? { ...f, billingType: billingType as any } : f,
-      ),
-    }));
-    markFeatureChanged(featureId);
-  };
-
-  const markFeatureChanged = (featureId: string) => {
+  const markFeatureChanged = (featureId: number) => {
     setFeatureChanges((prev) => ({
       ...prev,
       [featureId]: true,
     }));
   };
 
-  const handleSaveFeature = (featureId: string) => {
-    showAlert("Success", "Feature license updated successfully", [
-      {
-        text: "OK",
-        onPress: () => {
-          setFeatureChanges((prev) => ({
-            ...prev,
-            [featureId]: false,
-          }));
-        },
-      },
-    ]);
-  };
+  const handleSaveFeature = async (feature: License) => {
+    try {
+      if (!feature.id) return;
+      await updateFeature({
+        id: feature.id,
+        organization_license: orgId,
+        max_licenses: feature.max_licenses,
+        billing_type: feature.billing_type,
+        lump_sum_amount: feature.lump_sum_amount,
+      }).unwrap();
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "Enterprise":
-        return theme.colors.primary;
-      case "Professional":
-        return theme.colors.info;
-      case "Standard":
-        return theme.colors.success;
-      default:
-        return theme.colors.textSecondary;
+      setFeatureChanges((prev) => ({
+        ...prev,
+        [feature.id!]: false,
+      }));
+      showAlert("Success", "Feature license updated successfully");
+      refetch();
+    } catch (error) {
+      showAlert("Error", "Failed to update feature license");
     }
   };
 
@@ -315,12 +275,15 @@ const AdminLicensingEditScreen = () => {
       alignItems: "flex-end",
     },
     featureInput: {
-      flex: 1,
+      backgroundColor: theme.colors.background,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      height: 48,
       color: theme.colors.text,
-      fontSize: 16,
+      borderWidth: 1,
+      borderColor: theme.effects.cardBorder,
     },
     billingInfo: {
-      flex: 1,
       backgroundColor: theme.effects.glassBackground,
       paddingHorizontal: 16,
       borderRadius: 12,
@@ -332,8 +295,6 @@ const AdminLicensingEditScreen = () => {
     billingText: {
       fontSize: 13,
       color: theme.colors.text,
-      textTransform: "capitalize",
-      fontWeight: "500",
     },
     statusToggle: {
       flexDirection: "row",
@@ -375,7 +336,7 @@ const AdminLicensingEditScreen = () => {
     },
   });
 
-  if (!organization) {
+  if (isLoading || !orgLicense) {
     return (
       <View
         style={[
@@ -383,14 +344,18 @@ const AdminLicensingEditScreen = () => {
           { justifyContent: "center", alignItems: "center" },
         ]}
       >
-        <Text style={{ color: theme.colors.textSecondary }}>Loading...</Text>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Header title="Edit Organization" subtitle={organization.name} showBack />
+      <Header
+        title="Edit Organization"
+        subtitle={orgLicense.organization_name}
+        showBack
+      />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Organization Info Section */}
@@ -400,20 +365,15 @@ const AdminLicensingEditScreen = () => {
           {/* Type Badge and Status */}
           <View style={styles.infoGrid}>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Type</Text>
+              <Text style={styles.infoLabel}>Role</Text>
               <View
                 style={[
                   styles.typeBadge,
-                  { backgroundColor: getTypeColor(formData.type) + "20" },
+                  { backgroundColor: theme.colors.info + "20" },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.typeText,
-                    { color: getTypeColor(formData.type) },
-                  ]}
-                >
-                  {formData.type}
+                <Text style={[styles.typeText, { color: theme.colors.info }]}>
+                  Partner
                 </Text>
               </View>
             </View>
@@ -450,10 +410,12 @@ const AdminLicensingEditScreen = () => {
           {/* Name Input */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Organization Name</Text>
-            <Input
+            <TextInput
+              style={styles.featureInput}
               placeholder="Enter organization name"
               value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
+              editable={false}
+              selectTextOnFocus={false}
             />
           </View>
 
@@ -461,7 +423,8 @@ const AdminLicensingEditScreen = () => {
           <View style={{ flexDirection: "row", gap: 12 }}>
             <View style={[styles.formGroup, { flex: 1 }]}>
               <Text style={styles.label}>Start Date</Text>
-              <Input
+              <TextInput
+                style={styles.featureInput}
                 placeholder="YYYY-MM-DD"
                 value={formData.startDate}
                 onChangeText={(text) =>
@@ -471,7 +434,8 @@ const AdminLicensingEditScreen = () => {
             </View>
             <View style={[styles.formGroup, { flex: 1 }]}>
               <Text style={styles.label}>End Date</Text>
-              <Input
+              <TextInput
+                style={styles.featureInput}
                 placeholder="YYYY-MM-DD"
                 value={formData.endDate}
                 onChangeText={(text) =>
@@ -558,16 +522,20 @@ const AdminLicensingEditScreen = () => {
             Enable or disable features and set license allocations
           </Text>
 
-          {formData.features.map((feature) => (
+          {(orgLicense.feature_licenses || []).map((feature) => (
             <View key={feature.id} style={styles.featureItem}>
               <View style={styles.featureHeader}>
-                <Text style={styles.featureName}>{feature.name}</Text>
+                <Text style={styles.featureName}>
+                  {feature.feature?.label || feature.feature?.name}
+                </Text>
                 <TouchableOpacity
-                  onPress={() => toggleFeature(feature.id)}
+                  onPress={() =>
+                    feature.id && toggleFeature(feature.id, !!feature.is_active)
+                  }
                   style={[
                     styles.featureToggle,
                     {
-                      backgroundColor: feature.isActive
+                      backgroundColor: feature.is_active
                         ? theme.colors.success
                         : theme.colors.textSecondary + "40",
                     },
@@ -577,24 +545,29 @@ const AdminLicensingEditScreen = () => {
                     style={[
                       styles.featureToggleInner,
                       {
-                        alignSelf: feature.isActive ? "flex-end" : "flex-start",
+                        alignSelf: feature.is_active
+                          ? "flex-end"
+                          : "flex-start",
                       },
                     ]}
                   />
                 </TouchableOpacity>
               </View>
 
-              {feature.isActive && (
+              {feature.is_active && (
                 <View style={styles.featureControls}>
                   <View style={styles.featureControlRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.infoLabel}>Allocated Licenses</Text>
-                      <Input
+                      <TextInput
                         keyboardType="numeric"
-                        value={feature.allocatedLicenses.toString()}
-                        onChangeText={(text) =>
-                          updateFeatureAllocated(feature.id, text)
-                        }
+                        value={feature.max_licenses.toString()}
+                        onChangeText={(text) => {
+                          if (!feature.id) return;
+                          const val = parseInt(text) || 0;
+                          feature.max_licenses = val;
+                          markFeatureChanged(feature.id);
+                        }}
                         style={styles.featureInput}
                       />
                     </View>
@@ -602,13 +575,15 @@ const AdminLicensingEditScreen = () => {
                       <Text style={styles.infoLabel}>Billing Type</Text>
                       <ThemeDropdown
                         options={[
-                          { label: "Monthly", value: "monthly" },
-                          { label: "Annually", value: "annually" },
+                          { label: "Monthly", value: "1" },
+                          { label: "Annually", value: "2" },
                         ]}
-                        selectedValue={feature.billingType}
-                        onValueChange={(value) =>
-                          updateFeatureBillingType(feature.id, value)
-                        }
+                        selectedValue={feature.billing_type?.toString() || "1"}
+                        onValueChange={(value) => {
+                          if (!feature.id) return;
+                          feature.billing_type = parseInt(value);
+                          markFeatureChanged(feature.id);
+                        }}
                       />
                     </View>
                   </View>
@@ -616,12 +591,15 @@ const AdminLicensingEditScreen = () => {
                   <View style={styles.featureControlRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.infoLabel}>Amount ($)</Text>
-                      <Input
+                      <TextInput
                         keyboardType="decimal-pad"
-                        value={feature.amount?.toString() || "0.00"}
-                        onChangeText={(text) =>
-                          updateFeatureAmount(feature.id, text)
-                        }
+                        value={feature.lump_sum_amount?.toString() || "0.00"}
+                        onChangeText={(text) => {
+                          if (!feature.id) return;
+                          const val = parseFloat(text) || 0;
+                          feature.lump_sum_amount = val;
+                          markFeatureChanged(feature.id);
+                        }}
                         style={styles.featureInput}
                       />
                     </View>
@@ -629,7 +607,7 @@ const AdminLicensingEditScreen = () => {
                       <Text style={styles.infoLabel}>Used Licenses</Text>
                       <View style={styles.billingInfo}>
                         <Text style={[styles.billingText, { fontSize: 16 }]}>
-                          {feature.usedLicenses || 0}
+                          {feature.used_licenses || 0}
                         </Text>
                       </View>
                     </View>
@@ -637,9 +615,12 @@ const AdminLicensingEditScreen = () => {
 
                   <View style={{ marginTop: 12, alignItems: "flex-end" }}>
                     <TouchableOpacity
-                      disabled={!featureChanges[feature.id]}
-                      onPress={() => handleSaveFeature(feature.id)}
-                      style={{ opacity: featureChanges[feature.id] ? 1 : 0.5 }}
+                      disabled={feature.id ? !featureChanges[feature.id] : true}
+                      onPress={() => handleSaveFeature(feature)}
+                      style={{
+                        opacity:
+                          feature.id && featureChanges[feature.id] ? 1 : 0.5,
+                      }}
                     >
                       <View style={{ paddingHorizontal: 12 }}>
                         <Text
