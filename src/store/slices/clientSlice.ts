@@ -10,6 +10,8 @@ interface ClientState {
         status?: 'active' | 'inactive' | 'pending';
         assignedSP?: string;
     };
+    page: number;
+    hasMore: boolean;
 }
 
 const initialState: ClientState = {
@@ -18,6 +20,8 @@ const initialState: ClientState = {
     loading: false,
     searchQuery: '',
     filters: {},
+    page: 1,
+    hasMore: true,
 };
 
 const clientSlice = createSlice({
@@ -26,6 +30,15 @@ const clientSlice = createSlice({
     reducers: {
         setClients: (state, action: PayloadAction<Client[]>) => {
             state.clients = action.payload;
+        },
+        appendClients: (state, action: PayloadAction<Client[]>) => {
+            state.clients = [...state.clients, ...action.payload];
+        },
+        setPage: (state, action: PayloadAction<number>) => {
+            state.page = action.payload;
+        },
+        setHasMore: (state, action: PayloadAction<boolean>) => {
+            state.hasMore = action.payload;
         },
         setSelectedClient: (state, action: PayloadAction<Client | null>) => {
             state.selectedClient = action.payload;
@@ -48,6 +61,9 @@ const clientSlice = createSlice({
 
 export const {
     setClients,
+    appendClients,
+    setPage,
+    setHasMore,
     setSelectedClient,
     setLoading,
     setSearchQuery,

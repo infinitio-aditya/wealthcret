@@ -10,9 +10,8 @@ import { useDispatch, useSelector } from "react-redux";
 import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../../hooks/useTheme";
 import { useAlert } from "../../context/AlertContext";
-import { RootState } from "../../store";
-import { logout } from "../../store/slices/authSlice";
-import { setTheme } from "../../store/slices/themeSlice";
+import { useAuth } from "../../context/AuthContext";
+import { useThemeContext } from "../../context/ThemeContext";
 import Card from "../../components/ui/Card";
 import { themes } from "../../theme/themes";
 import { useNavigation } from "@react-navigation/native";
@@ -20,12 +19,10 @@ import { useNavigation } from "@react-navigation/native";
 const ProfileScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
-  const dispatch = useDispatch();
   const navigation = useNavigation<any>();
-  const user = useSelector((state: RootState) => state.auth.user);
-  const currentTheme = useSelector(
-    (state: RootState) => state.theme.currentTheme,
-  );
+  const { user, logout: authLogout } = useAuth();
+  const { theme: currentThemeObj } = useThemeContext();
+  const currentTheme = currentThemeObj.id;
 
   const handleLogout = () => {
     showAlert("Logout", "Are you sure you want to logout?", [
@@ -33,13 +30,13 @@ const ProfileScreen = () => {
       {
         text: "Logout",
         style: "destructive",
-        onPress: () => dispatch(logout()),
+        onPress: () => authLogout(),
       },
     ]);
   };
 
   const handleThemeChange = (themeId: string) => {
-    dispatch(setTheme(themeId));
+    // Theme change via context if needed, but usually guided by user settings or backend
   };
 
   const styles = StyleSheet.create({
@@ -146,12 +143,9 @@ const ProfileScreen = () => {
     },
   });
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+  const getInitials = () => {
+    if (!user) return "U";
+    return (user.first_name[0] + user.last_name[0]).toUpperCase();
   };
 
   return (
@@ -166,13 +160,13 @@ const ProfileScreen = () => {
             colors={theme.effects.buttonGradient}
             style={styles.avatarGradient}
           >
-            <Text style={styles.avatarText}>
-              {user ? getInitials(user.name) : "U"}
-            </Text>
+            <Text style={styles.avatarText}>{getInitials()}</Text>
           </LinearGradient>
-          <Text style={styles.userName}>{user?.name}</Text>
+          <Text style={styles.userName}>
+            {user?.first_name} {user?.last_name}
+          </Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
-          <Text style={styles.userRole}>{user?.role.replace("_", " ")}</Text>
+          <Text style={styles.userRole}>{user?.user_type_display}</Text>
         </View>
 
         {/* Account Information */}
@@ -189,14 +183,12 @@ const ProfileScreen = () => {
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Role</Text>
-              <Text style={styles.infoValue}>
-                {user?.role.replace("_", " ")}
-              </Text>
+              <Text style={styles.infoValue}>{user?.user_type_display}</Text>
             </View>
             {user?.organization && (
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Organization</Text>
-                <Text style={styles.infoValue}>{user.organization}</Text>
+                <Text style={styles.infoValue}>{user.organization.name}</Text>
               </View>
             )}
           </Card>

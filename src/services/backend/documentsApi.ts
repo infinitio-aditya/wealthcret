@@ -23,7 +23,7 @@ export const documentsApi = createApi({
       providesTags: ['documents']
     }),
 
-    getUserDocumentFileById: builder.query<UserDocument[], {id: number, document_type: number}>({
+    getUserDocumentFileById: builder.query<{url: string}, {id: string, document_type: string}>({
       query: ({id, document_type}) => ({
         url: `/api/documents/user/${id}/${document_type}/view/`,
         method: 'GET'
@@ -80,9 +80,12 @@ export const documentsApi = createApi({
       query: (formData) => ({
         url: '/api/documents/upload/',
         method: 'POST',
-        data: formData
+        data: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       }),
-      invalidatesTags: ['agreement_documents']
+      invalidatesTags: ['agreement_documents', 'documents']
     }),
 
     generateUserDocument: builder.query<Record<string, string>, string>({
@@ -129,6 +132,7 @@ export const {
   useGenerateDocumentQuery,
   useGetUserDocumentsByIdQuery,
   useLazyGetUserDocumentsByIdQuery,
+  useLazyGetUserDocumentFileByIdQuery,
   useGetExpectedDocumentsQuery,
   useUploadUserDocumentMutation,
   useLazyGenerateUserDocumentQuery,

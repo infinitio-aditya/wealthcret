@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Linking,
 } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -17,8 +18,10 @@ import { useRetrieveProspectQuery } from "../../../services/backend/prospectApi"
 import {
   useGetUserDocumentsByIdQuery,
   useRequestDocumentMutation,
+  useLazyGetUserDocumentFileByIdQuery,
 } from "../../../services/backend/documentsApi";
 import { UserDocument } from "../../../types/backend/documents";
+import { DOCUMENT_TYPE_LABEL_MAP } from "../../../types/backend/constants";
 import { ActivityIndicator, RefreshControl } from "react-native";
 
 type RouteParams = {
@@ -50,12 +53,22 @@ const ClientDocumentsScreen = () => {
   const [requestDocument, { isLoading: isRequesting }] =
     useRequestDocumentMutation();
 
+  const [getDocumentFile] = useLazyGetUserDocumentFileByIdQuery();
+
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [docType, setDocType] = useState("");
   const [description, setDescription] = useState("");
 
   const loading = loadingProspect || loadingDocuments;
   const client = prospect?.user;
+
+  const handleViewDocument = (doc: UserDocument) => {
+    (navigation as any).navigate("ViewDocument", {
+      uuid: uuid,
+      documentType: doc.document_type,
+      fileName: doc.file_name || "Document",
+    });
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -315,64 +328,70 @@ const ClientDocumentsScreen = () => {
           </View>
         </View>
 
-        {clientDocuments.map((doc: UserDocument) => (
-          <Card key={doc.id} style={styles.docCard}>
-            <View style={styles.docHeader}>
-              <View
-                style={[
-                  styles.docIcon,
-                  { backgroundColor: getStatusColor(doc.is_uploaded) + "20" },
-                ]}
-              >
-                <Icon
-                  name="document-text"
-                  size={24}
-                  color={getStatusColor(doc.is_uploaded)}
-                />
-              </View>
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: getStatusColor(doc.is_uploaded) + "20" },
-                ]}
-              >
-                <Text
+        {clientDocuments.map((doc: UserDocument) => {
+          const typeNum = parseInt(doc.document_type as string);
+          const typeLabel =
+            DOCUMENT_TYPE_LABEL_MAP[typeNum] || doc.document_type;
+
+          return (
+            <Card key={doc.id} style={styles.docCard}>
+              <View style={styles.docHeader}>
+                <View
                   style={[
-                    styles.statusText,
-                    { color: getStatusColor(doc.is_uploaded) },
+                    styles.docIcon,
+                    { backgroundColor: getStatusColor(doc.is_uploaded) + "20" },
                   ]}
                 >
-                  {getStatusText(doc.is_uploaded)}
-                </Text>
+                  <Icon
+                    name="document-text"
+                    size={24}
+                    color={getStatusColor(doc.is_uploaded)}
+                  />
+                </View>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: getStatusColor(doc.is_uploaded) + "20" },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusText,
+                      { color: getStatusColor(doc.is_uploaded) },
+                    ]}
+                  >
+                    {getStatusText(doc.is_uploaded)}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <Text style={styles.docTitle}>
-              {doc.file_name || doc.document_type}
-            </Text>
-            <Text style={styles.docInfo}>Type: {doc.document_type}</Text>
-            <Text style={styles.docInfo}>
-              Uploaded:{" "}
-              {doc.created_at
-                ? new Date(doc.created_at).toLocaleDateString()
-                : "N/A"}
-            </Text>
+              <Text style={styles.docTitle}>{doc.file_name || typeLabel}</Text>
+              <Text style={styles.docInfo}>Type: {typeLabel}</Text>
+              <Text style={styles.docInfo}>
+                Uploaded:{" "}
+                {doc.created_at
+                  ? new Date(doc.created_at).toLocaleDateString()
+                  : "N/A"}
+              </Text>
 
-            <View style={styles.actions}>
-              <Button
-                title="View"
-                variant="outline"
-                onPress={() => {}}
-                style={{ flex: 1 }}
-              />
-              <Button
-                title="Download"
-                variant="outline"
-                onPress={() => {}}
-                style={{ flex: 1 }}
-              />
-            </View>
-          </Card>
-        ))}
+              <View style={styles.actions}>
+                <Button
+                  title="View"
+                  variant="outline"
+                  onPress={() => handleViewDocument(doc)}
+                  style={{ flex: 1 }}
+                  disabled={!doc.is_uploaded}
+                />
+                <Button
+                  title="Download"
+                  variant="outline"
+                  onPress={() => handleViewDocument(doc)}
+                  style={{ flex: 1 }}
+                  disabled={!doc.is_uploaded}
+                />
+              </View>
+            </Card>
+          );
+        })}
       </ScrollView>
     </View>
   );

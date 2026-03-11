@@ -19,8 +19,7 @@ import {
   useUpdateSupportTicketMutation,
 } from "../../../services/backend/supportApi";
 import { useGetOrganizationUsersQuery } from "../../../services/backend/authApi";
-import { useSelector } from "react-redux";
-import { RootState } from "../../../store";
+import { useAuth } from "../../../context/AuthContext";
 import {
   SupportTicket,
   SupportTicketMessage as BackendMessage,
@@ -37,7 +36,7 @@ const TicketDetailsScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation();
   const { ticketId } = route.params;
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user } = useAuth();
 
   const { data: ticket, isLoading: isLoadingTicket } =
     useRetrieveSupportTicketQuery(Number(ticketId));
@@ -449,7 +448,7 @@ const TicketDetailsScreen = () => {
         <View style={styles.content}>
           {renderStatusProgress()}
 
-          {user?.role === "admin" && (
+          {user?.user_type === 0 && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Ticket Management</Text>
               <ThemeDropdown

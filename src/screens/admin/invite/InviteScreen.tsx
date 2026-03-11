@@ -13,14 +13,15 @@ import Card from "../../../components/ui/Card";
 import Input from "../../../components/ui/Input";
 import Button from "../../../components/ui/Button";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
+import { useCreateInviteMutation } from "../../../services/backend/invitationsApi";
 
 const InviteScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
+  const [createInvite, { isLoading: isInviting }] = useCreateInviteMutation();
   const [activeTab, setActiveTab] = useState<"organization" | "user">(
     "organization",
   );
-  const [loading, setLoading] = useState(false);
 
   // Organization Form States
   const [orgForm, setOrgForm] = useState({
@@ -51,8 +52,9 @@ const InviteScreen = () => {
     { value: "client", label: "Client" },
   ];
 
-  const handleOrgInvite = () => {
-    const { email, firstName, lastName, name, type, referrerOrg } = orgForm;
+  const handleOrgInvite = async () => {
+    const { email, firstName, lastName, name, type, referrerOrg, middleName } =
+      orgForm;
     if (
       !email ||
       !firstName ||
@@ -64,9 +66,18 @@ const InviteScreen = () => {
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await createInvite({
+        email,
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        organization: name,
+        org_type: type,
+        referrar: referrerOrg,
+        is_admin: true, // Organization invite usually implies creating an admin for it
+      }).unwrap();
+
       showAlert("Success", "Organization invitation sent successfully!");
       setOrgForm({
         type: "service_provider",
@@ -77,19 +88,38 @@ const InviteScreen = () => {
         middleName: "",
         lastName: "",
       });
-    }, 1500);
+    } catch (error) {
+      console.error("Failed to send org invite:", error);
+      showAlert("Error", "Failed to send invitation. Please try again.");
+    }
   };
 
-  const handleUserInvite = () => {
-    const { email, firstName, lastName, organization } = userForm;
+  const handleUserInvite = async () => {
+    const {
+      email,
+      firstName,
+      lastName,
+      organization,
+      orgType,
+      isAdmin,
+      middleName,
+    } = userForm;
     if (!email || !firstName || !lastName || !organization) {
       showAlert("Error", "Please fill in all required fields");
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await createInvite({
+        email,
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        organization: organization,
+        org_type: orgType,
+        is_admin: isAdmin,
+      }).unwrap();
+
       showAlert("Success", "User invitation sent successfully!");
       setUserForm({
         orgType: "service_provider",
@@ -100,7 +130,10 @@ const InviteScreen = () => {
         middleName: "",
         lastName: "",
       });
-    }, 1500);
+    } catch (error) {
+      console.error("Failed to send user invite:", error);
+      showAlert("Error", "Failed to send invitation. Please try again.");
+    }
   };
 
   const styles = StyleSheet.create({
@@ -282,7 +315,7 @@ const InviteScreen = () => {
             <Button
               title="Invite Organization"
               onPress={handleOrgInvite}
-              loading={loading}
+              loading={isInviting}
               style={{ marginTop: 24 }}
             />
           </Card>
@@ -356,7 +389,7 @@ const InviteScreen = () => {
             <Button
               title="Invite User"
               onPress={handleUserInvite}
-              loading={loading}
+              loading={isInviting}
               style={{ marginTop: 24 }}
             />
           </Card>

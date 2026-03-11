@@ -17,10 +17,10 @@ import Button from "../../../components/ui/Button";
 import Icon from "react-native-vector-icons/Ionicons";
 import { CustomerMapping } from "../../../types";
 import {
-  useGetProspectsClientsQuery,
+  useLazyGetProspectsClientsQuery,
   useUpdateProspectAssociationMutation,
 } from "../../../services/backend/prospectApi";
-import { useGetOrgnizationByOrgTypeQuery } from "../../../services/backend/authApi";
+import { useGetOrganizationUsersQuery } from "../../../services/backend/authApi";
 import { ProspectAssociation } from "../../../types/backend/prospect";
 import ThemeDropdown from "@components/ui/ThemeDropdown";
 
@@ -48,49 +48,82 @@ const CustomerMappingScreen = () => {
     referralPartner: "all",
   });
 
-  const {
-    data: clientsData,
-    isLoading: isFetching,
-    refetch,
-  } = useGetProspectsClientsQuery({ page: 1, page_size: 100 });
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const PAGE_SIZE = 20;
+
+  const [getProspectsAndClients, { isFetching }] =
+    useLazyGetProspectsClientsQuery();
   const [updateAssociation] = useUpdateProspectAssociationMutation();
-  const { data: spsData } = useGetOrgnizationByOrgTypeQuery("advisor");
-  const { data: rpData } = useGetOrgnizationByOrgTypeQuery("rp");
+  const { data: organizationUsers } = useGetOrganizationUsersQuery();
 
   const availableServiceProviders =
-    spsData?.map((sp) => ({
-      label: sp.name,
-      value: sp.id.toString(),
+    organizationUsers?.map((user) => ({
+      label:
+        `${user.first_name || ""} ${user.last_name || ""}`.trim() ||
+        "Unknown User",
+      value: user.id.toString(),
     })) || [];
 
-  const availableReferralPartners =
-    rpData?.map((rp) => ({
-      label: rp.name,
-      value: rp.name,
-    })) || [];
+  const availableReferralPartners: { label: string; value: string }[] = [];
 
-  useEffect(() => {
-    if (clientsData) {
-      const mapped: CustomerMapping[] = clientsData.results.map(
+  const fetchData = async (reset = false) => {
+    if ((isFetching || !hasMore) && !reset) return;
+
+    try {
+      if (reset) {
+        setLoading(true);
+      }
+      const currentPage = reset ? 1 : page;
+      const response = await getProspectsAndClients({
+        page: currentPage,
+        page_size: PAGE_SIZE,
+        user_types: "1,2",
+        q: searchTerm,
+      }).unwrap();
+
+      const newMappings: CustomerMapping[] = response.results.map(
         (pa: ProspectAssociation) => ({
-          id: pa.id.toString(),
-          internalId: pa.id.toString(), // Added missing internalId
-          customerName: `${pa.user.first_name} ${pa.user.last_name}`,
-          externalId: pa.user.email,
-          system: pa.organization.name,
-          serviceProvider: pa.owner_name,
+          id: pa.id?.toString() || "",
+          internalId: pa.id?.toString() || "",
+          customerName:
+            `${pa.user?.first_name || ""} ${pa.user?.last_name || ""}`.trim(),
+          externalId: pa.user?.email || "",
+          system: pa.organization?.name || "N/A",
+          serviceProvider: pa.owner_name || "Unassigned",
           serviceProviderId: pa.owner?.toString(),
-          lastSync: new Date(pa.created).toLocaleDateString(),
+          lastSync: pa.created
+            ? new Date(pa.created).toLocaleDateString()
+            : "N/A",
           status: pa.invitation_accepted ? "active" : "pending",
-          referralPartner: "Wealthcret", // Backend doesn't seem to store RP name directly in association
+          referralPartner: "Wealthcret",
         }),
       );
-      setMappings(mapped);
-      setLoading(false);
-    } else if (!isFetching) {
-      setLoading(false);
+
+      if (reset) {
+        setMappings(newMappings);
+      } else {
+        setMappings((prev) => [...prev, ...newMappings]);
+      }
+
+      if (response.results.length < PAGE_SIZE) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+        setPage(currentPage + 1);
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+    } finally {
+      if (reset) {
+        setLoading(false);
+      }
     }
-  }, [clientsData, isFetching]);
+  };
+
+  useEffect(() => {
+    fetchData(true);
+  }, [searchTerm]);
 
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) =>
@@ -118,7 +151,7 @@ const CustomerMappingScreen = () => {
           }).unwrap(),
         ),
       );
-      refetch();
+      fetchData(true);
       setSelectedIds([]);
       setShowBulkModal(false);
       setBulkProvider({ label: "", value: "" });
@@ -152,7 +185,7 @@ const CustomerMappingScreen = () => {
         id: Number(id),
         owner: Number(tempProvider.value),
       }).unwrap();
-      refetch();
+      fetchData(true);
       setEditingId(null);
       setTempProvider({ label: "", value: "" });
     } catch (error) {
@@ -438,6 +471,17 @@ const CustomerMappingScreen = () => {
       <FlatList
         data={filteredMappings}
         keyExtractor={(item) => item.id}
+        onEndReached={() => fetchData(false)}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isFetching && !loading ? (
+            <ActivityIndicator
+              size="small"
+              color={theme.colors.primary}
+              style={{ margin: 16 }}
+            />
+          ) : null
+        }
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: selectedIds.length > 0 ? 100 : 16 },
@@ -523,7 +567,7 @@ const CustomerMappingScreen = () => {
 
                 <View style={{ paddingLeft: 34 }}>
                   <Text style={[styles.label, { marginBottom: 4 }]}>
-                    Assigned Service Provider
+                    Assigned Team Member
                   </Text>
                   {editingId === item.id ? (
                     <View style={styles.actionRow}>
@@ -540,7 +584,7 @@ const CustomerMappingScreen = () => {
                               selected || { label: val, value: val },
                             );
                           }}
-                          placeholder="Select Provider"
+                          placeholder="Select Team Member"
                         />
                       </View>
                       <TouchableOpacity
@@ -645,7 +689,7 @@ const CustomerMappingScreen = () => {
             </Text>
 
             <ThemeDropdown
-              label="Select Service Provider"
+              label="Select Team Member"
               options={availableServiceProviders}
               selectedValue={bulkProvider.value}
               onValueChange={(val) => {
@@ -654,7 +698,7 @@ const CustomerMappingScreen = () => {
                 );
                 setBulkProvider(selected || { label: val, value: val });
               }}
-              placeholder="Select Provider"
+              placeholder="Choose team member to assign"
             />
 
             <View style={styles.modalButtons}>

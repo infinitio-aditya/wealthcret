@@ -7,28 +7,25 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import { useDispatch, useSelector } from "react-redux";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Ionicons";
 import Header from "../components/Header";
 import { useTheme } from "../hooks/useTheme";
-import { RootState } from "../store";
-import { setTheme } from "../store/slices/themeSlice";
+import { useAuth } from "../context/AuthContext";
+import { useThemeContext } from "../context/ThemeContext";
 import { themes } from "../theme/themes";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 
 const ThemeSelectionScreen = () => {
   const theme = useTheme();
-  const dispatch = useDispatch();
   const navigation = useNavigation();
-  const currentThemeId = useSelector(
-    (state: RootState) => state.theme.currentTheme,
-  );
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { theme: currentThemeObj, setTheme } = useThemeContext();
+  const currentThemeId = currentThemeObj.id;
+  const { user } = useAuth();
 
   const handleSelectTheme = (themeId: string) => {
-    dispatch(setTheme(themeId));
+    setTheme(themeId);
   };
 
   const renderThemeItem = ({ item }: { item: (typeof themes)[0] }) => {
@@ -147,7 +144,7 @@ const ThemeSelectionScreen = () => {
     },
   });
 
-  if (user?.role === "client") {
+  if (user?.user_type === 3) {
     return (
       <View
         style={[

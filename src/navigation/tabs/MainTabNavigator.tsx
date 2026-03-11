@@ -2,9 +2,8 @@ import React from "react";
 import { Platform, SafeAreaView, View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Icon from "react-native-vector-icons/Ionicons";
-import { useSelector } from "react-redux";
+import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
-import { RootState } from "../../store";
 import { MainTabParamList } from "../NavigationParams";
 
 // Stacks
@@ -12,6 +11,12 @@ import DashboardStackNavigator from "../stacks/DashboardStack";
 import ClientStackNavigator from "../stacks/ClientStack";
 import SupportStackNavigator from "../stacks/SupportStack";
 import DocumentStackNavigator from "../stacks/DocumentStack";
+import {
+  ORG_TYPE_AD,
+  ORG_TYPE_RP,
+  ORG_TYPE_SP,
+  ORG_TYPE_CL,
+} from "../../types/backend/constants";
 
 // Screens
 import OrgRequestsStackNavigator from "../stacks/OrgRequestsStack";
@@ -23,21 +28,24 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const MainTabNavigator = () => {
   const theme = useTheme();
-  const user = useSelector((state: RootState) => state.auth.user);
-  const role = user?.role || "client";
+  const { user } = useAuth();
+  const role = user?.organization?.org_type;
 
   const getTabConfig = (routeName: string) => {
     switch (routeName) {
       case "HomeTab":
         return { label: "Home", icon: "home-outline" };
       case "RoleTab1":
-        if (role === "admin")
+        if (role?.toString() === ORG_TYPE_AD)
           return { label: "Requests", icon: "business-outline" };
-        if (role === "client")
+        if (role?.toString() === ORG_TYPE_CL)
           return { label: "Docs", icon: "document-text-outline" };
         return { label: "Clients", icon: "people-outline" }; // sp, rp
       case "RoleTab2":
-        if (role === "admin" || role === "referral_partner")
+        if (
+          role?.toString() === ORG_TYPE_AD ||
+          role?.toString() === ORG_TYPE_RP
+        )
           return { label: "Payout", icon: "cash-outline" };
         return { label: "Support", icon: "help-buoy-outline" }; // sp, client
       case "AlertsTab":
@@ -54,11 +62,14 @@ const MainTabNavigator = () => {
       case "HomeTab":
         return DashboardStackNavigator;
       case "RoleTab1":
-        if (role === "admin") return OrgRequestsStackNavigator;
-        if (role === "client") return DocumentStackNavigator;
+        if (role?.toString() === ORG_TYPE_AD) return OrgRequestsStackNavigator;
+        if (role?.toString() === ORG_TYPE_CL) return DocumentStackNavigator;
         return ClientStackNavigator;
       case "RoleTab2":
-        if (role === "admin" || role === "referral_partner")
+        if (
+          role?.toString() === ORG_TYPE_AD ||
+          role?.toString() === ORG_TYPE_RP
+        )
           return PayoutScreen;
         return SupportStackNavigator;
       case "AlertsTab":

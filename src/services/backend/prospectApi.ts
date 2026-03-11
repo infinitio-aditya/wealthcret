@@ -80,7 +80,7 @@ export const prospectApi = createApi({
       query: ({user_types, page, page_size, q}) => ({
         url: `/api/referral/referrals/`,
         method: 'GET',
-        params: {user_types, page, page_size, q}
+        params: {user_types, page, page_size, ...(q !== undefined && q !== '' ? {q} : {})}
       }),
     }),
 

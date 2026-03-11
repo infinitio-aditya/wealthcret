@@ -18,6 +18,7 @@ import { useAlert } from "../../../context/AlertContext";
 import { RootState } from "../../../store";
 import {
   setClients,
+  appendClients,
   setSearchQuery,
   setSelectedClient,
 } from "../../../store/slices/clientSlice";
@@ -32,18 +33,31 @@ import {
   useCreateProspectMutation,
 } from "../../../services/backend/prospectApi";
 import { ProspectAssociation } from "../../../types/backend/prospect";
+import {
+  ORG_TYPE_AD,
+  ORG_TYPE_RP,
+  ORG_TYPE_SP,
+  ORG_TYPE_CL,
+} from "../../../types/backend/constants";
+
+import { useAuth } from "../../../context/AuthContext";
 
 const ClientListScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigation = useNavigation<any>();
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user } = useAuth();
   const { clients, searchQuery, loading } = useSelector(
     (state: RootState) => state.client,
   );
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("all");
+
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const [getProspects, { data: prospectsData, isFetching: loadingProspects }] =
     useLazyGetProspectsClientsQuery();
@@ -103,22 +117,27 @@ const ClientListScreen = () => {
     new Set(clients.map((c: Client) => c.referralPartner).filter(Boolean)),
   ) as string[];
 
+  // Reset and refetch from page 1 when search or user changes
   useEffect(() => {
-    fetchClients();
-  }, [user, selectedStatus]);
+    dispatch(setClients([]));
+    fetchPage(1, true);
+  }, [user, searchQuery]);
 
-  useEffect(() => {
-    if (prospectsData) {
-      const mappedClients: Client[] = prospectsData.results.map(
+  const fetchPage = async (currentPage: number, isRefresh: boolean = false) => {
+    if (!hasMore && !isRefresh) return;
+    setIsFetchingMore(true);
+
+    try {
+      const response = await getProspects({
+        user_types: "1,2",
+        page: currentPage,
+        page_size: PAGE_SIZE,
+        ...(searchQuery ? { q: searchQuery } : {}),
+      }).unwrap();
+
+      const mappedClients: Client[] = response.results.map(
         (pa: ProspectAssociation) => {
           const u = pa.user;
-          const roleMap: Record<string, string> = {
-            "0": "Admin",
-            "1": "Referral Partner",
-            "2": "Service Provider",
-            "3": "Client",
-          };
-
           const statusMap: Record<string, "active" | "inactive" | "pending"> = {
             "1": "pending",
             "2": "pending",
@@ -133,10 +152,9 @@ const ClientListScreen = () => {
             name: `${u.first_name} ${u.last_name}`,
             email: u.email,
             phone: u.mobile_number,
-            role: roleMap[pa.organization.org_type] || "Client",
+            role: u.user_type === 1 ? "Prospect" : "Client",
             status: statusMap[u.application_status] || "pending",
             assignedSP: pa.owner_name,
-            // Note: Net worth and onboarding progress would come from other specific endpoints or fields if available
             onboardingProgress: {
               percentage: parseInt(u.pipeline_status || "0"),
               uploadedDocs: 0,
@@ -147,23 +165,26 @@ const ClientListScreen = () => {
           };
         },
       );
-      dispatch(setClients(mappedClients));
-    }
-  }, [prospectsData, dispatch]);
 
-  const fetchClients = () => {
-    const user_types =
-      selectedStatus === "all"
-        ? undefined
-        : selectedStatus === "active"
-          ? "4,5,6"
-          : "1,2,3";
-    getProspects({
-      page: 1,
-      page_size: 100,
-      user_types,
-      q: searchQuery,
-    });
+      if (isRefresh || currentPage === 1) {
+        dispatch(setClients(mappedClients));
+        setPage(1);
+      } else {
+        dispatch(appendClients(mappedClients));
+        setPage(currentPage);
+      }
+
+      setHasMore(mappedClients.length === PAGE_SIZE);
+    } catch (error) {
+      console.error("Failed to fetch clients", error);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!hasMore || loadingProspects || isFetchingMore) return;
+    fetchPage(page + 1);
   };
 
   const filteredClients = clients.filter((client) => {
@@ -174,15 +195,8 @@ const ClientListScreen = () => {
     const matchesStatus =
       selectedStatus === "all" || client.status === selectedStatus;
 
-    // Role visibility
-    let isVisible = true;
-    if (
-      user?.role === "service_provider" ||
-      user?.role === "referral_partner"
-    ) {
-      isVisible =
-        client.assignedSP === user.name || client.referralPartner === user.name;
-    }
+    // Removing role visibility client-side filter here because
+    // backend already returns the correct prospects based on session context.
 
     // Apply Advanced Filters
     const matchesServices =
@@ -200,18 +214,15 @@ const ClientListScreen = () => {
         ? !client.referralPartner
         : client.referralPartner === filters.referralPartner);
 
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      isVisible &&
-      matchesAdvisor &&
-      matchesReferral
-    );
+    return matchesSearch && matchesStatus && matchesAdvisor && matchesReferral;
   });
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchClients();
+    dispatch(setClients([]));
+    setPage(1);
+    setHasMore(true);
+    fetchPage(1);
     setRefreshing(false);
   };
 
@@ -263,7 +274,7 @@ const ClientListScreen = () => {
         companyName: "",
       });
       setClientType("individual");
-      fetchClients();
+      fetchPage(1);
     } catch (error: any) {
       showAlert("Error", error?.data?.detail || "Failed to create prospect");
     }
@@ -676,6 +687,17 @@ const ClientListScreen = () => {
         contentContainerStyle={styles.listContainer}
         refreshing={refreshing}
         onRefresh={handleRefresh}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isFetchingMore ? (
+            <ActivityIndicator
+              size="small"
+              color={theme.colors.primary}
+              style={{ marginVertical: 16 }}
+            />
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>

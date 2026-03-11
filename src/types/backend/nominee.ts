@@ -5,5 +5,6 @@ export interface Nominee {
   dob: string;
   mobile: string;
   relationship: string;
-  proportion: number
+  proportion: number;
+  user?: number;
 }

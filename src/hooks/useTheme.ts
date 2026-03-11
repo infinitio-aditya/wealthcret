@@ -1,9 +1,6 @@
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
-import { getThemeById } from '../theme/themes';
+import { useThemeContext } from '../context/ThemeContext';
 
 export const useTheme = () => {
-    const currentTheme = useSelector((state: RootState) => state.theme.currentTheme);
-    const theme = getThemeById(currentTheme);
+    const { theme } = useThemeContext();
     return theme;
 };

@@ -39,6 +39,7 @@ export interface CustomerMapping {
 
 export interface User {
     id: string;
+    uuid?: string;
     name: string;
     email: string;
     role: UserRole;

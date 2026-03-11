@@ -9,6 +9,7 @@ import {
   Dimensions,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
 } from "react-native";
 import { useTheme } from "../../../hooks/useTheme";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
@@ -23,7 +24,7 @@ import {
   useCreateUserFeatureLicenseMutation,
   useUpdateUserFeatureLicenseMutation,
 } from "../../../services/backend/licensingApi";
-import { useGetOrganizationUsersQuery } from "../../../services/backend/authApi";
+import { useLazySearchUserQuery } from "../../../services/backend/licensingApi";
 import { License } from "../../../types/backend/license";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -38,12 +39,45 @@ const BackofficeLicensingScreen = () => {
     refetch: refetchLicense,
   } = useGetOrgLicenseQuery();
 
-  const {
-    data: teamMembersData,
-    isLoading: loadingUsers,
-    isFetching: fetchingUsers,
-    refetch: refetchUsers,
-  } = useGetOrganizationUsersQuery();
+  const [users, setUsers] = useState<CustomUser[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE_SIZE = 20;
+
+  const [triggerSearch, { isFetching: fetchingUsers }] =
+    useLazySearchUserQuery();
+
+  const fetchUsers = async (p = 1, replace = false) => {
+    if (loadingUsers || loadingMore) return;
+
+    if (replace) setLoadingUsers(true);
+    else setLoadingMore(true);
+
+    try {
+      const res = await triggerSearch({
+        page: p,
+        page_size: PAGE_SIZE,
+        q: searchTerm,
+      }).unwrap();
+
+      const newUsers = res.results || [];
+      setUsers((prev) => (replace ? newUsers : [...prev, ...newUsers]));
+      setPage(p);
+      setHasMore(newUsers.length === PAGE_SIZE);
+    } catch (err) {
+      console.warn("fetchUsers err", err);
+    } finally {
+      if (replace) setLoadingUsers(false);
+      else setLoadingMore(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchUsers(1, true);
+  }, [searchTerm]);
 
   const [createUserSubscription] = useCreateUserFeatureLicenseMutation();
   const [updateUserSubscription] = useUpdateUserFeatureLicenseMutation();
@@ -54,20 +88,15 @@ const BackofficeLicensingScreen = () => {
 
   const [filters, setFilters] = useState({
     licenses: [] as number[], // Using numeric IDs from API
-    assignedSP: "all",
-    referralPartner: "all",
   });
   const [tempFilters, setTempFilters] = useState({
     licenses: [] as number[],
-    assignedSP: "all",
-    referralPartner: "all",
   });
 
-  const teamMembers = teamMembersData || [];
   const licenses = orgLicense?.feature_licenses || [];
 
   const filteredMembers = useMemo(() => {
-    return teamMembers.filter((member) => {
+    return users.filter((member) => {
       const matchesLicense =
         filters.licenses.length === 0 ||
         filters.licenses.some((licenseId) =>
@@ -75,11 +104,9 @@ const BackofficeLicensingScreen = () => {
             (sub) => sub.feature_license === licenseId && sub.is_active,
           ),
         );
-      // Wait, CustomUser has mobile_number, email etc. but Advisor/Partner filtering usually depends on roles
-      // For now we'll keep it simple as the backend structure for filtering by custom fields isn't clear here
       return matchesLicense;
     });
-  }, [teamMembers, filters, licenses]);
+  }, [users, filters, licenses]);
 
   const handleOpenManageModal = (member: CustomUser) => {
     setSelectedMember(member);
@@ -108,14 +135,20 @@ const BackofficeLicensingScreen = () => {
           uuid: selectedMember.uuid || "",
         }).unwrap();
       }
-      // Note: Data will be refetched by RTK Query due to tag invalidation if configured,
-      // but authApi might not have the tags. In web-ui they reload.
-      // We should ideally refetch users.
-      refetchUsers();
+
+      // Refresh both the user list and the organization's license stats
+      // We reset to page 1 to ensure UI remains consistent
+      refetchLicense();
+      fetchUsers(1, true);
     } catch (error) {
       console.error("Failed to update user license:", error);
     }
   };
+
+  const activeSelectedMember = useMemo(() => {
+    if (!selectedMember) return null;
+    return users.find((u) => u.uuid === selectedMember.uuid) || selectedMember;
+  }, [users, selectedMember]);
 
   const handleApplyFilters = () => {
     setFilters(tempFilters);
@@ -125,8 +158,6 @@ const BackofficeLicensingScreen = () => {
   const handleResetFilters = () => {
     const reset = {
       licenses: [] as number[],
-      assignedSP: "all",
-      referralPartner: "all",
     };
     setTempFilters(reset);
     setFilters(reset);
@@ -266,6 +297,10 @@ const BackofficeLicensingScreen = () => {
     },
     header: {
       padding: 20,
+      flexDirection: "column",
+      gap: 16,
+    },
+    headerTopRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
@@ -282,6 +317,25 @@ const BackofficeLicensingScreen = () => {
     headerButtons: {
       flexDirection: "row",
       gap: 12,
+    },
+    searchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.effects.cardBorder,
+      paddingHorizontal: 12,
+      height: 48,
+    },
+    searchBox: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: 15,
+      height: "100%",
+    },
+    clearBtn: {
+      padding: 4,
     },
     sectionTitle: {
       fontSize: 18,
@@ -518,20 +572,43 @@ const BackofficeLicensingScreen = () => {
             refreshing={fetchingLicense || fetchingUsers}
             onRefresh={() => {
               refetchLicense();
-              refetchUsers();
+              fetchUsers(1, true);
             }}
           />
         }
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Licensing</Text>
-            <Text style={styles.subtitle}>Team member licenses</Text>
+          <View style={styles.headerTopRow}>
+            <View>
+              <Text style={styles.title}>Licensing</Text>
+              <Text style={styles.subtitle}>Client licenses</Text>
+            </View>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity onPress={() => setFilterModalVisible(true)}>
+                <Icon name="filter" size={20} color={theme.colors.primary} />
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity onPress={() => setFilterModalVisible(true)}>
-              <Icon name="filter" size={20} color={theme.colors.primary} />
-            </TouchableOpacity>
+          <View style={[styles.searchContainer, { marginTop: 16 }]}>
+            <TextInput
+              style={styles.searchBox}
+              placeholder="Search clients..."
+              placeholderTextColor={theme.colors.textSecondary}
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+            />
+            {searchTerm.length > 0 && (
+              <TouchableOpacity
+                style={styles.clearBtn}
+                onPress={() => setSearchTerm("")}
+              >
+                <Icon
+                  name="close"
+                  size={20}
+                  color={theme.colors.textSecondary}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -553,24 +630,44 @@ const BackofficeLicensingScreen = () => {
             </View>
 
             <View style={styles.listContainer}>
-              <Text style={styles.sectionTitle}>Team Members</Text>
-              {filteredMembers.map((member) => (
-                <View key={member.id}>{renderMember({ item: member })}</View>
-              ))}
-              {filteredMembers.length === 0 && (
-                <View style={{ padding: 40, alignItems: "center" }}>
-                  <Icon
-                    name="search-outline"
-                    size={48}
-                    color={theme.colors.textSecondary}
-                  />
-                  <Text
-                    style={{ color: theme.colors.textSecondary, marginTop: 12 }}
-                  >
-                    No members found
-                  </Text>
-                </View>
-              )}
+              <Text style={styles.sectionTitle}>Clients</Text>
+              <FlatList
+                data={filteredMembers}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={renderMember}
+                scrollEnabled={false}
+                onEndReached={() => {
+                  if (hasMore) {
+                    fetchUsers(page + 1, false);
+                  }
+                }}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={
+                  loadingMore ? (
+                    <ActivityIndicator
+                      style={{ margin: 16 }}
+                      color={theme.colors.primary}
+                    />
+                  ) : null
+                }
+                ListEmptyComponent={
+                  <View style={{ padding: 40, alignItems: "center" }}>
+                    <Icon
+                      name="search-outline"
+                      size={48}
+                      color={theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        marginTop: 12,
+                      }}
+                    >
+                      No clients found
+                    </Text>
+                  </View>
+                }
+              />
             </View>
           </>
         )}
@@ -588,7 +685,8 @@ const BackofficeLicensingScreen = () => {
             <View>
               <Text style={styles.modalTitle}>Manage Licenses</Text>
               <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-                {selectedMember?.first_name} {selectedMember?.last_name}
+                {activeSelectedMember?.first_name}{" "}
+                {activeSelectedMember?.last_name}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setManageModalVisible(false)}>
@@ -598,7 +696,7 @@ const BackofficeLicensingScreen = () => {
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {licenses.map((license) => {
-              const isSubscribed = selectedMember?.my_subscriptions?.some(
+              const isSubscribed = activeSelectedMember?.my_subscriptions?.some(
                 (sub) => sub.feature_license === license.id && sub.is_active,
               );
 
@@ -637,14 +735,13 @@ const BackofficeLicensingScreen = () => {
             })}
           </ScrollView>
 
-          <Button
+          {/* <Button
             title="Done"
             onPress={() => {
               setManageModalVisible(false);
-              refetchUsers(); // Refresh the list
             }}
             style={styles.saveButton}
-          />
+          /> */}
         </View>
       </Modal>
 

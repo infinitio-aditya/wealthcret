@@ -11,11 +11,9 @@ import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
 } from "@react-navigation/drawer";
-import { useSelector, useDispatch } from "react-redux";
+import { useAuth } from "../context/AuthContext";
 import Icon from "react-native-vector-icons/Ionicons";
-import { RootState } from "../store";
 import { useTheme } from "../hooks/useTheme";
-import { logout } from "../store/slices/authSlice";
 import LinearGradient from "react-native-linear-gradient";
 
 import { UserRole } from "../types";
@@ -136,8 +134,7 @@ const menuItems: MenuItem[] = [
 
 export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
   const theme = useTheme();
-  const user = useSelector((state: RootState) => state.auth.user);
-  const dispatch = useDispatch();
+  const { user, logout: authLogout } = useAuth();
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
   const toggleMenu = (label: string) => {
@@ -149,10 +146,19 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
   };
 
   const handleLogout = () => {
-    dispatch(logout());
+    authLogout();
   };
 
-  const userRole = user?.role || "client";
+  // Map numeric user_type to string roles for menu filtering
+  const roleMap: Record<string, string> = {
+    "0": "admin",
+    "1": "referral_partner",
+    "2": "service_provider",
+    "3": "client",
+  };
+  const userRole = user
+    ? (roleMap[String(user.organization.org_type)] ?? "client")
+    : "client";
   const filteredMenuItems = menuItems.filter((item) =>
     item.roles.includes(userRole as UserRole),
   );
@@ -295,12 +301,14 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
 
         <View style={styles.userInfo}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user?.name?.charAt(0)}</Text>
+            <Text style={styles.avatarText}>{user?.first_name?.charAt(0)}</Text>
           </View>
           <View>
-            <Text style={styles.userName}>{user?.name}</Text>
+            <Text style={styles.userName}>
+              {user?.first_name} {user?.last_name}
+            </Text>
             <Text style={styles.userRoleTag}>
-              {user?.role?.replace("_", " ").toUpperCase()}
+              {user?.user_type_display?.toUpperCase()}
             </Text>
           </View>
         </View>

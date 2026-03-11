@@ -33,6 +33,11 @@ export type DocumentStackParamList = {
   Documents: undefined;
   MyDocuments: undefined;
   ClientDocuments: { clientId: string };
+  ViewDocument: {
+    uuid: string;
+    documentType: string;
+    fileName: string;
+  };
 };
 
 export type AdminLicensingStackParamList = {

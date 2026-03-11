@@ -17,14 +17,13 @@ import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
 import { useAlert } from "context/AlertContext";
 import { useCreateSupportTicketMutation } from "../../../services/backend/supportApi";
 import { useGetOrgnizationsQuery } from "../../../services/backend/authApi";
-import { useSelector } from "react-redux";
-import { RootState } from "../../../store";
+import { useAuth } from "../../../context/AuthContext";
 
 const CreateTicketScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<any>();
   const { showAlert } = useAlert();
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user } = useAuth();
 
   const [createTicket, { isLoading }] = useCreateSupportTicketMutation();
 
@@ -163,7 +162,7 @@ const CreateTicketScreen = () => {
         onClose={() => navigation.goBack()}
         title="Create Support Ticket"
       >
-        {organizations.length > 0 && (
+        {true && (
           <ThemeDropdown
             label="Organization"
             options={organizations.map((org) => ({

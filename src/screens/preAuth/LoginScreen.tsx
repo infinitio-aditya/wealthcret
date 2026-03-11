@@ -14,7 +14,9 @@ import { useNavigation } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../../hooks/useTheme";
 import { useAlert } from "../../context/AlertContext";
+import { mapCustomUserToUser } from "../../utils/userUtils";
 import { setUser, setToken } from "../../store/slices/authSlice";
+import { useAuth } from "../../context/AuthContext";
 import { useLoginMutation } from "../../services/backend/authApi";
 import { User, UserRole } from "../../types";
 
@@ -23,16 +25,10 @@ const LoginScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation();
   const dispatch = useDispatch();
+  const { login: authContextLogin } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [login, { isLoading: loading }] = useLoginMutation();
-
-  const roles: { value: UserRole; label: string }[] = [
-    { value: "admin", label: "Admin" },
-    { value: "service_provider", label: "Service Provider" },
-    { value: "referral_partner", label: "Referral Partner" },
-    { value: "client", label: "Client" },
-  ];
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -43,31 +39,15 @@ const LoginScreen = () => {
     try {
       const response = await login({ email, password }).unwrap();
 
-      // Mapping Backend CustomUser to Mobile User type
-      const roleMap: Record<string, UserRole> = {
-        "0": "admin",
-        "1": "referral_partner",
-        "2": "service_provider",
-        "3": "client",
-      };
-
-      const mappedUser: User = {
-        id: response.user.id.toString(),
-        name: `${response.user.first_name} ${response.user.last_name}`,
-        email: response.user.email,
-        role: roleMap[response.user.organization?.org_type] || "client",
-        organization: response.user.organization?.name,
-        service_providers: response.user.service_providers,
-        license:
-          response.user.organization?.org_type === "0"
-            ? response.user.organization?.license
-            : response.user.organization?.license, // Both admin and non-admin can have licenses, simplify mapping
-      };
+      const mappedUser = mapCustomUserToUser(response.user);
 
       dispatch(setUser(mappedUser));
       dispatch(setToken(response.token));
+
       await AsyncStorage.setItem("token", response.token);
       await AsyncStorage.setItem("user", JSON.stringify(mappedUser));
+
+      authContextLogin(response.user);
     } catch (error: any) {
       console.error("Login Error:", error);
       const errorMessage =

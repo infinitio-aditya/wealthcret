@@ -15,6 +15,7 @@ import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import Icon from "react-native-vector-icons/Ionicons";
 import Modal from "react-native-modal";
+import { useAuth } from "../../../context/AuthContext";
 import { useGetOrganizationUsersQuery } from "../../../services/backend/authApi";
 import {
   useGetOrganizationRolesQuery,
@@ -25,12 +26,14 @@ import {
 import { useCreateInviteMutation } from "../../../services/backend/invitationsApi";
 import { CustomUser } from "../../../types/backend/auth";
 import { Role, TeamMemberRole } from "../../../types/backend/roles";
+import { ORG_TYPE_AD } from "../../../types/backend/constants";
 import { RefreshControl } from "react-native";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const TeamMembersScreen = () => {
   const theme = useTheme();
+  const { user } = useAuth();
 
   // API Queries
   const {
@@ -88,7 +91,7 @@ const TeamMembersScreen = () => {
   const handleOpenDetail = (member: CustomUser) => {
     setSelectedMember(member);
     const memberRoles = teamMemberRoles
-      .filter((tmr) => tmr.user === member.id)
+      .filter((tmr) => tmr.user === member.id && tmr.is_active)
       .map((tmr) => tmr.role.id);
     setSelectedRoles(memberRoles);
     setDetailModalVisible(true);
@@ -115,16 +118,21 @@ const TeamMembersScreen = () => {
 
   const handleSaveRoles = async () => {
     if (selectedMember) {
-      // This logic depends on backend implementation for bulk role update
-      // For now, let's assume we create/update roles individually or logic follows backend
-      for (const roleId of selectedRoles) {
+      for (const role of availableRoles) {
+        const isSelected = selectedRoles.includes(role.id);
         const existing = teamMemberRoles.find(
-          (tmr) => tmr.user === selectedMember.id && tmr.role.id === roleId,
+          (tmr) => tmr.user === selectedMember.id && tmr.role.id === role.id,
         );
-        if (!existing) {
+
+        if (existing) {
+          if (existing.is_active !== isSelected) {
+            await updateTMRole({ id: existing.id, is_active: isSelected });
+          }
+        } else if (isSelected) {
           await createTMRole({
             user: selectedMember.id,
-            role: { id: roleId } as any,
+            role: role.id as any,
+            organization: user?.organization?.id,
             is_active: true,
           });
         }
@@ -408,22 +416,13 @@ const TeamMembersScreen = () => {
         <Text style={styles.title}>Team Members</Text>
         <Text style={styles.subtitle}>Manage team roles and permissions</Text>
       </View>
-      {/* <TouchableOpacity onPress={() => setAddModalVisible(true)}>
-                <LinearGradient
-                    colors={theme.effects.buttonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.addButton}
-                >
-                    <Icon name="person-add" size={20} color={theme.colors.textOnPrimary} />
-                    <Text style={styles.addButtonText}>Add</Text>
-                </LinearGradient>
-            </TouchableOpacity> */}
-      <View style={styles.headerButtons}>
-        <TouchableOpacity onPress={() => setAddModalVisible(true)}>
-          <Icon name="add-circle" size={32} color={theme.colors.primary} />
-        </TouchableOpacity>
-      </View>
+      {user?.organization?.org_type?.toString() === ORG_TYPE_AD && (
+        <View style={styles.headerButtons}>
+          <TouchableOpacity onPress={() => setAddModalVisible(true)}>
+            <Icon name="add-circle" size={32} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
@@ -466,7 +465,7 @@ const TeamMembersScreen = () => {
     };
 
     const memberRoles = teamMemberRoles
-      .filter((tmr) => tmr.user === item.id)
+      .filter((tmr) => tmr.user === item.id && tmr.is_active)
       .map((tmr) => tmr.role);
 
     return (

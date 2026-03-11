@@ -7,8 +7,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { useSelector } from "react-redux";
-import { RootState } from "../../store";
+import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
 import Card from "../../components/ui/Card";
 
@@ -23,7 +22,7 @@ interface MenuItem {
 const SettingsScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<any>();
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user } = useAuth();
 
   const menuItems: MenuItem[] = [
     // {
@@ -83,7 +82,10 @@ const SettingsScreen = () => {
   ];
 
   // Add Theme option for Admin and Service Provider
-  if (user && (user.role === "admin" || user.role === "service_provider")) {
+  if (
+    user &&
+    (user.user_type === 0 || user.user_type === 2 || user.user_type === 1)
+  ) {
     menuItems.splice(5, 0, {
       id: "billing",
       title: "Billing",
@@ -94,7 +96,10 @@ const SettingsScreen = () => {
   }
 
   // Add Theme option for Admin and Service Provider
-  if (user && (user.role === "admin" || user.role === "service_provider")) {
+  if (
+    user &&
+    (user.user_type === 0 || user.user_type === 2 || user.user_type === 1)
+  ) {
     menuItems.splice(5, 0, {
       id: "theme",
       title: "Appearance",

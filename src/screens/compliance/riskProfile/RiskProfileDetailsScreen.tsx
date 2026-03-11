@@ -14,12 +14,12 @@ import Header from "../../../components/Header";
 import Card from "../../../components/ui/Card";
 import Icon from "react-native-vector-icons/Ionicons";
 import { RiskProfile, Assessment } from "../../../types";
-import { useRetrieveRiskProfileQuery } from "../../../services/backend/complianceApi";
 import Svg, { Path, Circle, Line, G, Text as SvgText } from "react-native-svg";
 
 type RouteParams = {
   RiskProfileDetails: {
     profileId: string;
+    profileData?: any;
   };
 };
 
@@ -27,38 +27,42 @@ const RiskProfileDetailsScreen = () => {
   const theme = useTheme();
   const route = useRoute<RouteProp<RouteParams, "RiskProfileDetails">>();
   const navigation = useNavigation();
-  const { data: rpData, isLoading: isFetching } = useRetrieveRiskProfileQuery(
-    Number(route.params?.profileId),
-  );
+  const rpData = route.params?.profileData;
+  const isFetching = false;
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<RiskProfile | null>(null);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
 
   useEffect(() => {
     if (rpData) {
+      const parsedDate = rpData.last_calculated
+        ? new Date(rpData.last_calculated)
+        : null;
+
       const mappedProfile: RiskProfile = {
         id: rpData.id.toString(),
         clientId: rpData.user?.id.toString() || "",
-        clientName: `${rpData.user?.first_name} ${rpData.user?.last_name}`,
-        score: rpData.current_score,
+        clientName:
+          `${rpData.user?.first_name || "Unknown"} ${rpData.user?.last_name || ""}`.trim(),
+        score: rpData.current_score || 0,
         status:
-          rpData.current_score < 40
+          (rpData.current_score || 0) < 40
             ? "low"
-            : rpData.current_score < 70
+            : (rpData.current_score || 0) < 70
               ? "medium"
               : "high",
-        lastAssessmentDate: new Date(
-          rpData.last_calculated,
-        ).toLocaleDateString(),
-        nextReviewDate: new Date(
-          new Date(rpData.last_calculated).setFullYear(
-            new Date(rpData.last_calculated).getFullYear() + 1,
-          ),
-        ).toLocaleDateString(),
+        lastAssessmentDate: parsedDate
+          ? parsedDate.toLocaleDateString()
+          : "N/A",
+        nextReviewDate: parsedDate
+          ? new Date(
+              new Date(parsedDate).setFullYear(parsedDate.getFullYear() + 1),
+            ).toLocaleDateString()
+          : "N/A",
       };
       setProfile(mappedProfile);
 
-      // Attempt to parse history if it's an array
+      // Attempt to parse history safely
       if (Array.isArray(rpData.history)) {
         setAssessments(
           rpData.history.map((h: any, idx: number) => ({
@@ -70,6 +74,8 @@ const RiskProfileDetailsScreen = () => {
             notes: h.notes || "",
           })),
         );
+      } else {
+        setAssessments([]);
       }
       setLoading(false);
     } else if (!isFetching) {

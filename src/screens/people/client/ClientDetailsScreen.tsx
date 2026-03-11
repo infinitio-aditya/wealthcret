@@ -17,12 +17,27 @@ import { useAlert } from "../../../context/AlertContext";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Icon from "react-native-vector-icons/Ionicons";
-import { useRetrieveProspectQuery } from "../../../services/backend/prospectApi";
-import { useGetUserServicesQuery } from "../../../services/backend/userServicesApi";
+import {
+  useRetrieveProspectQuery,
+  useCreateActivityMutation,
+} from "../../../services/backend/prospectApi";
 import { useGetUserDocumentsByIdQuery } from "../../../services/backend/documentsApi";
-import { useGetNomineesQuery } from "../../../services/backend/nomineeApi";
-import { Prospect, Activity } from "../../../types/backend/prospect";
-import { Nominee } from "../../../types/backend/nominee";
+import { useRetrieveOrganizationUsersQuery } from "../../../services/backend/authApi";
+import { useUpdateInviteMutation } from "../../../services/backend/invitationsApi";
+import {
+  useGetUserServicesQuery,
+  useGetServicesQuery,
+  useCreateBulkUserServiceMutation,
+} from "../../../services/backend/userServicesApi";
+import { useAuth } from "../../../context/AuthContext";
+import ThemeDropdown from "../../../components/ui/ThemeDropdown";
+import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
+import { ORG_TYPE_CL } from "../../../types/backend/constants";
+import {
+  Prospect,
+  Activity,
+  ProspectAssociation,
+} from "../../../types/backend/prospect";
 import { UserDocument } from "../../../types/backend/documents";
 import { UserService } from "../../../types/backend/userservices";
 
@@ -35,6 +50,7 @@ const ClientDetailsScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: RouteParams }, "params">>();
+  const { user: currentUser } = useAuth();
   const clientIdString = route.params?.clientId;
   const clientId = clientIdString ? parseInt(clientIdString) : 0;
 
@@ -53,37 +69,150 @@ const ClientDetailsScreen = () => {
   const { data: userDocuments = [], isLoading: loadingDocuments } =
     useGetUserDocumentsByIdQuery(uuid!, { skip: !uuid });
 
-  const { data: allNominees = [], isLoading: loadingNominees } =
-    useGetNomineesQuery(undefined);
+  const { data: familyMembers = [], isLoading: loadingFamily } =
+    useRetrieveOrganizationUsersQuery(uuid!, { skip: !uuid });
+
+  const [createActivity] = useCreateActivityMutation();
+  const [updateInvite] = useUpdateInviteMutation();
+  const [createBulkUserService] = useCreateBulkUserServiceMutation();
+
+  const { data: availableServices = [] } = useGetServicesQuery();
 
   const [activeTab, setActiveTab] = useState<
     "overview" | "services" | "family" | "activities" | "documents"
   >("overview");
 
-  // Placeholder for nominees filtering - since Nominee type in the file doesn't seem to have a user field,
-  // we might need to check if there's a different nominee type or rely on a different query.
-  // For now, let's assume allNominees returned are for the context if any.
-  const clientNominees = allNominees;
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showFamilyModal, setShowFamilyModal] = useState(false);
+  const [showServiceModal, setShowServiceModal] = useState(false);
+
+  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+
+  const [newActivity, setNewActivity] = useState({
+    name: "",
+    details: "",
+    activity_type: "PH", // Default Phone Call
+  });
+
+  const [newNominee, setNewNominee] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    mobile: "",
+    relation_to_admin: 1, // Default Spouse
+  });
+
+  const ACTIVITY_MAP: Record<string, string> = {
+    PH: "Phone Call",
+    EM: "Email",
+    F2F: "Face to Face",
+    Note: "Note",
+  };
 
   const loading =
-    loadingProspect || loadingServices || loadingDocuments || loadingNominees;
+    loadingProspect || loadingServices || loadingDocuments || loadingFamily;
 
-  const handleAddActivity = () => {
-    showAlert(
-      "Info",
-      "Add Activity functionality not yet implemented with API",
-    );
+  const RELATION_MAP: Record<number, string> = {
+    0: "Head of the Family",
+    4: "Father",
+    5: "Mother",
+    6: "Brother",
+    7: "Sister",
+    2: "Son",
+    3: "Daughter",
+    1: "Spouse",
+    99: "Other",
   };
 
-  const handleAddFamily = () => {
-    showAlert(
-      "Info",
-      "Add Family Member functionality not yet implemented with API",
-    );
+  const handleAddActivity = async () => {
+    if (!newActivity.name || !newActivity.details) {
+      showAlert("Warning", "Please fill in all required fields");
+      return;
+    }
+
+    try {
+      await createActivity({
+        id: clientId,
+        activity: {
+          ...newActivity,
+          user: userId,
+        } as any,
+      }).unwrap();
+      setShowActivityModal(false);
+      setNewActivity({ name: "", details: "", activity_type: "PH" });
+      showAlert("Success", "Activity added successfully");
+      refetchProspect();
+    } catch (error) {
+      showAlert("Error", "Failed to add activity");
+    }
   };
 
-  const toggleServiceSelection = (id: string) => {
-    // Logic for toggling
+  const handleAddFamily = async () => {
+    if (!newNominee.first_name || !newNominee.last_name || !newNominee.email) {
+      showAlert(
+        "Warning",
+        "Please fill in all required fields (First Name, Last Name, Email)",
+      );
+      return;
+    }
+
+    try {
+      if (!prospect || !prospect.organization) return;
+      await updateInvite({
+        first_name: newNominee.first_name,
+        last_name: newNominee.last_name,
+        email: newNominee.email,
+        relation_to_admin: newNominee.relation_to_admin,
+        organization: prospect.organization.id.toString(),
+        org_type: ORG_TYPE_CL,
+        referrar: currentUser?.organization?.id.toString(),
+      }).unwrap();
+
+      setShowFamilyModal(false);
+      setNewNominee({
+        first_name: "",
+        last_name: "",
+        email: "",
+        mobile: "",
+        relation_to_admin: 1,
+      });
+      showAlert("Success", "Family member invitation sent successfully");
+      // Note: retrieveOrganizationUsers will need to be refetched to see the new member once they accept
+    } catch (error: any) {
+      showAlert("Error", error?.data?.detail || "Failed to add family member");
+    }
+  };
+
+  const handleAddService = async () => {
+    if (selectedServiceIds.length === 0) {
+      showAlert("Warning", "Please select at least one service");
+      return;
+    }
+
+    try {
+      const servicesToCreate = selectedServiceIds.map((id) => ({
+        service: id,
+        user: userId,
+        status: 1, // Default pending
+      }));
+
+      await createBulkUserService({
+        user_id: userId!,
+        services: servicesToCreate as any,
+      }).unwrap();
+
+      setShowServiceModal(false);
+      setSelectedServiceIds([]);
+      showAlert("Success", "Services assigned successfully");
+    } catch (error) {
+      showAlert("Error", "Failed to assign services");
+    }
+  };
+
+  const toggleServiceSelection = (id: number) => {
+    setSelectedServiceIds((prev) =>
+      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id],
+    );
   };
 
   const formatCurrency = (amount: number) => {
@@ -97,18 +226,18 @@ const ClientDetailsScreen = () => {
 
   const getStatusColor = (status: string) => {
     if (!status) return theme.colors.textSecondary;
-    switch (status.toLowerCase()) {
-      case "active":
+    switch (status.toString()) {
       case "4":
       case "5":
       case "6":
+      case "active":
         return theme.colors.success;
       case "inactive":
         return theme.colors.error;
-      case "pending":
       case "1":
       case "2":
       case "3":
+      case "pending":
         return theme.colors.warning;
       default:
         return theme.colors.textSecondary;
@@ -124,7 +253,7 @@ const ClientDetailsScreen = () => {
       "5": "active",
       "6": "active",
     };
-    return statusMap[status] || status || "pending";
+    return statusMap[status.toString()] || status || "pending";
   };
 
   const styles = StyleSheet.create({
@@ -387,9 +516,23 @@ const ClientDetailsScreen = () => {
                 <Text style={styles.infoValue}>{clientUser.mobile_number}</Text>
               </View>
               <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Date of Birth</Text>
+                <Text style={styles.infoValue}>
+                  {clientUser.dob
+                    ? new Date(clientUser.dob).toLocaleDateString()
+                    : "Not Provided"}
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Role</Text>
+                <Text style={styles.infoValue}>
+                  {clientUser.user_type === 1 ? "Prospect" : "Client"}
+                </Text>
+              </View>
+              <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Organization</Text>
                 <Text style={styles.infoValue}>
-                  {clientUser.organization?.name}
+                  {clientUser.organization?.name || "N/A"}
                 </Text>
               </View>
               <View style={styles.infoRow}>
@@ -405,6 +548,13 @@ const ClientDetailsScreen = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeaderBtn}>
               <Text style={styles.sectionTitle}>Assigned Services</Text>
+              <TouchableOpacity onPress={() => setShowServiceModal(true)}>
+                <Icon
+                  name="add-circle"
+                  size={24}
+                  color={theme.colors.primary}
+                />
+              </TouchableOpacity>
             </View>
             {userServices.length > 0 ? (
               userServices.map((us: UserService) => (
@@ -472,9 +622,16 @@ const ClientDetailsScreen = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeaderBtn}>
               <Text style={styles.sectionTitle}>Family Members (Nominees)</Text>
+              <TouchableOpacity onPress={() => setShowFamilyModal(true)}>
+                <Icon
+                  name="add-circle"
+                  size={24}
+                  color={theme.colors.primary}
+                />
+              </TouchableOpacity>
             </View>
-            {clientNominees.length > 0 ? (
-              clientNominees.map((member: Nominee) => (
+            {familyMembers.length > 0 ? (
+              familyMembers.map((member: ProspectAssociation) => (
                 <Card key={member.id} style={{ marginBottom: 12 }}>
                   <View
                     style={{
@@ -494,7 +651,11 @@ const ClientDetailsScreen = () => {
                       }}
                     >
                       <Icon
-                        name="person"
+                        name={
+                          member.user.gender?.toLowerCase() === "female"
+                            ? "woman"
+                            : "man"
+                        }
                         size={20}
                         color={theme.colors.success}
                       />
@@ -507,7 +668,7 @@ const ClientDetailsScreen = () => {
                           color: theme.colors.text,
                         }}
                       >
-                        {member.first_name} {member.last_name}
+                        {member.user.first_name} {member.user.last_name}
                       </Text>
                       <Text
                         style={{
@@ -515,7 +676,9 @@ const ClientDetailsScreen = () => {
                           color: theme.colors.textSecondary,
                         }}
                       >
-                        {member.relationship} • {member.mobile}
+                        {RELATION_MAP[member.user.relation_to_admin!] ||
+                          "Family Member"}{" "}
+                        • {member.user.mobile_number}
                       </Text>
                     </View>
                   </View>
@@ -539,31 +702,67 @@ const ClientDetailsScreen = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeaderBtn}>
               <Text style={styles.sectionTitle}>Recent Activities</Text>
+              <TouchableOpacity onPress={() => setShowActivityModal(true)}>
+                <Icon
+                  name="add-circle"
+                  size={24}
+                  color={theme.colors.primary}
+                />
+              </TouchableOpacity>
             </View>
             {prospect.activities && prospect.activities.length > 0 ? (
               prospect.activities.map((activity: Activity, index: number) => (
                 <Card key={index} style={styles.activityItem}>
-                  <View style={styles.activityHeader}>
-                    <Text style={styles.activityTitle}>{activity.name}</Text>
-                    <Text style={styles.activityDate}>
-                      {activity.created
-                        ? new Date(activity.created).toLocaleDateString()
-                        : ""}
-                    </Text>
-                  </View>
-                  <Text style={styles.activityDescription}>
-                    {activity.details}
-                  </Text>
-                  <View style={{ marginTop: 8 }}>
-                    <Text
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    <View
                       style={{
-                        fontSize: 10,
-                        color: theme.colors.primary,
-                        textTransform: "uppercase",
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: theme.colors.primary + "20",
+                        justifyContent: "center",
+                        alignItems: "center",
                       }}
                     >
-                      {activity.activity_type}
-                    </Text>
+                      <Icon
+                        name={
+                          activity.activity_type === "PH"
+                            ? "call"
+                            : activity.activity_type === "EM"
+                              ? "mail"
+                              : activity.activity_type === "F2F"
+                                ? "calendar"
+                                : "document-text"
+                        }
+                        size={16}
+                        color={theme.colors.primary}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.activityHeader}>
+                        <Text style={styles.activityTitle}>
+                          {activity.name}
+                        </Text>
+                        <Text style={styles.activityDate}>
+                          {activity.created
+                            ? new Date(activity.created).toLocaleDateString()
+                            : ""}
+                        </Text>
+                      </View>
+                      <Text style={styles.activityDescription}>
+                        {activity.details}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          color: theme.colors.textSecondary,
+                          marginTop: 4,
+                        }}
+                      >
+                        {ACTIVITY_MAP[activity.activity_type] ||
+                          activity.activity_type}
+                      </Text>
+                    </View>
                   </View>
                 </Card>
               ))
@@ -615,6 +814,189 @@ const ClientDetailsScreen = () => {
           </View>
         )}
       </ScrollView>
+
+      {/* Activity Modal */}
+      <ThemeBottomSheet
+        isVisible={showActivityModal}
+        onClose={() => setShowActivityModal(false)}
+        title="Add Activity"
+      >
+        <Text style={styles.label}>Title</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Activity Title"
+          value={newActivity.name}
+          onChangeText={(text) =>
+            setNewActivity({ ...newActivity, name: text })
+          }
+        />
+        <ThemeDropdown
+          label="Activity Type"
+          options={Object.entries(ACTIVITY_MAP).map(([value, label]) => ({
+            label,
+            value,
+          }))}
+          selectedValue={newActivity.activity_type}
+          onValueChange={(value) =>
+            setNewActivity({ ...newActivity, activity_type: value })
+          }
+        />
+        <Text style={styles.label}>Details</Text>
+        <TextInput
+          style={[styles.input, { height: 100, textAlignVertical: "top" }]}
+          placeholder="Details"
+          multiline
+          value={newActivity.details}
+          onChangeText={(text) =>
+            setNewActivity({ ...newActivity, details: text })
+          }
+        />
+        <Button
+          title="Save Activity"
+          onPress={handleAddActivity}
+          style={{ marginTop: 16 }}
+        />
+      </ThemeBottomSheet>
+
+      {/* Family Modal */}
+      <ThemeBottomSheet
+        isVisible={showFamilyModal}
+        onClose={() => setShowFamilyModal(false)}
+        title="Add Family Member"
+      >
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <Text style={styles.label}>First Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="First Name"
+            value={newNominee.first_name}
+            onChangeText={(text) =>
+              setNewNominee({ ...newNominee, first_name: text })
+            }
+          />
+          <Text style={styles.label}>Last Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Last Name"
+            value={newNominee.last_name}
+            onChangeText={(text) =>
+              setNewNominee({ ...newNominee, last_name: text })
+            }
+          />
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={newNominee.email}
+            onChangeText={(text) =>
+              setNewNominee({ ...newNominee, email: text })
+            }
+          />
+          <ThemeDropdown
+            label="Relationship"
+            options={Object.entries(RELATION_MAP).map(([value, label]) => ({
+              label,
+              value: value.toString(),
+            }))}
+            selectedValue={newNominee.relation_to_admin.toString()}
+            onValueChange={(value) =>
+              setNewNominee({
+                ...newNominee,
+                relation_to_admin: parseInt(value),
+              })
+            }
+          />
+          <Text style={styles.label}>Mobile (Optional)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Mobile Number"
+            keyboardType="phone-pad"
+            value={newNominee.mobile}
+            onChangeText={(text) =>
+              setNewNominee({ ...newNominee, mobile: text })
+            }
+          />
+          <Button
+            title="Send Invitation"
+            onPress={handleAddFamily}
+            style={{ marginTop: 16, marginBottom: 24 }}
+          />
+        </ScrollView>
+      </ThemeBottomSheet>
+
+      {/* Service Modal */}
+      <ThemeBottomSheet
+        isVisible={showServiceModal}
+        onClose={() => setShowServiceModal(false)}
+        title="Assign Services"
+      >
+        <ScrollView
+          style={{ maxHeight: 400 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {availableServices.map((service) => (
+            <TouchableOpacity
+              key={service.id}
+              style={[
+                styles.serviceOption,
+                {
+                  borderColor: selectedServiceIds.includes(service.id)
+                    ? theme.colors.primary
+                    : theme.effects.cardBorder,
+                  backgroundColor: selectedServiceIds.includes(service.id)
+                    ? theme.colors.primary + "10"
+                    : "transparent",
+                },
+              ]}
+              onPress={() => toggleServiceSelection(service.id)}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  {
+                    borderColor: selectedServiceIds.includes(service.id)
+                      ? theme.colors.primary
+                      : theme.colors.textSecondary,
+                    backgroundColor: selectedServiceIds.includes(service.id)
+                      ? theme.colors.primary
+                      : "transparent",
+                  },
+                ]}
+              >
+                {selectedServiceIds.includes(service.id) && (
+                  <Icon name="checkmark" size={16} color="#FFF" />
+                )}
+              </View>
+              <View>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: theme.colors.text,
+                  }}
+                >
+                  {service.name}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: theme.colors.textSecondary,
+                  }}
+                >
+                  {service.description}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        <Button
+          title={`Assign ${selectedServiceIds.length} Services`}
+          onPress={handleAddService}
+          style={{ marginTop: 20, marginBottom: 24 }}
+        />
+      </ThemeBottomSheet>
     </View>
   );
 };

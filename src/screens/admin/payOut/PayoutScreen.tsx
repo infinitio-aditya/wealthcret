@@ -10,10 +10,9 @@ import {
   ScrollView,
   SafeAreaView,
 } from "react-native";
-import { useSelector } from "react-redux";
+import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../hooks/useTheme";
 import { useAlert } from "../../../context/AlertContext";
-import { RootState } from "../../../store";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import { PayoutStackParamList } from "../../../navigation/NavigationParams";
@@ -28,10 +27,11 @@ import Input from "../../../components/ui/Input";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import { Payout } from "../../../types";
 import Icon1 from "react-native-vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 
 type NavigationProp = StackNavigationProp<PayoutStackParamList, "Payout">;
+type PayoutEditRouteProp = RouteProp<PayoutStackParamList, "PayoutEdit">;
 
 // Mock data removed in favor of API
 
@@ -39,7 +39,7 @@ const PayoutScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user } = useAuth();
   const [getAdminPayouts] = useLazyGetCommissionForAdminQuery();
   const [searchPayouts] = useLazySearchCommissionQuery();
   const [createPayout] = useCreateCommissionMutation();
@@ -96,7 +96,7 @@ const PayoutScreen = () => {
   const fetchPayouts = async () => {
     setLoading(true);
     try {
-      if (user?.role === "admin") {
+      if (user?.user_type === 0) {
         const response = await getAdminPayouts({
           page: 1,
           page_size: 100,
@@ -123,7 +123,7 @@ const PayoutScreen = () => {
         // For non-admin, we'll show a limited view or just the earnings.
         const mapped: Payout[] = results.map((si: SearchItem, idx: number) => ({
           id: `search-${idx}`,
-          partnerId: user?.id || "",
+          partnerId: String(user?.id || ""),
           partnerName: si.service,
           amount: si.commission,
           status: "completed",
@@ -380,7 +380,7 @@ const PayoutScreen = () => {
       <View style={styles.header}>
         <View style={[styles.row, { marginBottom: 8 }]}>
           <Text style={styles.title}>Payout Management</Text>
-          {user?.role === "admin" && (
+          {user?.user_type === 0 && (
             <View style={styles.headerButtons}>
               <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
                 <Icon1

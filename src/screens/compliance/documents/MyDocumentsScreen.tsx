@@ -10,7 +10,13 @@ import {
   Modal,
   TextInput,
   Dimensions,
+  Linking,
+  Platform,
 } from "react-native";
+import DocumentPicker, {
+  DocumentPickerResponse,
+} from "react-native-document-picker";
+import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../../../hooks/useTheme";
 import { useAlert } from "../../../context/AlertContext";
 import Card from "../../../components/ui/Card";
@@ -24,12 +30,18 @@ import Icon1 from "react-native-vector-icons/Ionicons";
 import {
   useGetUserDocumentsQuery,
   useUploadUserDocumentMutation,
+  useLazyGetPresignedUrlQuery,
 } from "../../../services/backend/documentsApi";
 import { UserDocument } from "../../../types/backend/documents";
+import { DOCUMENT_TYPE_LABEL_MAP } from "../../../types/backend/constants";
 
+import { useSelector } from "react-redux";
+import { RootState } from "../../../store";
 const { width } = Dimensions.get("window");
 
 const MyDocumentsScreen = () => {
+  const navigation = useNavigation<any>();
+  const user = useSelector((state: RootState) => state.auth.user);
   const { showAlert } = useAlert();
   const theme = useTheme();
   const {
@@ -38,21 +50,34 @@ const MyDocumentsScreen = () => {
     refetch,
   } = useGetUserDocumentsQuery();
   const [uploadDocument] = useUploadUserDocumentMutation();
+  const [getPresignedUrl] = useLazyGetPresignedUrlQuery();
   const [documents, setDocuments] = useState<any[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [newDocCategory, setNewDocCategory] = useState("Tax Documents");
+
+  // Upload State
+  const [documentType, setDocumentType] = useState<string>("");
+  const [documentNumber, setDocumentNumber] = useState<string>("");
+  const [documentNumberError, setDocumentNumberError] = useState<string>("");
+  const [file, setFile] = useState<DocumentPickerResponse | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (docsData) {
-      const mapped = docsData.map((d: UserDocument) => ({
-        id: d.id.toString(),
-        name: d.file_name,
-        type: d.file_name?.split(".").pop()?.toUpperCase() || "FILE",
-        size: "0 KB",
-        uploadDate: d.created_at?.split("T")[0] || "",
-        category: d.document_type || "General",
-      }));
+      const mapped = docsData.map((d: UserDocument) => {
+        const typeNum = parseInt(d.document_type as string);
+        const label = DOCUMENT_TYPE_LABEL_MAP[typeNum] || d.document_type;
+        return {
+          id: d.id.toString(),
+          name: d.file_name || label || "Document",
+          type: d.file_name?.split(".").pop()?.toUpperCase() || "FILE",
+          size: "N/A", // API doesn't provide size for user documents directly
+          uploadDate: d.created_at?.split("T")[0] || "N/A",
+          category: label || "General",
+          rawDocType: d.document_type,
+          isUploaded: d.is_uploaded,
+        };
+      });
       setDocuments(mapped);
     }
   }, [docsData]);
@@ -67,18 +92,106 @@ const MyDocumentsScreen = () => {
       ? documents
       : documents.filter((d) => d.category === selectedCategory);
 
-  const handleUpload = async () => {
-    // In a real app, you'd use a file picker. For now, we'll simulate the call with a dummy file.
+  const handleSelectFile = async () => {
     try {
-      // await uploadDocument({ ... }).unwrap();
-      setShowUpload(false);
-      showAlert(
-        "Info",
-        "File picker integration required for real upload. API call prepared.",
-      );
-    } catch (error) {
-      showAlert("Error", "Upload failed");
+      const res = await DocumentPicker.pick({
+        type: [DocumentPicker.types.images],
+      });
+      if (res && res.length > 0) {
+        setFile(res[0]);
+      }
+    } catch (err) {
+      if (!DocumentPicker.isCancel(err)) {
+        showAlert("Error", "Failed to select file");
+      }
     }
+  };
+
+  const handleUpload = async () => {
+    setDocumentNumberError("");
+
+    if (!file || !documentType) {
+      showAlert(
+        "Error",
+        "Please select a file and document type before uploading.",
+      );
+      return;
+    }
+
+    if (documentType === "1") {
+      const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+      if (!panRegex.test(documentNumber.toUpperCase())) {
+        setDocumentNumberError("Invalid PAN number. Format: ABCDE1234F");
+        return;
+      }
+    }
+
+    if (documentType === "2") {
+      const aadhaarRegex = /^\d{12}$/;
+      if (!aadhaarRegex.test(documentNumber)) {
+        setDocumentNumberError(
+          "Invalid Aadhaar number. It should be 12 digits.",
+        );
+        return;
+      }
+    }
+
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+
+      let fileUri = file.uri;
+      if (Platform.OS === "ios" && !fileUri.startsWith("file://")) {
+        fileUri = `file://${fileUri}`;
+      }
+
+      formData.append("file", {
+        uri: fileUri,
+        type: file.type || "application/octet-stream",
+        name: file.name || `upload_${Date.now()}.jpg`,
+      } as any);
+
+      formData.append("document_type", documentType);
+
+      if (documentType !== "3") {
+        formData.append("document_number", documentNumber);
+      } else {
+        formData.append("document_number", "");
+      }
+
+      formData.append("file_name", file.name || `upload_${Date.now()}`);
+
+      await uploadDocument(formData).unwrap();
+
+      showAlert("Success", "File uploaded successfully!");
+      setShowUpload(false);
+
+      // Reset upload state
+      setFile(null);
+      setDocumentType("");
+      setDocumentNumber("");
+
+      refetch();
+    } catch (error) {
+      console.error("Upload failed", error);
+      showAlert("Error", "Upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const disableUploadButton =
+    isUploading ||
+    !file ||
+    !documentType ||
+    (documentType !== "3" && !documentNumber);
+
+  const handleViewDocument = (item: any) => {
+    navigation.navigate("ViewDocument", {
+      uuid: (user as any)?.uuid || (user as any)?.id || "",
+      documentType: item.rawDocType,
+      fileName: item.name,
+    });
   };
 
   const stats = [
@@ -189,23 +302,69 @@ const MyDocumentsScreen = () => {
         <TouchableOpacity
           style={[
             styles.actionBtn,
-            { backgroundColor: theme.colors.primary + "10" },
+            {
+              backgroundColor: item.isUploaded
+                ? theme.colors.primary + "10"
+                : theme.colors.textSecondary + "10",
+            },
           ]}
+          onPress={() => item.isUploaded && handleViewDocument(item)}
+          disabled={!item.isUploaded}
         >
-          <Icon name="eye" size={16} color={theme.colors.primary} />
-          <Text style={[styles.actionBtnText, { color: theme.colors.primary }]}>
+          <Icon
+            name="eye"
+            size={16}
+            color={
+              item.isUploaded
+                ? theme.colors.primary
+                : theme.colors.textSecondary
+            }
+          />
+          <Text
+            style={[
+              styles.actionBtnText,
+              {
+                color: item.isUploaded
+                  ? theme.colors.primary
+                  : theme.colors.textSecondary,
+              },
+            ]}
+          >
             View
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.actionBtn,
-            { backgroundColor: theme.colors.success + "10" },
+            {
+              backgroundColor: item.isUploaded
+                ? theme.colors.success + "10"
+                : theme.colors.textSecondary + "10",
+            },
           ]}
+          onPress={() => item.isUploaded && handleViewDocument(item)}
+          disabled={!item.isUploaded}
         >
-          <Icon name="download" size={16} color={theme.colors.success} />
-          <Text style={[styles.actionBtnText, { color: theme.colors.success }]}>
-            Get
+          <Icon
+            name="download"
+            size={16}
+            color={
+              item.isUploaded
+                ? theme.colors.success
+                : theme.colors.textSecondary
+            }
+          />
+          <Text
+            style={[
+              styles.actionBtnText,
+              {
+                color: item.isUploaded
+                  ? theme.colors.success
+                  : theme.colors.textSecondary,
+              },
+            ]}
+          >
+            Open
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -542,40 +701,118 @@ const MyDocumentsScreen = () => {
 
       <ThemeBottomSheet
         isVisible={showUpload}
-        onClose={() => setShowUpload(false)}
+        onClose={() => {
+          setShowUpload(false);
+          setFile(null);
+          setDocumentType("");
+          setDocumentNumber("");
+          setDocumentNumberError("");
+        }}
         title="Upload Document"
       >
         <ThemeDropdown
-          label="Category"
+          label="Document Type"
           options={[
-            { label: "Tax Documents", value: "Tax Documents" },
-            { label: "Agreements", value: "Agreements" },
-            { label: "Identity", value: "Identity" },
-            { label: "Financial", value: "Financial" },
-            { label: "Insurance", value: "Insurance" },
+            { label: "Select Document Type", value: "" },
+            { label: "PAN Card", value: "1" },
+            { label: "Aadhaar Card", value: "2" },
+            { label: "Cancelled Cheque/Bank Statement/Passbook", value: "3" },
           ]}
-          selectedValue={newDocCategory}
-          onValueChange={(value) => setNewDocCategory(value)}
+          selectedValue={documentType}
+          onValueChange={(value) => setDocumentType(value)}
         />
 
-        <TouchableOpacity style={styles.dropZone} activeOpacity={0.7}>
+        {documentType !== "3" && documentType !== "" && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Document Number</Text>
+            <View style={[styles.pickerBox, { padding: 4 }]}>
+              <TextInput
+                style={{
+                  color: theme.colors.text,
+                  paddingHorizontal: 16,
+                  height: 48,
+                }}
+                placeholderTextColor={theme.colors.textSecondary}
+                placeholder="Enter document number"
+                value={documentNumber}
+                onChangeText={(text) => {
+                  if (documentType === "1") {
+                    setDocumentNumber(text.toUpperCase());
+                  } else {
+                    setDocumentNumber(text);
+                  }
+                  setDocumentNumberError("");
+                }}
+              />
+            </View>
+            {!!documentNumberError && (
+              <Text
+                style={{
+                  color: theme.colors.error,
+                  fontSize: 12,
+                  marginTop: 4,
+                  marginLeft: 8,
+                }}
+              >
+                {documentNumberError}
+              </Text>
+            )}
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={styles.dropZone}
+          activeOpacity={0.7}
+          onPress={handleSelectFile}
+        >
           <IoIcon name="cloud-upload" size={44} color={theme.colors.primary} />
-          <Text style={styles.dropZoneTitle}>Select Document</Text>
-          <Text style={styles.dropZoneSub}>PDF, DOC, JPG up to 10MB</Text>
+          {file ? (
+            <View style={{ alignItems: "center" }}>
+              <Text style={styles.dropZoneTitle} numberOfLines={1}>
+                {file.name}
+              </Text>
+              <Text style={styles.dropZoneSub}>
+                {(file.size ? file.size / 1024 : 0).toFixed(2)} KB
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.dropZoneTitle}>Select Document</Text>
+              <Text style={styles.dropZoneSub}>
+                Tap to selectively pick an image
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
+
+        {isUploading && (
+          <ActivityIndicator
+            size="small"
+            color={theme.colors.primary}
+            style={{ marginBottom: 15 }}
+          />
+        )}
 
         <View style={[styles.modalFooter, { marginBottom: 20 }]}>
           <Button
             title="Cancel"
-            onPress={() => setShowUpload(false)}
+            onPress={() => {
+              setShowUpload(false);
+              setFile(null);
+              setDocumentType("");
+              setDocumentNumber("");
+              setDocumentNumberError("");
+            }}
             variant="secondary"
             style={{ flex: 1 }}
+            disabled={isUploading}
           />
           <Button
-            title="Upload Now"
+            title={isUploading ? "Uploading..." : "Upload Now"}
             onPress={handleUpload}
             variant="primary"
             style={{ flex: 2 }}
+            disabled={disableUploadButton}
           />
         </View>
       </ThemeBottomSheet>

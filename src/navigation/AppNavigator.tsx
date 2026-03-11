@@ -1,13 +1,9 @@
 import React from "react";
 import { View, ActivityIndicator } from "react-native";
 import { createStackNavigator } from "@react-navigation/stack";
-import { useSelector, useDispatch } from "react-redux";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { RootState } from "../store";
-import { setToken, setUser } from "../store/slices/authSlice";
+import { useAuth } from "../context/AuthContext";
 import LoginScreen from "../screens/preAuth/LoginScreen";
 import MainDrawerNavigator from "./drawer/MainDrawerNavigator";
-
 import ForgotPasswordScreen from "../screens/preAuth/ForgotPasswordScreen";
 import OTPVerificationScreen from "../screens/preAuth/OTPVerificationScreen";
 import ResetPasswordScreen from "../screens/preAuth/ResetPasswordScreen";
@@ -23,32 +19,7 @@ export type RootStackParamList = {
 const Stack = createStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
-  const dispatch = useDispatch();
-  const [isInitializing, setIsInitializing] = React.useState(true);
-  const isAuthenticated = useSelector(
-    (state: RootState) => state.auth.isAuthenticated,
-  );
-
-  React.useEffect(() => {
-    const hydrateAuth = async () => {
-      try {
-        const token = await AsyncStorage.getItem("token");
-        const userStr = await AsyncStorage.getItem("user");
-
-        if (token && userStr) {
-          const user = JSON.parse(userStr);
-          dispatch(setToken(token));
-          dispatch(setUser(user));
-        }
-      } catch (error) {
-        console.error("Re-hydration failed:", error);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-
-    hydrateAuth();
-  }, [dispatch]);
+  const { isLoggedIn: isAuthenticated, loading: isInitializing } = useAuth();
 
   if (isInitializing) {
     return (

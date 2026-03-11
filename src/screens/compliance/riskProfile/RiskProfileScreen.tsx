@@ -14,6 +14,7 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "../../../store";
 import { useTheme } from "../../../hooks/useTheme";
+import { ORG_TYPE_CL } from "../../../types/backend/constants";
 import { useAlert } from "../../../context/AlertContext";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
@@ -43,7 +44,7 @@ const RiskProfileScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<any>();
   const user = useSelector((state: RootState) => state.auth.user) as any;
-  const isClient = user?.type === "client"; // Adjusting to 'type' based on authApi types
+  const isClient = user?.organization?.org_type?.toString() === ORG_TYPE_CL;
 
   const [showAssessment, setShowAssessment] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -127,6 +128,7 @@ const RiskProfileScreen = () => {
         : "N/A",
       referralPartner: rp.user?.organization?.name || "None",
       assignedSP: "Advisor",
+      rawProfile: rp,
     })) || [];
 
   const filteredProfiles = profiles.filter((p) => {
@@ -150,9 +152,9 @@ const RiskProfileScreen = () => {
     setAnswers([]);
   };
 
-  const handleAnswerSelect = (optionScore: number) => {
+  const handleAnswerSelect = (optionId: number) => {
     const newAnswers = [...answers];
-    newAnswers[currentQuestion] = optionScore;
+    newAnswers[currentQuestion] = optionId;
     setAnswers(newAnswers);
   };
 
@@ -240,7 +242,7 @@ const RiskProfileScreen = () => {
         <View style={styles.optionsContainer}>
           {((qData && qData[currentQuestion]?.options) || []).map(
             (option, idx) => {
-              const isSelected = answers[currentQuestion] === option.value;
+              const isSelected = answers[currentQuestion] === option.id;
               return (
                 <TouchableOpacity
                   key={option.id}
@@ -255,7 +257,7 @@ const RiskProfileScreen = () => {
                         : theme.colors.surface,
                     },
                   ]}
-                  onPress={() => handleAnswerSelect(option.value)}
+                  onPress={() => handleAnswerSelect(option.id)}
                 >
                   <View
                     style={[
@@ -509,7 +511,10 @@ const RiskProfileScreen = () => {
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={() =>
-              navigation.navigate("RiskProfileDetails", { profileId: item.id })
+              navigation.navigate("RiskProfileDetails", {
+                profileId: item.id,
+                profileData: item.rawProfile,
+              })
             }
           >
             <Card

@@ -21,6 +21,7 @@ import Input from "../../../components/ui/Input";
 import { Payout } from "../../../types";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { PayoutStackParamList } from "../../../navigation/NavigationParams";
+import { useAuth } from "../../../context/AuthContext";
 import {
   useGetCommissionQuery,
   useUpdateCommissionMutation,
@@ -54,6 +55,7 @@ interface Service {
 const PayoutEditScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
+  const { user } = useAuth();
   const route =
     useRoute<RouteProp<{ PayoutEdit: { payoutId: string } }, "PayoutEdit">>();
   const navigation = useNavigation<NavigationProp>();

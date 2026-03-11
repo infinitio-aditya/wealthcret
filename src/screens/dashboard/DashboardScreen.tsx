@@ -7,20 +7,28 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useSelector } from "react-redux";
-import { RootState } from "../../store";
+import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
 import NewsCard from "../../components/NewsCard";
 import Chart from "../../components/Chart";
+import Header from "../../components/Header";
+import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import { useGetUserAggregatedDataQuery } from "../../services/backend/dashboardApi";
 import { useGetNewsQuery } from "../../services/backend/newsApi";
 import { NewsItem } from "../../types";
+import {
+  ORG_TYPE_AD,
+  ORG_TYPE_RP,
+  ORG_TYPE_SP,
+  ORG_TYPE_CL,
+} from "../../types/backend/constants";
 
 import LinearGradient from "react-native-linear-gradient";
 
 const DashboardScreen = () => {
   const theme = useTheme();
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user } = useAuth();
   const navigation = useNavigation<any>();
 
   const { data: dashboardData, isLoading: isDashboardLoading } =
@@ -38,7 +46,7 @@ const DashboardScreen = () => {
         : hour < 18
           ? "Good Afternoon"
           : "Good Evening";
-    return `${greeting}, ${user?.name?.split(" ")[0]}!`;
+    return `${greeting}, ${user?.first_name}!`;
   };
 
   const styles = StyleSheet.create({
@@ -119,8 +127,8 @@ const DashboardScreen = () => {
   });
 
   const getMetrics = () => {
-    switch (user?.role) {
-      case "admin":
+    switch (user?.user_type?.toString()) {
+      case ORG_TYPE_AD:
         return [
           {
             label: "Total Organizations",
@@ -137,8 +145,8 @@ const DashboardScreen = () => {
             icon: "alert-circle",
           },
         ];
-      case "service_provider":
-      case "referral_partner":
+      case ORG_TYPE_SP:
+      case ORG_TYPE_RP:
         return [
           {
             label: "Total Clients",
@@ -165,7 +173,7 @@ const DashboardScreen = () => {
             icon: "cash",
           },
         ];
-      case "client":
+      case ORG_TYPE_CL:
         return [
           {
             label: "Portfolio Value",
@@ -193,13 +201,13 @@ const DashboardScreen = () => {
   };
 
   const getHeroDescription = () => {
-    switch (user?.role) {
-      case "admin":
+    switch (user?.user_type?.toString()) {
+      case ORG_TYPE_AD:
         return "Manage your organization, review requests, and oversee operations.";
-      case "service_provider":
-      case "referral_partner":
+      case ORG_TYPE_SP:
+      case ORG_TYPE_RP:
         return "Track your clients, manage prospects, and grow your business.";
-      case "client":
+      case ORG_TYPE_CL:
         return "Monitor your portfolio, view documents, and stay informed.";
       default:
         return "";
@@ -208,8 +216,59 @@ const DashboardScreen = () => {
 
   const metrics = getMetrics();
 
+  const getChartData = (key: "earnings" | "revenue") => {
+    if (!dashboardData?.history || dashboardData.history.length === 0) {
+      return {
+        labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+        datasets: [{ data: [0, 0, 0, 0, 0, 0] }],
+      };
+    }
+
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    // Take last 6 months or all if less
+    const history = [...dashboardData.history].slice(-6);
+
+    return {
+      labels: history.map((h) => monthNames[h.month - 1] || `${h.month}`),
+      datasets: [
+        {
+          data: history.map((h) => h[key] || 0),
+        },
+      ],
+    };
+  };
+
   return (
     <View style={styles.container}>
+      {/* <Header
+        title="Dashboard"
+        rightElement={
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Notifications")}
+            style={{ padding: 4 }}
+          >
+            <Icon
+              name="notifications-outline"
+              size={24}
+              color={theme.colors.text}
+            />
+          </TouchableOpacity>
+        }
+      /> */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -275,15 +334,12 @@ const DashboardScreen = () => {
         {/* Analytics Section */}
         <Text style={styles.sectionTitle}>Analytics</Text>
         <View style={styles.chartsContainer}>
-          {user?.role === "client" && (
+          {user?.organization?.org_type?.toString() === ORG_TYPE_CL && (
             <>
               <Chart
                 type="line"
-                title="Portfolio Growth"
-                data={{
-                  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-                  datasets: [{ data: [20, 45, 28, 80, 99, 43] }],
-                }}
+                title="Historical Growth"
+                data={getChartData("earnings")}
               />
               <Chart
                 type="pie"
@@ -317,44 +373,32 @@ const DashboardScreen = () => {
               />
             </>
           )}
-          {(user?.role === "service_provider" ||
-            user?.role === "referral_partner") && (
+          {(user?.organization?.org_type?.toString() === ORG_TYPE_SP ||
+            user?.organization?.org_type?.toString() === ORG_TYPE_RP) && (
             <>
               <Chart
                 type="bar"
-                title="Clients"
-                data={{
-                  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-                  datasets: [{ data: [20, 45, 28, 80, 99, 43] }],
-                }}
+                title="Growth Trend"
+                data={getChartData("earnings")}
               />
               <Chart
                 type="line"
-                title="Total AUM Growth"
-                data={{
-                  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-                  datasets: [{ data: [15, 30, 45, 60, 75, 90] }],
-                }}
+                title="Revenue Trend"
+                data={getChartData("revenue")}
               />
             </>
           )}
-          {user?.role === "admin" && (
+          {user?.organization?.org_type?.toString() === ORG_TYPE_AD && (
             <>
               <Chart
                 type="bar"
-                title="Revenue"
-                data={{
-                  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-                  datasets: [{ data: [80, 90, 100, 110, 120, 130] }],
-                }}
+                title="Revenue Trend"
+                data={getChartData("revenue")}
               />
               <Chart
                 type="line"
-                title="Organization Growth"
-                data={{
-                  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-                  datasets: [{ data: [210, 218, 225, 232, 239, 247] }],
-                }}
+                title="Growth Trend"
+                data={getChartData("earnings")}
               />
             </>
           )}
