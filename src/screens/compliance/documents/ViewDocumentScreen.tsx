@@ -59,6 +59,9 @@ const ViewDocumentScreen = () => {
     try {
       setLoading(true);
       setError(null);
+      setLocalPath(null);
+
+      console.log("Starting fetchDocument for:", remoteUrl);
 
       const dirs = ReactNativeBlobUtil.fs.dirs;
       const originalExtension =
@@ -67,27 +70,39 @@ const ViewDocumentScreen = () => {
 
       console.log("Fetching to path:", path);
 
-      const res = await ReactNativeBlobUtil.config({
+      const fetchPromise = ReactNativeBlobUtil.config({
         fileCache: true,
         path: path,
       }).fetch("GET", remoteUrl, {
         Authorization: `Bearer ${token}`,
       });
 
+      // Add a 30s timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Request timed out after 30 seconds")), 30000)
+      );
+
+      const res = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
       const status = res.info().status;
       console.log("Fetch Status:", status);
+      console.log("Response Type:", res.info().headers['content-type'] || 'unknown');
 
       if (status === 200) {
         const filePath =
           Platform.OS === "ios" ? res.path() : `file://${res.path()}`;
+        console.log("Setting localPath to:", filePath);
         setLocalPath(filePath);
       } else {
-        setError(`Failed to fetch document (Status: ${status})`);
+        const errorMsg = `Failed to fetch document (Status: ${status})`;
+        console.warn(errorMsg);
+        setError(errorMsg);
       }
     } catch (err: any) {
       console.error("Fetch document error:", err);
-      setError("Failed to fetch document");
+      setError(err?.message || "Failed to fetch document");
     } finally {
+      console.log("Fetch cycle completed, loading set to false");
       setLoading(false);
     }
   };

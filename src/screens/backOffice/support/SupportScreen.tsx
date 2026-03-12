@@ -12,19 +12,21 @@ import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/Feather";
 import { useTheme } from "../../../hooks/useTheme";
 import Icon1 from "react-native-vector-icons/Ionicons";
-import { Ticket, TicketMessage } from "../../../types";
-import LinearGradient from "react-native-linear-gradient";
 import {
   useLazyGetSupportTicketsQuery,
   useGetSupportDashboardQuery,
 } from "../../../services/backend/supportApi";
 import { SupportTicket } from "../../../types/backend/support";
+import { ORG_TYPE_CL } from "../../../types/backend/constants";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../store";
 
 const SupportScreen = () => {
+  const user = useSelector((state: RootState) => state.auth.user);
   const theme = useTheme();
   const navigation = useNavigation<any>();
   const [refreshing, setRefreshing] = useState(false);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
 
   const [getTickets, { isFetching }] = useLazyGetSupportTicketsQuery();
   const { data: dashboardStats, refetch: refetchStats } =
@@ -33,37 +35,7 @@ const SupportScreen = () => {
   const fetchTickets = async () => {
     try {
       const response = await getTickets({ page: 1, page_size: 100 }).unwrap();
-
-      const mappedTickets: Ticket[] = response.results.map(
-        (st: SupportTicket) => {
-          const statusMap: Record<number, Ticket["status"]> = {
-            0: "open",
-            1: "pending" as any, // backend pending -> mobile in-progress?
-            2: "resolved",
-            3: "closed",
-          };
-
-          return {
-            id: st.id.toString(),
-            organizationId: st.assigned_to_org
-              ? st.assigned_to_org.toString()
-              : "",
-            organizationName: st.user?.organization?.name || "Unknown Org",
-            title: st.title,
-            description: st.description,
-            status: (statusMap[st.status] || "open") as Ticket["status"],
-            priority: "medium", // Backend SupportTicket doesn't seem to have priority? Defaulting to medium
-            createdBy:
-              `${st.user?.first_name || ""} ${st.user?.last_name || ""}`.trim() ||
-              "Unknown",
-            assignedTo: st.assigned_to_user,
-            createdAt: st.created,
-            messages: [], // Messages are fetched separately in details screen
-          };
-        },
-      );
-
-      setTickets(mappedTickets);
+      setTickets(response.results);
     } catch (error) {
       console.error("Failed to fetch tickets:", error);
     }
@@ -80,31 +52,28 @@ const SupportScreen = () => {
     setRefreshing(false);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: number) => {
     switch (status) {
-      case "open":
+      case 0: // open
         return theme.colors.info;
-      case "in-progress":
+      case 1: // pending/in-progress
         return theme.colors.warning;
-      case "resolved":
+      case 2: // resolved
         return theme.colors.success;
-      case "closed":
+      case 3: // closed
         return theme.colors.textSecondary;
       default:
         return theme.colors.textSecondary;
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return theme.colors.error;
-      case "medium":
-        return theme.colors.warning;
-      case "low":
-        return theme.colors.success;
-      default:
-        return theme.colors.textSecondary;
+  const getStatusLabel = (status: number) => {
+    switch (status) {
+      case 0: return "Open";
+      case 1: return "In Progress";
+      case 2: return "Resolved";
+      case 3: return "Closed";
+      default: return "Unknown";
     }
   };
 
@@ -121,7 +90,7 @@ const SupportScreen = () => {
     },
     {
       label: "Resolved",
-      count: tickets.filter((t) => t.status === "resolved").length, // Backend dashboard doesn't have resolved?
+      count: tickets.filter((t) => t.status === 2).length,
       color: theme.colors.success,
     },
     {
@@ -152,11 +121,15 @@ const SupportScreen = () => {
                         <Text style={styles.newTicketText}>New Ticket</Text>
                     </LinearGradient>
                 </TouchableOpacity> */}
-        <View style={styles.headerButtons}>
-          <TouchableOpacity onPress={() => navigation.navigate("CreateTicket")}>
-            <Icon1 name="add-circle" size={32} color={theme.colors.primary} />
-          </TouchableOpacity>
-        </View>
+        {user?.organization?.org_type === ORG_TYPE_CL && (
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("CreateTicket")}
+            >
+              <Icon1 name="add-circle" size={32} color={theme.colors.primary} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       <View style={styles.statsGrid}>
@@ -172,87 +145,68 @@ const SupportScreen = () => {
     </View>
   );
 
-  const renderTicket = ({ item }: { item: Ticket }) => (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={() =>
-        navigation.navigate("TicketDetails", { ticketId: item.id })
-      }
-    >
-      <View
-        style={[
-          styles.ticketCard,
-          { borderLeftColor: getStatusColor(item.status) },
-        ]}
-      >
-        <View style={styles.ticketHeader}>
-          <Text style={styles.ticketTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <View style={styles.messageBadge}>
-            <Icon
-              name="message-square"
-              size={14}
-              color={theme.colors.textSecondary}
-            />
-            <Text style={styles.messageCount}>{item.messages.length}</Text>
-          </View>
-        </View>
+  const renderTicket = ({ item }: { item: SupportTicket }) => {
+    const creatorName = `${item.user?.first_name || ""} ${item.user?.last_name || ""}`.trim() || "Unknown";
+    const orgName = item.user?.organization?.name || "Unknown Org";
 
-        <View style={styles.badgesContainer}>
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: getStatusColor(item.status) + "20" },
-            ]}
-          >
-            {/* Feather doesn't have all exact filled icons, using simple mapping or just text */}
-            <Text
-              style={[styles.badgeText, { color: getStatusColor(item.status) }]}
-            >
-              {item.status.replace("-", " ")}
+    return (
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() =>
+          navigation.navigate("TicketDetails", { ticketId: item.id.toString() })
+        }
+      >
+        <View
+          style={[
+            styles.ticketCard,
+            { borderLeftColor: getStatusColor(item.status) },
+          ]}
+        >
+          <View style={styles.ticketHeader}>
+            <Text style={styles.ticketTitle} numberOfLines={2}>
+              {item.title}
             </Text>
           </View>
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: getPriorityColor(item.priority) + "20" },
-            ]}
-          >
-            <Text
+
+          <View style={styles.badgesContainer}>
+            <View
               style={[
-                styles.badgeText,
-                { color: getPriorityColor(item.priority) },
+                styles.badge,
+                { backgroundColor: getStatusColor(item.status) + "20" },
               ]}
             >
-              {item.priority}
+              <Text
+                style={[styles.badgeText, { color: getStatusColor(item.status) }]}
+              >
+                {getStatusLabel(item.status)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ marginBottom: 12 }}>
+            <Text style={styles.ticketDescription} numberOfLines={1}>
+              Created by: {creatorName}
+            </Text>
+            <Text style={styles.ticketDescription} numberOfLines={1}>
+              Assigned to: {item.assigned_to_user || "Unassigned"}
+            </Text>
+          </View>
+
+          <View style={styles.ticketFooter}>
+            <Text style={styles.footerText}>#{item.id}</Text>
+            <Text style={styles.footerDot}>•</Text>
+            <Text style={[styles.footerText, { flex: 1 }]} numberOfLines={1}>
+              {orgName}
+            </Text>
+            <Text style={styles.footerDot}>•</Text>
+            <Text style={styles.footerText}>
+              {new Date(item.created).toLocaleDateString()}
             </Text>
           </View>
         </View>
-
-        <View style={{ marginBottom: 12 }}>
-          <Text style={styles.ticketDescription} numberOfLines={1}>
-            Created by: {item.createdBy}
-          </Text>
-          <Text style={styles.ticketDescription} numberOfLines={1}>
-            Assigned to: {item.assignedTo || "Unassigned"}
-          </Text>
-        </View>
-
-        <View style={styles.ticketFooter}>
-          <Text style={styles.footerText}>#{item.id}</Text>
-          <Text style={styles.footerDot}>•</Text>
-          <Text style={[styles.footerText, { flex: 1 }]} numberOfLines={1}>
-            {item.organizationName}
-          </Text>
-          <Text style={styles.footerDot}>•</Text>
-          <Text style={styles.footerText}>
-            {new Date(item.createdAt).toLocaleDateString()}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -403,7 +357,7 @@ const SupportScreen = () => {
       <FlatList
         data={tickets}
         renderItem={renderTicket}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={renderHeader}
         refreshControl={

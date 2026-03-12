@@ -14,11 +14,11 @@ import { useNavigation } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../../hooks/useTheme";
 import { useAlert } from "../../context/AlertContext";
-import { mapCustomUserToUser } from "../../utils/userUtils";
+
 import { setUser, setToken } from "../../store/slices/authSlice";
 import { useAuth } from "../../context/AuthContext";
 import { useLoginMutation } from "../../services/backend/authApi";
-import { User, UserRole } from "../../types";
+import { UserRole } from "../../types";
 
 const LoginScreen = () => {
   const { showAlert } = useAlert();
@@ -39,13 +39,11 @@ const LoginScreen = () => {
     try {
       const response = await login({ email, password }).unwrap();
 
-      const mappedUser = mapCustomUserToUser(response.user);
-
-      dispatch(setUser(mappedUser));
+      dispatch(setUser(response.user));
       dispatch(setToken(response.token));
 
       await AsyncStorage.setItem("token", response.token);
-      await AsyncStorage.setItem("user", JSON.stringify(mappedUser));
+      await AsyncStorage.setItem("user", JSON.stringify(response.user));
 
       authContextLogin(response.user);
     } catch (error: any) {

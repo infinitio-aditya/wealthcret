@@ -17,6 +17,7 @@ interface ButtonProps {
   loading?: boolean;
   fullWidth?: boolean;
   style?: any;
+  color?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -27,6 +28,7 @@ const Button: React.FC<ButtonProps> = ({
   loading = false,
   fullWidth = false,
   style,
+  color,
 }) => {
   const theme = useTheme();
 
@@ -52,7 +54,7 @@ const Button: React.FC<ButtonProps> = ({
     outline: {
       backgroundColor: "transparent",
       borderWidth: 2,
-      borderColor: theme.colors.primary,
+      borderColor: color || theme.colors.primary,
     },
     text: {
       fontSize: 16,
@@ -63,7 +65,7 @@ const Button: React.FC<ButtonProps> = ({
       color: theme.colors.text,
     },
     outlineText: {
-      color: theme.colors.primary,
+      color: color || theme.colors.primary,
     },
   });
 

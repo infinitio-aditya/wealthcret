@@ -27,3 +27,18 @@ export interface RiskProfileResponse {
   previous: string | null;
   results: RiskProfile[];
 }
+export interface Assessment {
+  id: string;
+  score: number;
+  date: string;
+  status: 'Conservative' | 'Moderate' | 'Aggressive' | 'Assessment Not taken yet';
+  assessedBy: string;
+  notes: string;
+}
+
+export const getScoreText = (value: number) => {
+  if (value === 0) {return 'Assessment Not taken yet';}
+  if (value <= 22) {return 'Conservative';}
+  if (value >= 23 && value <= 32) {return 'Moderate';}
+  return 'Aggressive';
+};

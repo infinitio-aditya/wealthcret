@@ -24,6 +24,11 @@ import {
   SupportTicket,
   SupportTicketMessage as BackendMessage,
 } from "../../../types/backend/support";
+import {
+  ORG_TYPE_AD,
+  ORG_TYPE_RP,
+  ORG_TYPE_SP,
+} from "../../../types/backend/constants";
 import Icon from "react-native-vector-icons/Feather";
 import { useTheme } from "../../../hooks/useTheme";
 import LinearGradient from "react-native-linear-gradient";
@@ -448,13 +453,14 @@ const TicketDetailsScreen = () => {
         <View style={styles.content}>
           {renderStatusProgress()}
 
-          {user?.user_type === 0 && (
+          {(user?.organization?.org_type === ORG_TYPE_SP ||
+            user?.organization?.org_type === ORG_TYPE_RP) && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Ticket Management</Text>
               <ThemeDropdown
                 label="Assign User"
                 options={spOptions}
-                selectedValue={ticket?.assigned_to_user || ""}
+                selectedValue={ticket.assigned_to_user || ""}
                 onValueChange={async (value) => {
                   try {
                     await updateTicket({
@@ -523,9 +529,7 @@ const TicketDetailsScreen = () => {
             <View style={[styles.detailRow, { width: "50%" }]}>
               <Text style={styles.detailLabel}>Assigned To</Text>
               <Text style={styles.detailValue}>
-                {organizationUsers?.find(
-                  (u) => u.id.toString() === ticket.assigned_to_user,
-                )?.first_name || "Unassigned"}
+                {ticket.assigned_to_user || "Unassigned"}
               </Text>
             </View>
 

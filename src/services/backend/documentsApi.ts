@@ -117,7 +117,8 @@ export const documentsApi = createApi({
         url: `/api/documents/user/${uuid}/${document.id}/`,
         method: 'PATCH',
         data: document
-      }) 
+      }),
+      invalidatesTags: ['documents']
     }),
 
   })

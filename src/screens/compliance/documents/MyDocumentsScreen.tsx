@@ -186,6 +186,12 @@ const MyDocumentsScreen = () => {
     !documentType ||
     (documentType !== "3" && !documentNumber);
 
+  const handleUploadPress = (item: any) => {
+    setDocumentType(item.rawDocType);
+    setDocumentNumber("");
+    setShowUpload(true);
+  };
+
   const handleViewDocument = (item: any) => {
     navigation.navigate("ViewDocument", {
       uuid: (user as any)?.uuid || (user as any)?.id || "",
@@ -268,24 +274,17 @@ const MyDocumentsScreen = () => {
             </View>
           </View>
         </View>
-        <TouchableOpacity style={styles.moreBtn}>
-          <Icon
-            name="more-vertical"
-            size={20}
-            color={theme.colors.textSecondary}
-          />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.docMetaRow}>
         <View style={styles.metaItem}>
           <Icon
-            name="database"
+            name="file-text"
             size={12}
             color={theme.colors.textSecondary}
             style={{ marginRight: 4 }}
           />
-          <Text style={styles.docMetaText}>{item.size}</Text>
+          <Text style={styles.docMetaText}>{item.category}</Text>
         </View>
         <View style={styles.metaItem}>
           <Icon
@@ -299,82 +298,43 @@ const MyDocumentsScreen = () => {
       </View>
 
       <View style={styles.docActions}>
-        <TouchableOpacity
-          style={[
-            styles.actionBtn,
-            {
-              backgroundColor: item.isUploaded
-                ? theme.colors.primary + "10"
-                : theme.colors.textSecondary + "10",
-            },
-          ]}
-          onPress={() => item.isUploaded && handleViewDocument(item)}
-          disabled={!item.isUploaded}
-        >
-          <Icon
-            name="eye"
-            size={16}
-            color={
-              item.isUploaded
-                ? theme.colors.primary
-                : theme.colors.textSecondary
-            }
-          />
-          <Text
+        {item.isUploaded ? (
+          <TouchableOpacity
             style={[
-              styles.actionBtnText,
-              {
-                color: item.isUploaded
-                  ? theme.colors.primary
-                  : theme.colors.textSecondary,
-              },
+              styles.actionBtn,
+              { backgroundColor: theme.colors.primary + "10" },
             ]}
+            onPress={() => handleViewDocument(item)}
           >
-            View
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.actionBtn,
-            {
-              backgroundColor: item.isUploaded
-                ? theme.colors.success + "10"
-                : theme.colors.textSecondary + "10",
-            },
-          ]}
-          onPress={() => item.isUploaded && handleViewDocument(item)}
-          disabled={!item.isUploaded}
-        >
-          <Icon
-            name="download"
-            size={16}
-            color={
-              item.isUploaded
-                ? theme.colors.success
-                : theme.colors.textSecondary
-            }
-          />
-          <Text
+            <Icon name="eye" size={16} color={theme.colors.primary} />
+            <Text
+              style={[
+                styles.actionBtnText,
+                { color: theme.colors.primary },
+              ]}
+            >
+              View
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
             style={[
-              styles.actionBtnText,
-              {
-                color: item.isUploaded
-                  ? theme.colors.success
-                  : theme.colors.textSecondary,
-              },
+              styles.actionBtn,
+              { backgroundColor: theme.colors.success + "10" },
             ]}
+            onPress={() => handleUploadPress(item)}
           >
-            Open
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.actionBtn,
-            { backgroundColor: theme.colors.error + "10" },
-          ]}
-        >
-          <Icon name="trash-2" size={16} color={theme.colors.error} />
-        </TouchableOpacity>
+            <Icon name="upload" size={16} color={theme.colors.success} />
+            <Text
+              style={[
+                styles.actionBtnText,
+                { color: theme.colors.success },
+              ]}
+            >
+              Upload
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </Card>
   );

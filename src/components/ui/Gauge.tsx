@@ -1,12 +1,10 @@
 import { useTheme } from "@hooks/useTheme";
-import { RiskProfile } from "../../types";
-import { useState } from "react";
+import { RiskProfile, getScoreText } from "../../types/backend/compliance";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G, Line, Path } from "react-native-svg";
 
 const Gauge: React.FC<{ score: number }> = ({ score }) => {
   const theme = useTheme();
-  const [profile, setProfile] = useState<RiskProfile | null>(null);
   const radius = 80;
   const strokeWidth = 12;
   const width = radius * 2 + strokeWidth * 2;
@@ -89,7 +87,7 @@ const Gauge: React.FC<{ score: number }> = ({ score }) => {
           <Text
             style={[styles.gaugeBadgeText, { color: getScoreColor(score) }]}
           >
-            {profile?.status.toUpperCase()} RULE
+            {getScoreText(score)}
           </Text>
         </View>
       </View>

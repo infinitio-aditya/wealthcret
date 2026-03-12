@@ -41,6 +41,16 @@ import {
 import { UserDocument } from "../../../types/backend/documents";
 import { UserService } from "../../../types/backend/userservices";
 
+import {
+  RELATION_MAP,
+  RELATION_CHOICES,
+  ACTIVITY_CHOICES,
+  ACTIVITY_MAP,
+  ACTIVITY_PHONE,
+  ACTIVITY_EMAIL,
+  ACTIVITY_F2F,
+} from "./constants";
+
 type RouteParams = {
   clientId: string;
 };
@@ -63,6 +73,23 @@ const ClientDetailsScreen = () => {
   const userId = prospect?.user?.id;
   const uuid = prospect?.user?.uuid;
 
+  // Derive organization ID and UUID robustly
+  const orgId =
+    (typeof prospect?.user?.organization === "object"
+      ? prospect.user.organization?.id
+      : prospect?.user?.organization) ||
+    (typeof prospect?.organization === "object"
+      ? prospect.organization?.id
+      : prospect?.organization);
+
+  const orgUuid =
+    (typeof prospect?.user?.organization === "object"
+      ? prospect.user.organization?.uuid
+      : null) ||
+    (typeof prospect?.organization === "object"
+      ? prospect.organization?.uuid
+      : null);
+
   const { data: userServices = [], isLoading: loadingServices } =
     useGetUserServicesQuery(userId!, { skip: !userId });
 
@@ -70,7 +97,7 @@ const ClientDetailsScreen = () => {
     useGetUserDocumentsByIdQuery(uuid!, { skip: !uuid });
 
   const { data: familyMembers = [], isLoading: loadingFamily } =
-    useRetrieveOrganizationUsersQuery(uuid!, { skip: !uuid });
+    useRetrieveOrganizationUsersQuery(orgUuid!, { skip: !orgUuid });
 
   const [createActivity] = useCreateActivityMutation();
   const [updateInvite] = useUpdateInviteMutation();
@@ -91,7 +118,7 @@ const ClientDetailsScreen = () => {
   const [newActivity, setNewActivity] = useState({
     name: "",
     details: "",
-    activity_type: "PH", // Default Phone Call
+    activity_type: ACTIVITY_PHONE,
   });
 
   const [newNominee, setNewNominee] = useState({
@@ -102,27 +129,8 @@ const ClientDetailsScreen = () => {
     relation_to_admin: 1, // Default Spouse
   });
 
-  const ACTIVITY_MAP: Record<string, string> = {
-    PH: "Phone Call",
-    EM: "Email",
-    F2F: "Face to Face",
-    Note: "Note",
-  };
-
   const loading =
     loadingProspect || loadingServices || loadingDocuments || loadingFamily;
-
-  const RELATION_MAP: Record<number, string> = {
-    0: "Head of the Family",
-    4: "Father",
-    5: "Mother",
-    6: "Brother",
-    7: "Sister",
-    2: "Son",
-    3: "Daughter",
-    1: "Spouse",
-    99: "Other",
-  };
 
   const handleAddActivity = async () => {
     if (!newActivity.name || !newActivity.details) {
@@ -139,7 +147,7 @@ const ClientDetailsScreen = () => {
         } as any,
       }).unwrap();
       setShowActivityModal(false);
-      setNewActivity({ name: "", details: "", activity_type: "PH" });
+      setNewActivity({ name: "", details: "", activity_type: ACTIVITY_PHONE });
       showAlert("Success", "Activity added successfully");
       refetchProspect();
     } catch (error) {
@@ -157,15 +165,16 @@ const ClientDetailsScreen = () => {
     }
 
     try {
-      if (!prospect || !prospect.organization) return;
+      if (!prospect || !orgId) return;
       await updateInvite({
         first_name: newNominee.first_name,
         last_name: newNominee.last_name,
         email: newNominee.email,
         relation_to_admin: newNominee.relation_to_admin,
-        organization: prospect.organization.id.toString(),
+        organization: orgId.toString(),
         org_type: ORG_TYPE_CL,
         referrar: currentUser?.organization?.id.toString(),
+        is_admin: false,
       }).unwrap();
 
       setShowFamilyModal(false);
@@ -365,7 +374,7 @@ const ClientDetailsScreen = () => {
     },
     modalTitle: { fontSize: 20, fontWeight: "bold", color: theme.colors.text },
     input: {
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.effects.cardBorder,
       borderRadius: 12,
@@ -621,7 +630,7 @@ const ClientDetailsScreen = () => {
         {activeTab === "family" && (
           <View style={styles.section}>
             <View style={styles.sectionHeaderBtn}>
-              <Text style={styles.sectionTitle}>Family Members (Nominees)</Text>
+              <Text style={styles.sectionTitle}>Family Members</Text>
               <TouchableOpacity onPress={() => setShowFamilyModal(true)}>
                 <Icon
                   name="add-circle"
@@ -652,7 +661,7 @@ const ClientDetailsScreen = () => {
                     >
                       <Icon
                         name={
-                          member.user.gender?.toLowerCase() === "female"
+                          member.user.gender?.toLowerCase() == "female"
                             ? "woman"
                             : "man"
                         }
@@ -678,7 +687,7 @@ const ClientDetailsScreen = () => {
                       >
                         {RELATION_MAP[member.user.relation_to_admin!] ||
                           "Family Member"}{" "}
-                        • {member.user.mobile_number}
+                        • {member.user.email}
                       </Text>
                     </View>
                   </View>
@@ -726,11 +735,14 @@ const ClientDetailsScreen = () => {
                     >
                       <Icon
                         name={
-                          activity.activity_type === "PH"
+                          parseInt(activity.activity_type.toString()) ===
+                          ACTIVITY_PHONE
                             ? "call"
-                            : activity.activity_type === "EM"
+                            : parseInt(activity.activity_type.toString()) ===
+                                ACTIVITY_EMAIL
                               ? "mail"
-                              : activity.activity_type === "F2F"
+                              : parseInt(activity.activity_type.toString()) ===
+                                  ACTIVITY_F2F
                                 ? "calendar"
                                 : "document-text"
                         }
@@ -759,8 +771,9 @@ const ClientDetailsScreen = () => {
                           marginTop: 4,
                         }}
                       >
-                        {ACTIVITY_MAP[activity.activity_type] ||
-                          activity.activity_type}
+                        {ACTIVITY_MAP[
+                          parseInt(activity.activity_type.toString())
+                        ] || activity.activity_type}
                       </Text>
                     </View>
                   </View>
@@ -832,13 +845,13 @@ const ClientDetailsScreen = () => {
         />
         <ThemeDropdown
           label="Activity Type"
-          options={Object.entries(ACTIVITY_MAP).map(([value, label]) => ({
-            label,
-            value,
+          options={ACTIVITY_CHOICES.map((choice) => ({
+            label: choice.label,
+            value: choice.value.toString(),
           }))}
-          selectedValue={newActivity.activity_type}
+          selectedValue={newActivity.activity_type.toString()}
           onValueChange={(value) =>
-            setNewActivity({ ...newActivity, activity_type: value })
+            setNewActivity({ ...newActivity, activity_type: parseInt(value) })
           }
         />
         <Text style={styles.label}>Details</Text>
@@ -896,9 +909,9 @@ const ClientDetailsScreen = () => {
           />
           <ThemeDropdown
             label="Relationship"
-            options={Object.entries(RELATION_MAP).map(([value, label]) => ({
-              label,
-              value: value.toString(),
+            options={RELATION_CHOICES.map((option) => ({
+              label: option.label,
+              value: option.value.toString(),
             }))}
             selectedValue={newNominee.relation_to_admin.toString()}
             onValueChange={(value) =>
@@ -908,7 +921,7 @@ const ClientDetailsScreen = () => {
               })
             }
           />
-          <Text style={styles.label}>Mobile (Optional)</Text>
+          {/* <Text style={styles.label}>Mobile (Optional)</Text>
           <TextInput
             style={styles.input}
             placeholder="Mobile Number"
@@ -917,7 +930,7 @@ const ClientDetailsScreen = () => {
             onChangeText={(text) =>
               setNewNominee({ ...newNominee, mobile: text })
             }
-          />
+          /> */}
           <Button
             title="Send Invitation"
             onPress={handleAddFamily}

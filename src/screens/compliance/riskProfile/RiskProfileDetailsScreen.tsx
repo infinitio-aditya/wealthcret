@@ -13,7 +13,7 @@ import { useTheme } from "../../../hooks/useTheme";
 import Header from "../../../components/Header";
 import Card from "../../../components/ui/Card";
 import Icon from "react-native-vector-icons/Ionicons";
-import { RiskProfile, Assessment } from "../../../types";
+import { RiskProfile, Assessment, getScoreText } from "../../../types/backend/compliance";
 import Svg, { Path, Circle, Line, G, Text as SvgText } from "react-native-svg";
 
 type RouteParams = {
@@ -35,42 +35,17 @@ const RiskProfileDetailsScreen = () => {
 
   useEffect(() => {
     if (rpData) {
-      const parsedDate = rpData.last_calculated
-        ? new Date(rpData.last_calculated)
-        : null;
-
-      const mappedProfile: RiskProfile = {
-        id: rpData.id.toString(),
-        clientId: rpData.user?.id.toString() || "",
-        clientName:
-          `${rpData.user?.first_name || "Unknown"} ${rpData.user?.last_name || ""}`.trim(),
-        score: rpData.current_score || 0,
-        status:
-          (rpData.current_score || 0) < 40
-            ? "low"
-            : (rpData.current_score || 0) < 70
-              ? "medium"
-              : "high",
-        lastAssessmentDate: parsedDate
-          ? parsedDate.toLocaleDateString()
-          : "N/A",
-        nextReviewDate: parsedDate
-          ? new Date(
-              new Date(parsedDate).setFullYear(parsedDate.getFullYear() + 1),
-            ).toLocaleDateString()
-          : "N/A",
-      };
-      setProfile(mappedProfile);
+      setProfile(rpData);
 
       // Attempt to parse history safely
       if (Array.isArray(rpData.history)) {
         setAssessments(
           rpData.history.map((h: any, idx: number) => ({
             id: idx.toString(),
-            date: new Date(h.date).toLocaleDateString(),
-            score: h.score,
-            status: h.score < 40 ? "low" : h.score < 70 ? "medium" : "high",
-            assessedBy: "System", // Backend doesn't seem to store assessor
+            date: h.date ? new Date(h.date).toLocaleDateString() : "N/A",
+            score: h.score || 0,
+            status: getScoreText(h.score || 0),
+            assessedBy: "System",
             notes: h.notes || "",
           })),
         );
@@ -97,8 +72,9 @@ const RiskProfileDetailsScreen = () => {
     const centerX = width / 2;
     const centerY = height - strokeWidth;
 
-    // Calculate needle rotation: -90 (0 score) to 90 (100 score)
     const rotation = (score / 100) * 180 - 90;
+
+    const status = getScoreText(score);
 
     return (
       <View style={{ alignItems: "center", marginVertical: 20 }}>
@@ -159,7 +135,7 @@ const RiskProfileDetailsScreen = () => {
             <Text
               style={[styles.gaugeBadgeText, { color: getScoreColor(score) }]}
             >
-              {profile?.status.toUpperCase()} RULE
+              {status}
             </Text>
           </View>
         </View>
@@ -233,7 +209,7 @@ const RiskProfileDetailsScreen = () => {
             <View style={styles.infoText}>
               <Text style={styles.infoLabel}>Name</Text>
               <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-                {profile.clientName}
+                {profile.user?.first_name} {profile.user?.last_name}
               </Text>
             </View>
           </View>
@@ -249,7 +225,9 @@ const RiskProfileDetailsScreen = () => {
             <View style={styles.infoText}>
               <Text style={styles.infoLabel}>Last Assessment</Text>
               <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-                {profile.lastAssessmentDate}
+                {profile.last_calculated
+                  ? new Date(profile.last_calculated).toLocaleDateString()
+                  : "N/A"}
               </Text>
             </View>
           </View>
@@ -265,7 +243,13 @@ const RiskProfileDetailsScreen = () => {
             <View style={styles.infoText}>
               <Text style={styles.infoLabel}>Next Review</Text>
               <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-                {profile.nextReviewDate}
+                {profile.last_calculated
+                  ? new Date(
+                      new Date(profile.last_calculated).setFullYear(
+                        new Date(profile.last_calculated).getFullYear() + 1,
+                      ),
+                    ).toLocaleDateString()
+                  : "N/A"}
               </Text>
             </View>
           </View>
@@ -286,7 +270,7 @@ const RiskProfileDetailsScreen = () => {
           >
             Risk Score
           </Text>
-          {renderGauge(profile.score)}
+          {renderGauge(profile.current_score)}
         </Card>
 
         {/* History */}
@@ -345,9 +329,9 @@ const RiskProfileDetailsScreen = () => {
                     >
                       <Icon
                         name={
-                          assessment.status === "low"
+                          assessment.status === "Conservative"
                             ? "checkmark-circle"
-                            : assessment.status === "medium"
+                            : assessment.status === "Moderate"
                               ? "alert-circle"
                               : "shield"
                         }
@@ -386,7 +370,7 @@ const RiskProfileDetailsScreen = () => {
                               { color: getScoreColor(assessment.score) },
                             ]}
                           >
-                            {assessment.status} risk
+                            {assessment.status}
                           </Text>
                         </View>
                       </View>

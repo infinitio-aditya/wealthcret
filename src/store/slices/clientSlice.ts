@@ -1,9 +1,9 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Client } from '../../types';
+import { ProspectAssociation } from '../../types/backend/prospect';
 
 interface ClientState {
-    clients: Client[];
-    selectedClient: Client | null;
+    clients: ProspectAssociation[];
+    selectedClient: ProspectAssociation | null;
     loading: boolean;
     searchQuery: string;
     filters: {
@@ -28,10 +28,10 @@ const clientSlice = createSlice({
     name: 'client',
     initialState,
     reducers: {
-        setClients: (state, action: PayloadAction<Client[]>) => {
+        setClients: (state, action: PayloadAction<ProspectAssociation[]>) => {
             state.clients = action.payload;
         },
-        appendClients: (state, action: PayloadAction<Client[]>) => {
+        appendClients: (state, action: PayloadAction<ProspectAssociation[]>) => {
             state.clients = [...state.clients, ...action.payload];
         },
         setPage: (state, action: PayloadAction<number>) => {
@@ -40,7 +40,7 @@ const clientSlice = createSlice({
         setHasMore: (state, action: PayloadAction<boolean>) => {
             state.hasMore = action.payload;
         },
-        setSelectedClient: (state, action: PayloadAction<Client | null>) => {
+        setSelectedClient: (state, action: PayloadAction<ProspectAssociation | null>) => {
             state.selectedClient = action.payload;
         },
         setLoading: (state, action: PayloadAction<boolean>) => {

@@ -21,7 +21,6 @@ import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import Icon from "react-native-vector-icons/Ionicons";
-import { QuizQuestion } from "../../../types";
 import Gauge from "../../../components/ui/Gauge";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -37,14 +36,15 @@ import { useGetOrgnizationByOrgTypeQuery } from "../../../services/backend/authA
 import {
   RiskProfile,
   RiskProfileQuestion,
+  getScoreText,
 } from "../../../types/backend/compliance";
 
 const RiskProfileScreen = () => {
   const { showAlert } = useAlert();
   const theme = useTheme();
   const navigation = useNavigation<any>();
-  const user = useSelector((state: RootState) => state.auth.user) as any;
-  const isClient = user?.organization?.org_type?.toString() === ORG_TYPE_CL;
+  const user = useSelector((state: RootState) => state.auth.user);
+  const isClient = user?.organization?.org_type === ORG_TYPE_CL;
 
   const [showAssessment, setShowAssessment] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -98,30 +98,12 @@ const RiskProfileScreen = () => {
     setRefreshing(false);
   };
 
-  const mapRiskStatus = (score: number) => {
-    if (score >= 80) return "high";
-    if (score >= 40) return "medium";
-    return "low";
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "high":
-        return "Aggressive";
-      case "medium":
-        return "Moderate";
-      case "low":
-        return "Conservative";
-      default:
-        return "Unknown";
-    }
-  };
 
   const profiles =
     riskProfilesData?.results.map((rp: RiskProfile) => ({
       id: rp.id.toString(),
       clientName: `${rp.user?.first_name} ${rp.user?.last_name}`,
-      status: mapRiskStatus(rp.current_score),
+      status: getScoreText(rp.current_score),
       score: rp.current_score,
       lastAssessmentDate: rp.last_calculated
         ? rp.last_calculated.split("T")[0]
@@ -339,18 +321,18 @@ const RiskProfileScreen = () => {
       {[
         { label: "Total", count: profiles.length, color: theme.colors.primary },
         {
-          label: "Low",
-          count: profiles.filter((p) => p.status === "low").length,
+          label: "Conservative",
+          count: profiles.filter((p) => p.status === "Conservative").length,
           color: theme.colors.success,
         },
         {
-          label: "Medium",
-          count: profiles.filter((p) => p.status === "medium").length,
+          label: "Moderate",
+          count: profiles.filter((p) => p.status === "Moderate").length,
           color: theme.colors.warning,
         },
         {
-          label: "High",
-          count: profiles.filter((p) => p.status === "high").length,
+          label: "Aggressive",
+          count: profiles.filter((p) => p.status === "Aggressive").length,
           color: theme.colors.error,
         },
       ].map((s, i) => (
@@ -378,7 +360,7 @@ const RiskProfileScreen = () => {
 
   const handleResetFilters = () => {
     const reset = {
-      status: "all" as "all" | "low" | "medium" | "high",
+      status: "all" as "all" | "Conservative" | "Moderate" | "Aggressive",
       assignedSP: "all",
       referralPartner: "all",
     };
@@ -397,7 +379,7 @@ const RiskProfileScreen = () => {
         Risk Status
       </Text>
       <View style={styles.filterOptions}>
-        {["all", "low", "medium", "high"].map((status) => (
+        {["all", "Conservative", "Moderate", "Aggressive"].map((status) => (
           <TouchableOpacity
             key={status}
             style={[
@@ -560,7 +542,7 @@ const RiskProfileScreen = () => {
                         { color: getScoreColor(item.score) },
                       ]}
                     >
-                      {item.status.toUpperCase()} RISK
+                      {item.status.toUpperCase()}
                     </Text>
                   </View>
                 </View>
@@ -622,44 +604,73 @@ const RiskProfileScreen = () => {
       </View>
 
       <LinearGradient
-        colors={[theme.colors.surface, theme.colors.surface + "80"] as any} // Simplified gradient, could use theme effects
+        colors={[theme.colors.surface, theme.colors.surface + "80"] as any}
         style={[
           styles.clientProfileCard,
-          { borderColor: theme.colors.success + "40", borderWidth: 1 },
+          {
+            borderColor: clientProfile
+              ? theme.colors.success + "40"
+              : theme.colors.primary + "40",
+            borderWidth: 1,
+          },
         ]}
       >
-        {/* <View
-          style={[
-            styles.largeScoreCircle,
-            { borderColor: theme.colors.success },
-          ]}
-        >
-          <Text
-            style={[styles.largeScoreText, { color: theme.colors.success }]}
-          >
-            35
-          </Text>
-          <Text style={styles.largeScoreLabel}>Low Risk</Text>
-        </View> */}
-        <Gauge score={clientProfile?.current_score || 0} />
-        <Text style={styles.clientNotice}>
-          Your risk profile was last updated on{" "}
-          {clientProfile
-            ? new Date(clientProfile.last_calculated).toLocaleDateString()
-            : "N/A"}
-          . We recommend reviewing this annually or after major life changes.
-        </Text>
-        <Button title="Retake Assessment" onPress={handleStartAssessment} />
+        {!clientProfile ? (
+          <View style={{ alignItems: "center", paddingVertical: 20 }}>
+            <View
+              style={[
+                styles.emptyIconContainer,
+                { backgroundColor: theme.colors.primary + "10" },
+              ]}
+            >
+              <Icon
+                name="clipboard-outline"
+                size={40}
+                color={theme.colors.primary}
+              />
+            </View>
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+              No Risk Profile Found
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              Complete the assessment to understand your investment risk
+              tolerance and receive personalized recommendations.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Gauge score={clientProfile?.current_score || 0} />
+            <Text style={styles.clientNotice}>
+              Your risk profile was last updated on{" "}
+              {new Date(clientProfile.last_calculated).toLocaleDateString()}. We
+              recommend reviewing this annually or after major life changes.
+            </Text>
+          </>
+        )}
+        <Button
+          title={clientProfile ? "Retake Assessment" : "Take Assessment"}
+          onPress={handleStartAssessment}
+          style={{ marginTop: 16 }}
+        />
       </LinearGradient>
 
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
         Recommendations
       </Text>
       <Card style={[styles.recCard, { backgroundColor: theme.colors.surface }]}>
-        <Icon name="shield-checkmark" size={24} color={theme.colors.success} />
+        <Icon 
+          name={clientProfile?.current_score ? "shield-checkmark" : "information-circle"} 
+          size={24} 
+          color={clientProfile?.current_score ? theme.colors.success : theme.colors.info} 
+        />
         <Text style={[styles.recText, { color: theme.colors.text }]}>
-          Based on your low-risk profile, we recommend a balanced exposure with
-          a focus on capital preservation and high-quality debt instruments.
+          {clientProfile?.current_score 
+            ? clientProfile.current_score <= 22
+              ? "Based on your Conservative risk profile, we recommend a focus on capital preservation and high-quality debt instruments."
+              : clientProfile.current_score <= 32
+                ? "Based on your Moderate risk profile, we recommend a balanced approach between capital preservation and growth."
+                : "Based on your Aggressive risk profile, we recommend a growth-oriented strategy with higher equity exposure."
+            : "Complete the assessment to receive personalized investment recommendations."}
         </Text>
       </Card>
     </ScrollView>
@@ -814,6 +825,27 @@ const styles = StyleSheet.create({
   },
   largeScoreText: { fontSize: 40, fontWeight: "bold" },
   largeScoreLabel: { fontSize: 14, color: "#6A6D70", fontWeight: "600" },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#6A6D70",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 8,
+    paddingHorizontal: 20,
+  },
   clientNotice: {
     fontSize: 14,
     color: "#6A6D70",

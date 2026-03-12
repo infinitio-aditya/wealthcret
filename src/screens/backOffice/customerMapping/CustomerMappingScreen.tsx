@@ -542,14 +542,6 @@ const CustomerMappingScreen = () => {
                 </View>
 
                 <View style={[styles.detailsRow, { paddingLeft: 34 }]}>
-                  <Text style={styles.label}>System</Text>
-                  <Text style={styles.value}>{item.system}</Text>
-                </View>
-                <View style={[styles.detailsRow, { paddingLeft: 34 }]}>
-                  <Text style={styles.label}>Last Sync</Text>
-                  <Text style={styles.value}>{item.lastSync}</Text>
-                </View>
-                <View style={[styles.detailsRow, { paddingLeft: 34 }]}>
                   <Text style={styles.label}>Referral Partner</Text>
                   <Text style={styles.value}>
                     {item.referralPartner || "N/A"}

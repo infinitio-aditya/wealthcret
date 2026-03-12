@@ -19,10 +19,12 @@ import {
   useGetUserDocumentsByIdQuery,
   useRequestDocumentMutation,
   useLazyGetUserDocumentFileByIdQuery,
+  useUpdateUserDocumentMutation,
 } from "../../../services/backend/documentsApi";
 import { UserDocument } from "../../../types/backend/documents";
 import { DOCUMENT_TYPE_LABEL_MAP } from "../../../types/backend/constants";
 import { ActivityIndicator, RefreshControl } from "react-native";
+import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 
 type RouteParams = {
   ClientDocuments: { clientId: string };
@@ -53,6 +55,9 @@ const ClientDocumentsScreen = () => {
   const [requestDocument, { isLoading: isRequesting }] =
     useRequestDocumentMutation();
 
+  const [updateUserDocument, { isLoading: isUpdating }] =
+    useUpdateUserDocumentMutation();
+
   const [getDocumentFile] = useLazyGetUserDocumentFileByIdQuery();
 
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -69,6 +74,25 @@ const ClientDocumentsScreen = () => {
       fileName: doc.file_name || "Document",
     });
   };
+
+  const handleCancelRequest = async (doc: UserDocument) => {
+    try {
+      await updateUserDocument({
+        uuid: uuid!,
+        document: { ...doc, is_enabled: false },
+      }).unwrap();
+      showAlert("Success", "Document request cancelled successfully");
+    } catch (error: any) {
+      showAlert("Error", error?.data?.message || "Failed to cancel request");
+    }
+  };
+
+  const documentOptions = Object.entries(DOCUMENT_TYPE_LABEL_MAP).map(
+    ([value, label]) => ({
+      label,
+      value,
+    }),
+  );
 
   const styles = StyleSheet.create({
     container: {
@@ -253,10 +277,10 @@ const ClientDocumentsScreen = () => {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Documents</Text>
-            <Text style={styles.subtitle}>
+            <Text style={styles.title}>
               {client.first_name} {client.last_name}
             </Text>
+            <Text style={styles.subtitle}>Documents</Text>
           </View>
           <TouchableOpacity
             onPress={() => setShowRequestForm(!showRequestForm)}
@@ -270,19 +294,20 @@ const ClientDocumentsScreen = () => {
             <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>
               Request Document
             </Text>
-            <Input
+            <ThemeDropdown
               label="Document Type"
-              value={docType}
-              onChangeText={setDocType}
-              placeholder="e.g. ID Proof"
+              options={documentOptions}
+              selectedValue={docType}
+              onValueChange={setDocType}
+              placeholder="Select document type"
             />
-            <Input
+            {/* <Input
               label="Description"
               value={description}
               onChangeText={setDescription}
               placeholder="Why is this needed?"
               multiline
-            />
+            /> */}
             <Button
               title={isRequesting ? "Sending..." : "Send Request"}
               onPress={handleRequest}
@@ -302,7 +327,7 @@ const ClientDocumentsScreen = () => {
             <Text style={[styles.statValue, { color: theme.colors.primary }]}>
               {clientDocuments.length}
             </Text>
-            <Text style={styles.statLabel}>Total</Text>
+            <Text style={styles.statLabel}>Total </Text>
           </View>
           <View
             style={[
@@ -374,20 +399,29 @@ const ClientDocumentsScreen = () => {
               </Text>
 
               <View style={styles.actions}>
-                <Button
-                  title="View"
-                  variant="outline"
-                  onPress={() => handleViewDocument(doc)}
-                  style={{ flex: 1 }}
-                  disabled={!doc.is_uploaded}
-                />
-                <Button
-                  title="Download"
-                  variant="outline"
-                  onPress={() => handleViewDocument(doc)}
-                  style={{ flex: 1 }}
-                  disabled={!doc.is_uploaded}
-                />
+                {doc.is_uploaded && (
+                  <Button
+                    title="View"
+                    variant="outline"
+                    onPress={() => handleViewDocument(doc)}
+                    style={{ flex: 1 }}
+                  />
+                )}
+                {!doc.is_uploaded && (
+                  <Button
+                    title="Cancel Request"
+                    variant="outline"
+                    onPress={() => handleCancelRequest(doc)}
+                    style={{ flex: 1 }}
+                    color={theme.colors.error}
+                  />
+                )}
+                {/* <Button
+                    title="Download"
+                    variant="outline"
+                    onPress={() => handleViewDocument(doc)}
+                    style={{ flex: 1 }}
+                  /> */}
               </View>
             </Card>
           );

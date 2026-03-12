@@ -66,6 +66,7 @@ export interface Organization {
   display_name?: string;
   logo_url?: string;
   icon_url?: string;
+  uuid?: string;
   license?: OrganizationLicense;
 }
 

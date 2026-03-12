@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  ScrollView,
   RefreshControl,
   Dimensions,
 } from "react-native";
@@ -18,146 +17,74 @@ import { useTheme } from "../../../hooks/useTheme";
 import { RootState } from "../../../store";
 import Card from "../../../components/ui/Card";
 import MyDocumentsScreen from "./MyDocumentsScreen";
-import { useGetProspectsClientsQuery } from "../../../services/backend/prospectApi";
+import { useLazyGetProspectsClientsQuery } from "../../../services/backend/prospectApi";
 import { ProspectAssociation } from "../../../types/backend/prospect";
 
+import { ORG_TYPE_CL } from "../../../types/backend/constants";
+
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const PAGE_SIZE = 20;
 
 const DocumentsScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation<any>();
   const user = useSelector((state: RootState) => state.auth.user);
+  
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [prospects, setProspects] = useState<ProspectAssociation[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const {
-    data: prospectsData,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useGetProspectsClientsQuery({
-    user_types: "1,2",
-    q: searchTerm,
-  });
+  const [trigger, { data: prospectsData, isFetching, isLoading }] = 
+    useLazyGetProspectsClientsQuery();
 
   // Redirect or show MyDocuments for clients
-  if (user?.role === "client") {
+  if (user?.organization?.org_type === ORG_TYPE_CL) {
     return <MyDocumentsScreen />;
   }
 
-  const prospects = prospectsData?.results || [];
+  const fetchData = useCallback(async (pageNum: number, search: string, isRefresh = false) => {
+    try {
+      const result = await trigger({
+        user_types: "1,2",
+        q: search,
+        page: pageNum,
+        page_size: PAGE_SIZE,
+      }).unwrap();
 
-  const stats = [
-    {
-      label: "Clients/Prospects",
-      count: prospectsData?.count || 0,
-      color: theme.colors.primary,
-    },
-    {
-      label: "Active Connections",
-      count: prospects.filter((p) => p.invitation_accepted).length,
-      color: theme.colors.success,
-    },
-    {
-      label: "Pending Invites",
-      count: prospects.filter((p) => !p.invitation_accepted).length,
-      color: theme.colors.warning,
-    },
-    {
-      label: "Total Organizations",
-      count: Array.from(new Set(prospects.map((p) => p.organization.id)))
-        .length,
-      color: theme.colors.info,
-    },
-  ];
+      if (!result || !result.results) {
+        console.warn("No results returned from API");
+        return;
+      }
 
-  const renderClientItem = ({ item }: { item: ProspectAssociation }) => {
-    // Current backend doesn't provide document counts in the association list
-    // We'll show a "View Documents" action instead of stats
+      if (isRefresh) {
+        setProspects(result.results);
+      } else {
+        setProspects(prev => [...prev, ...result.results]);
+      }
 
-    return (
-      <TouchableOpacity
-        onPress={() =>
-          navigation.navigate("ClientDocuments", { clientId: item.user.uuid })
-        }
-        activeOpacity={0.8}
-      >
-        <Card style={styles.clientCard}>
-          <View style={styles.clientHeader}>
-            <View style={styles.avatar}>
-              <Icon
-                name="person"
-                size={24}
-                color={theme.colors.textOnPrimary}
-              />
-            </View>
-            <View style={styles.clientInfo}>
-              <Text style={styles.clientName}>
-                {item.user.first_name} {item.user.last_name}
-              </Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>
-                  {item.user.user_type === 1 ? "Prospect" : "Client"}
-                </Text>
-              </View>
-            </View>
-            {!item.invitation_accepted && (
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: theme.colors.warning + "20" },
-                ]}
-              >
-                <Text
-                  style={[styles.statusText, { color: theme.colors.warning }]}
-                >
-                  Pending
-                </Text>
-              </View>
-            )}
-          </View>
+      setTotalCount(result.count || 0);
+      setHasMore(result.results.length === PAGE_SIZE);
+      setPage(pageNum + 1);
+    } catch (error) {
+      console.error("Error fetching prospects:", error);
+    }
+  }, [trigger]);
 
-          <View style={{ marginBottom: 12 }}>
-            <View style={styles.contactRow}>
-              <Icon
-                name="mail-outline"
-                size={14}
-                color={theme.colors.textSecondary}
-              />
-              <Text style={styles.contactText}>{item.user.email}</Text>
-            </View>
-            {item.user.mobile_number && (
-              <View style={styles.contactRow}>
-                <Icon
-                  name="call-outline"
-                  size={14}
-                  color={theme.colors.textSecondary}
-                />
-                <Text style={styles.contactText}>
-                  {item.user.mobile_number}
-                </Text>
-              </View>
-            )}
-            <View style={styles.contactRow}>
-              <Icon
-                name="business-outline"
-                size={14}
-                color={theme.colors.textSecondary}
-              />
-              <Text style={styles.contactText}>{item.organization.name}</Text>
-            </View>
-          </View>
+  useEffect(() => {
+    fetchData(1, searchTerm, true);
+  }, [searchTerm]);
 
-          <View style={styles.cardFooter}>
-            <Text style={styles.footerLabel}>Select to manage documents</Text>
-            <Icon
-              name="chevron-forward"
-              size={16}
-              color={theme.colors.primary}
-            />
-          </View>
-        </Card>
-      </TouchableOpacity>
-    );
+  const onRefresh = () => {
+    setPage(1);
+    fetchData(1, searchTerm, true);
+  };
+
+  const loadMore = () => {
+    if (!isFetching && hasMore) {
+      fetchData(page, searchTerm);
+    }
   };
 
   const styles = StyleSheet.create({
@@ -200,8 +127,13 @@ const DocumentsScreen = () => {
       marginBottom: 4,
     },
     statLabel: { fontSize: 11, color: theme.colors.textSecondary },
-    listContainer: { padding: 16, paddingTop: 8 },
-    clientCard: { marginBottom: 16, padding: 16, borderRadius: 20 },
+    listContainer: { paddingVertical: 8 },
+    clientCard: {
+      marginHorizontal: 16,
+      marginBottom: 16,
+      padding: 16,
+      borderRadius: 20,
+    },
     clientHeader: {
       flexDirection: "row",
       alignItems: "center",
@@ -277,73 +209,204 @@ const DocumentsScreen = () => {
     },
   });
 
+  const stats = [
+    {
+      label: "Clients/Prospects",
+      count: totalCount || 0,
+      color: theme.colors.primary,
+    },
+    {
+      label: "Active Connections",
+      count: prospects.filter((p) => p?.invitation_accepted).length,
+      color: theme.colors.success,
+    },
+    {
+      label: "Pending Invites",
+      count: prospects.filter((p) => !p?.invitation_accepted).length,
+      color: theme.colors.warning,
+    },
+    {
+      label: "Total Organizations",
+      count: Array.from(
+        new Set(
+          prospects
+            .map((p) => p?.organization?.id)
+            .filter((id) => id !== undefined && id !== null)
+        )
+      ).length,
+      color: theme.colors.info,
+    },
+  ];
+
+  const renderClientItem = ({ item }: { item: ProspectAssociation }) => {
+    if (!item || !item.user) return null;
+    return (
+      <TouchableOpacity
+        onPress={() =>
+          item?.id && navigation.navigate("ClientDocuments", { clientId: item.id.toString() })
+        }
+        activeOpacity={0.8}
+      >
+        <Card style={styles.clientCard}>
+          <View style={styles.clientHeader}>
+            <View style={styles.avatar}>
+              <Icon
+                name="person"
+                size={24}
+                color={theme.colors.textOnPrimary}
+              />
+            </View>
+            <View style={styles.clientInfo}>
+              <Text style={styles.clientName}>
+                {item.user.first_name} {item.user.last_name}
+              </Text>
+              <View style={styles.roleBadge}>
+                <Text style={styles.roleText}>
+                  {item.user.user_type === 1 ? "Prospect" : "Client"}
+                </Text>
+              </View>
+            </View>
+            {!item.invitation_accepted && (
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: theme.colors.warning + "20" },
+                ]}
+              >
+                <Text
+                  style={[styles.statusText, { color: theme.colors.warning }]}
+                >
+                  Pending
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={{ marginBottom: 12 }}>
+            <View style={styles.contactRow}>
+              <Icon
+                name="mail-outline"
+                size={14}
+                color={theme.colors.textSecondary}
+              />
+              <Text style={styles.contactText}>{item.user.email}</Text>
+            </View>
+            {item.user.mobile_number && (
+              <View style={styles.contactRow}>
+                <Icon
+                  name="call-outline"
+                  size={14}
+                  color={theme.colors.textSecondary}
+                />
+                <Text style={styles.contactText}>
+                  {item.user.mobile_number}
+                </Text>
+              </View>
+            )}
+            {item?.organization && (
+              <View style={styles.contactRow}>
+                <Icon
+                  name="business-outline"
+                  size={14}
+                  color={theme.colors.textSecondary}
+                />
+                <Text style={styles.contactText}>{item.organization.name}</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.cardFooter}>
+            <Text style={styles.footerLabel}>Select to manage documents</Text>
+            <Icon
+              name="chevron-forward"
+              size={16}
+              color={theme.colors.primary}
+            />
+          </View>
+        </Card>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderHeader = () => (
+    <View>
+      <View style={styles.header}>
+        <Text style={styles.title}>Compliance Documents</Text>
+        <Text style={styles.subtitle}>
+          Select a client to view and manage their compliance vault
+        </Text>
+      </View>
+
+      <View style={styles.searchContainer}>
+        <Icon name="search" size={20} color={theme.colors.textSecondary} />
+        <TextInput
+          style={styles.searchInput}
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+          placeholder="Search by name or email..."
+          placeholderTextColor={theme.colors.textSecondary}
+        />
+      </View>
+
+      <View style={styles.statsContainer}>
+        {stats.map((stat, i) => (
+          <View key={i} style={styles.statCardWrapper}>
+            <Card style={styles.statCard}>
+              <Text style={[styles.statCount, { color: stat.color }]}>
+                {stat.count}
+              </Text>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+            </Card>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
+      <FlatList
+        data={prospects}
+        renderItem={renderClientItem}
+        keyExtractor={(item) => item?.id?.toString() || Math.random().toString()}
+        ListHeaderComponent={renderHeader}
+        contentContainerStyle={styles.listContainer}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl
-            refreshing={isFetching}
-            onRefresh={refetch}
+            refreshing={isFetching && page === 1}
+            onRefresh={onRefresh}
             colors={[theme.colors.primary]}
             tintColor={theme.colors.primary}
           />
         }
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Compliance Documents</Text>
-          <Text style={styles.subtitle}>
-            Select a client to view and manage their compliance vault
-          </Text>
-        </View>
-
-        <View style={styles.searchContainer}>
-          <Icon name="search" size={20} color={theme.colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-            placeholder="Search by name or email..."
-            placeholderTextColor={theme.colors.textSecondary}
-          />
-        </View>
-
-        <View style={styles.statsContainer}>
-          {stats.map((stat, i) => (
-            <View key={i} style={styles.statCardWrapper}>
-              <Card style={styles.statCard}>
-                <Text style={[styles.statCount, { color: stat.color }]}>
-                  {stat.count}
-                </Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-              </Card>
+        ListFooterComponent={
+          isFetching && page > 1 ? (
+            <ActivityIndicator
+              color={theme.colors.primary}
+              style={{ marginVertical: 20 }}
+            />
+          ) : null
+        }
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={{ paddingVertical: 40 }}>
+              <ActivityIndicator color={theme.colors.primary} size="large" />
             </View>
-          ))}
-        </View>
-
-        {isLoading ? (
-          <View style={{ paddingVertical: 40 }}>
-            <ActivityIndicator color={theme.colors.primary} size="large" />
-          </View>
-        ) : (
-          <FlatList
-            data={prospects}
-            renderItem={renderClientItem}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={styles.listContainer}
-            scrollEnabled={false}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>
-                  No clients or prospects found
-                </Text>
-              </View>
-            }
-          />
-        )}
-      </ScrollView>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                No clients or prospects found
+              </Text>
+            </View>
+          )
+        }
+      />
     </View>
   );
 };
 
 export default DocumentsScreen;
+
+

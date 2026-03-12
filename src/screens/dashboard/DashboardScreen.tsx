@@ -23,6 +23,13 @@ import {
   ORG_TYPE_SP,
   ORG_TYPE_CL,
 } from "../../types/backend/constants";
+import {
+  useGetOrgnizationsQuery,
+  useGetOrgnizationByOrgTypeQuery,
+} from "../../services/backend/authApi";
+import { useGetApprovalRequestListQuery } from "../../services/backend/adminApi";
+import { useGetClientRiskProfileQuery } from "../../services/backend/complianceApi";
+import { useGetUserServicesQuery } from "../../services/backend/userServicesApi";
 
 import LinearGradient from "react-native-linear-gradient";
 
@@ -36,6 +43,33 @@ const DashboardScreen = () => {
   const { data: newsData, isLoading: isNewsLoading } = useGetNewsQuery({
     page: 1,
     page_size: 5,
+  });
+
+  const { data: orgsData } = useGetOrgnizationsQuery(
+    { page: 1, page_size: 1, q: "" },
+    {
+      skip: user?.organization?.org_type?.toString() !== ORG_TYPE_AD,
+    },
+  );
+
+  const { data: approvalRequests } = useGetApprovalRequestListQuery(undefined, {
+    skip: user?.organization?.org_type?.toString() !== ORG_TYPE_AD,
+  });
+
+  const { data: clientRiskProfile } = useGetClientRiskProfileQuery(undefined, {
+    skip: user?.organization?.org_type?.toString() !== ORG_TYPE_CL,
+  });
+
+  const { data: userServices } = useGetUserServicesQuery(user?.id || 0, {
+    skip: user?.organization?.org_type?.toString() !== ORG_TYPE_CL || !user?.id,
+  });
+
+  const { data: spList } = useGetOrgnizationByOrgTypeQuery(ORG_TYPE_SP, {
+    skip: user?.organization?.org_type?.toString() !== ORG_TYPE_AD,
+  });
+
+  const { data: rpList } = useGetOrgnizationByOrgTypeQuery(ORG_TYPE_RP, {
+    skip: user?.organization?.org_type?.toString() !== ORG_TYPE_AD,
   });
 
   const getGreeting = () => {
@@ -127,21 +161,31 @@ const DashboardScreen = () => {
   });
 
   const getMetrics = () => {
-    switch (user?.user_type?.toString()) {
+    switch (user?.organization?.org_type?.toString()) {
       case ORG_TYPE_AD:
         return [
           {
             label: "Total Organizations",
-            value: "247",
-            change: 12,
+            value: orgsData?.count || 0,
+            change: 0,
             icon: "business",
           },
-          { label: "Active Sp/Rp", value: "89", change: 8, icon: "people" },
-          { label: "Total Revenue", value: "$2.4M", change: 15, icon: "cash" },
+          {
+            label: "Active Sp/Rp",
+            value: (spList?.length || 0) + (rpList?.length || 0),
+            change: 0,
+            icon: "people",
+          },
+          {
+            label: "Total Revenue",
+            value: `₹${(dashboardData?.history?.reduce((acc, h) => acc + (h.revenue || 0), 0) || 0).toLocaleString()}`,
+            change: 0,
+            icon: "cash",
+          },
           {
             label: "Pending Requests",
-            value: "23",
-            change: -5,
+            value: approvalRequests?.length || 0,
+            change: 0,
             icon: "alert-circle",
           },
         ];
@@ -177,21 +221,26 @@ const DashboardScreen = () => {
         return [
           {
             label: "Portfolio Value",
-            value: "$2.5M",
-            change: 8.5,
+            value: `₹${(dashboardData?.aum || 0).toLocaleString()}`,
+            change: dashboardData?.aum_change || 0,
             icon: "account-balance",
           },
           {
             label: "YTD Return",
             value: "+12.4%",
-            change: 2.1,
+            change: 0,
             icon: "trending-up",
           },
-          { label: "Risk Score", value: "35", change: 0, icon: "shield" },
+          {
+            label: "Risk Score",
+            value: clientRiskProfile?.current_score || 0,
+            change: 0,
+            icon: "shield",
+          },
           {
             label: "Pending Actions",
-            value: "3",
-            change: -1,
+            value: "0",
+            change: 0,
             icon: "notifications",
           },
         ];
@@ -201,7 +250,7 @@ const DashboardScreen = () => {
   };
 
   const getHeroDescription = () => {
-    switch (user?.user_type?.toString()) {
+    switch (user?.organization?.org_type?.toString()) {
       case ORG_TYPE_AD:
         return "Manage your organization, review requests, and oversee operations.";
       case ORG_TYPE_SP:
@@ -250,6 +299,55 @@ const DashboardScreen = () => {
         },
       ],
     };
+  };
+  const getServiceAllocationData = () => {
+    if (!userServices || userServices.length === 0) {
+      return [
+        {
+          name: "No Services",
+          value: 100,
+          color: theme.colors.textSecondary + "40",
+          legendFontColor: theme.colors.textSecondary,
+        },
+      ];
+    }
+
+    const counts: Record<string, number> = {};
+    userServices.forEach((us: any) => {
+      const label = us.service?.label || "General";
+      counts[label] = (counts[label] || 0) + 1;
+    });
+
+    const sorted = Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    const top3 = sorted.slice(0, 3);
+    const others = sorted.slice(3);
+
+    const colors = [
+      theme.colors.primary,
+      theme.colors.warning,
+      theme.colors.error + "80",
+      theme.colors.success,
+    ];
+
+    const finalData = top3.map((item, index) => ({
+      ...item,
+      color: colors[index],
+      legendFontColor: theme.colors.textSecondary,
+    }));
+
+    if (others.length > 0) {
+      finalData.push({
+        name: "Other",
+        value: others.reduce((acc, curr) => acc + curr.value, 0),
+        color: colors[3],
+        legendFontColor: theme.colors.textSecondary,
+      });
+    }
+
+    return finalData;
   };
 
   return (
@@ -343,33 +441,8 @@ const DashboardScreen = () => {
               />
               <Chart
                 type="pie"
-                title="Asset Allocation"
-                data={[
-                  {
-                    name: "Equity",
-                    value: 45,
-                    color: theme.colors.primary,
-                    legendFontColor: theme.colors.textSecondary,
-                  },
-                  {
-                    name: "Debt",
-                    value: 30,
-                    color: theme.colors.error + "80",
-                    legendFontColor: theme.colors.textSecondary,
-                  },
-                  {
-                    name: "Gold",
-                    value: 15,
-                    color: theme.colors.warning,
-                    legendFontColor: theme.colors.textSecondary,
-                  },
-                  {
-                    name: "Cash",
-                    value: 10,
-                    color: theme.colors.success,
-                    legendFontColor: theme.colors.textSecondary,
-                  },
-                ]}
+                title="Services"
+                data={getServiceAllocationData()}
               />
             </>
           )}

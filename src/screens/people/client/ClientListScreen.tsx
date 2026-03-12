@@ -24,7 +24,7 @@ import {
 } from "../../../store/slices/clientSlice";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
-import { Client } from "../../../types";
+import { ProspectAssociation } from "../../../types/backend/prospect";
 import ThemeDropdown from "../../../components/ui/ThemeDropdown";
 import ThemeBottomSheet from "../../../components/ui/ThemeBottomSheet";
 import CircularProgress from "../../../components/ui/CircularProgress";
@@ -32,7 +32,12 @@ import {
   useLazyGetProspectsClientsQuery,
   useCreateProspectMutation,
 } from "../../../services/backend/prospectApi";
-import { ProspectAssociation } from "../../../types/backend/prospect";
+import { useGetOrgLicenseQuery } from "../../../services/backend/licensingApi";
+import {
+  useGetServicesQuery,
+  useGetOrganizationServicesQuery,
+} from "../../../services/backend/userServicesApi";
+import ThemeMultiSelect from "../../../components/ui/ThemeMultiSelect";
 import {
   ORG_TYPE_AD,
   ORG_TYPE_RP,
@@ -85,36 +90,45 @@ const ClientListScreen = () => {
     firstName: "",
     lastName: "",
     email: "",
-    license: "",
+    licenses: [] as string[],
+    services: [] as string[],
     companyName: "",
   });
 
-  const availableServices = [
-    { id: "1", name: "Wealth Management", category: "Advisory" },
-    { id: "2", name: "Investment Advisory", category: "Advisory" },
-    { id: "3", name: "Portfolio Management", category: "Management" },
-    { id: "4", name: "Tax Planning", category: "Planning" },
-    { id: "5", name: "Estate Planning", category: "Planning" },
-    { id: "6", name: "Retirement Planning", category: "Planning" },
-    { id: "7", name: "Risk Assessment", category: "Analysis" },
-    { id: "8", name: "Asset Allocation", category: "Management" },
-    { id: "9", name: "Financial Planning", category: "Planning" },
-    { id: "10", name: "Trust Services", category: "Legal" },
-  ];
+  const { data: orgLicenses } = useGetOrgLicenseQuery();
+  const { data: allServices } = useGetServicesQuery();
+  const { data: orgServices } = useGetOrganizationServicesQuery();
 
-  const availableLicenses = [
-    "Wealth Management",
-    "Investment Advisory",
-    "Portfolio Management",
-    "Financial Planning",
-    "Tax Consulting",
-  ];
+  const availableLicenses = (orgLicenses?.feature_licenses || []).map(
+    (ol: any) => ({
+      label: ol.feature.label,
+      value: ol.feature.name,
+    }),
+  );
+
+  const availableServices = (orgServices || []).map((os: any) => {
+    const serviceDetails = (allServices || []).find(
+      (s: any) => s.id === os.service,
+    );
+    return {
+      label: serviceDetails?.label || `Service ${os.service}`,
+      value: os.id.toString(),
+      id: os.id.toString(), // For backward compatibility with filter rendering
+      raw: os,
+    };
+  });
 
   const uniqueAdvisors = Array.from(
-    new Set(clients.map((c: Client) => c.assignedSP).filter(Boolean)),
+    new Set(
+      clients.map((c: ProspectAssociation) => c.owner_name).filter(Boolean),
+    ),
   ) as string[];
   const uniqueReferralPartners = Array.from(
-    new Set(clients.map((c: Client) => c.referralPartner).filter(Boolean)),
+    new Set(
+      clients
+        .map((c: ProspectAssociation) => c.organization?.name)
+        .filter(Boolean),
+    ),
   ) as string[];
 
   // Reset and refetch from page 1 when search or user changes
@@ -135,46 +149,15 @@ const ClientListScreen = () => {
         ...(searchQuery ? { q: searchQuery } : {}),
       }).unwrap();
 
-      const mappedClients: Client[] = response.results.map(
-        (pa: ProspectAssociation) => {
-          const u = pa.user;
-          const statusMap: Record<string, "active" | "inactive" | "pending"> = {
-            "1": "pending",
-            "2": "pending",
-            "3": "pending",
-            "4": "active",
-            "5": "active",
-            "6": "active",
-          };
-
-          return {
-            id: pa.id.toString(),
-            name: `${u.first_name} ${u.last_name}`,
-            email: u.email,
-            phone: u.mobile_number,
-            role: u.user_type === 1 ? "Prospect" : "Client",
-            status: statusMap[u.application_status] || "pending",
-            assignedSP: pa.owner_name,
-            onboardingProgress: {
-              percentage: parseInt(u.pipeline_status || "0"),
-              uploadedDocs: 0,
-              totalDocs: 0,
-              signedDocs: 0,
-              totalSignedDocs: 0,
-            },
-          };
-        },
-      );
-
       if (isRefresh || currentPage === 1) {
-        dispatch(setClients(mappedClients));
+        dispatch(setClients(response.results));
         setPage(1);
       } else {
-        dispatch(appendClients(mappedClients));
+        dispatch(appendClients(response.results));
         setPage(currentPage);
       }
 
-      setHasMore(mappedClients.length === PAGE_SIZE);
+      setHasMore(response.results.length === PAGE_SIZE);
     } catch (error) {
       console.error("Failed to fetch clients", error);
     } finally {
@@ -187,34 +170,32 @@ const ClientListScreen = () => {
     fetchPage(page + 1);
   };
 
-  const filteredClients = clients.filter((client) => {
+  const filteredClients = clients.filter((pa) => {
+    const u = pa.user;
+    const clientName = `${u.first_name} ${u.last_name}`.toLowerCase();
+    const clientEmail = u.email.toLowerCase();
     const matchesSearch =
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchQuery.toLowerCase());
+      clientName.includes(searchQuery.toLowerCase()) ||
+      clientEmail.includes(searchQuery.toLowerCase());
+
+    const statusMap: Record<string, "active" | "inactive" | "pending"> = {
+      "1": "pending",
+      "2": "pending",
+      "3": "pending",
+      "4": "active",
+      "5": "active",
+      "6": "active",
+    };
+    const clientStatus = statusMap[u.application_status] || "pending";
 
     const matchesStatus =
-      selectedStatus === "all" || client.status === selectedStatus;
-
-    // Removing role visibility client-side filter here because
-    // backend already returns the correct prospects based on session context.
+      selectedStatus === "all" || clientStatus === selectedStatus;
 
     // Apply Advanced Filters
-    const matchesServices =
-      filters.services.length === 0 ||
-      (client.services &&
-        filters.services.some((serviceId) =>
-          client.services?.includes(serviceId),
-        ));
-
     const matchesAdvisor =
-      filters.assignedSP === "all" || client.assignedSP === filters.assignedSP;
-    const matchesReferral =
-      filters.referralPartner === "all" ||
-      (filters.referralPartner === "none"
-        ? !client.referralPartner
-        : client.referralPartner === filters.referralPartner);
+      filters.assignedSP === "all" || pa.owner_name === filters.assignedSP;
 
-    return matchesSearch && matchesStatus && matchesAdvisor && matchesReferral;
+    return matchesSearch && matchesStatus && matchesAdvisor;
   });
 
   const handleRefresh = () => {
@@ -226,9 +207,9 @@ const ClientListScreen = () => {
     setRefreshing(false);
   };
 
-  const handleClientPress = (client: Client) => {
-    dispatch(setSelectedClient(client));
-    navigation.navigate("ClientDetails", { clientId: client.id });
+  const handleClientPress = (pa: ProspectAssociation) => {
+    dispatch(setSelectedClient(pa));
+    navigation.navigate("ClientDetails", { clientId: pa.id.toString() });
   };
 
   const handleApplyFilters = () => {
@@ -248,20 +229,33 @@ const ClientListScreen = () => {
       !newClient.firstName ||
       !newClient.lastName ||
       !newClient.email ||
-      !newClient.license
+      newClient.licenses.length === 0
     ) {
-      showAlert("Error", "Please fill in all required fields");
+      showAlert(
+        "Error",
+        "Please fill in all required fields and select at least one license",
+      );
       return;
     }
 
     try {
+      const selectedServicesObjects = newClient.services
+        .map((val) => {
+          const os = (orgServices || []).find(
+            (s: any) => s.id.toString() === val,
+          );
+          return os;
+        })
+        .filter(Boolean);
+
       await createProspect({
         first_name: newClient.firstName,
         last_name: newClient.lastName,
         email: newClient.email,
         individual: clientType === "individual",
         company: newClient.companyName,
-        licenses: [newClient.license],
+        licenses: newClient.licenses,
+        services: selectedServicesObjects,
       }).unwrap();
 
       showAlert("Success", "Prospect created successfully");
@@ -270,7 +264,8 @@ const ClientListScreen = () => {
         firstName: "",
         lastName: "",
         email: "",
-        license: "",
+        licenses: [],
+        services: [],
         companyName: "",
       });
       setClientType("individual");
@@ -280,12 +275,17 @@ const ClientListScreen = () => {
     }
   };
 
-  const formatNetWorth = (amount: number) => {
-    return `$${(amount / 1000000).toFixed(1)}M`;
-  };
-
   // Web uses theme.colors.error for inactive
-  const getWebStatusColor = (status: string) => {
+  const getWebStatusColor = (applicationStatus: string) => {
+    const statusMap: Record<string, "active" | "inactive" | "pending"> = {
+      "1": "pending",
+      "2": "pending",
+      "3": "pending",
+      "4": "active",
+      "5": "active",
+      "6": "active",
+    };
+    const status = statusMap[applicationStatus] || "pending";
     switch (status) {
       case "active":
         return theme.colors.success;
@@ -298,7 +298,12 @@ const ClientListScreen = () => {
     }
   };
 
-  const renderClientItem = ({ item }: { item: Client }) => {
+  const renderClientItem = ({ item }: { item: ProspectAssociation }) => {
+    const u = item.user;
+    const pipelinePercentage = parseInt(u.pipeline_status || "0");
+    const clientName = `${u.first_name} ${u.last_name}`;
+    const clientRole = u.user_type === 1 ? "Prospect" : "Client";
+
     const itemStyles = StyleSheet.create({
       clientCard: { marginBottom: 12, padding: 24 },
       clientHeader: {
@@ -360,85 +365,76 @@ const ClientListScreen = () => {
         <Card style={itemStyles.clientCard}>
           <View style={itemStyles.clientHeader}>
             <View style={{ marginRight: 16, alignItems: "center" }}>
-              {item.onboardingProgress ? (
-                <CircularProgress
-                  size={68}
-                  strokeWidth={4}
-                  percentage={item.onboardingProgress.percentage}
-                  color={
-                    item.onboardingProgress.percentage === 100
-                      ? theme.colors.success
-                      : item.onboardingProgress.percentage < 50
-                        ? theme.colors.error
-                        : item.onboardingProgress.percentage < 80
-                          ? theme.colors.warning
-                          : theme.colors.primary
-                  }
+              <CircularProgress
+                size={68}
+                strokeWidth={4}
+                percentage={pipelinePercentage}
+                color={
+                  pipelinePercentage === 100
+                    ? theme.colors.success
+                    : pipelinePercentage < 50
+                      ? theme.colors.error
+                      : pipelinePercentage < 80
+                        ? theme.colors.warning
+                        : theme.colors.primary
+                }
+              >
+                <View
+                  style={[
+                    itemStyles.avatar,
+                    {
+                      marginRight: 0,
+                      width: 52,
+                      height: 52,
+                      borderRadius: 26,
+                    },
+                  ]}
                 >
-                  <View
-                    style={[
-                      itemStyles.avatar,
-                      {
-                        marginRight: 0,
-                        width: 52,
-                        height: 52,
-                        borderRadius: 26,
-                      },
-                    ]}
-                  >
-                    <Icon
-                      name="person"
-                      size={24}
-                      color={theme.colors.textOnPrimary}
-                    />
-                  </View>
-                </CircularProgress>
-              ) : (
-                <View style={itemStyles.avatar}>
                   <Icon
                     name="person"
                     size={24}
                     color={theme.colors.textOnPrimary}
                   />
                 </View>
-              )}
-              {item.onboardingProgress && (
-                <Text
-                  style={{
-                    fontSize: 10,
-                    fontWeight: "bold",
-                    color:
-                      item.onboardingProgress.percentage === 100
-                        ? theme.colors.success
-                        : item.onboardingProgress.percentage < 50
-                          ? theme.colors.error
-                          : item.onboardingProgress.percentage < 80
-                            ? theme.colors.warning
-                            : theme.colors.primary,
-                    marginTop: 4,
-                  }}
-                >
-                  {item.onboardingProgress.percentage}%
-                </Text>
-              )}
+              </CircularProgress>
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontWeight: "bold",
+                  color:
+                    pipelinePercentage === 100
+                      ? theme.colors.success
+                      : pipelinePercentage < 50
+                        ? theme.colors.error
+                        : pipelinePercentage < 80
+                          ? theme.colors.warning
+                          : theme.colors.primary,
+                  marginTop: 4,
+                }}
+              >
+                {pipelinePercentage}%
+              </Text>
             </View>
             <View style={itemStyles.clientInfo}>
-              <Text style={itemStyles.clientName}>{item.name}</Text>
-              <Text style={itemStyles.clientRole}>{item.role}</Text>
+              <Text style={itemStyles.clientName}>{clientName}</Text>
+              <Text style={itemStyles.clientRole}>{clientRole}</Text>
             </View>
             <View
               style={[
                 itemStyles.statusBadge,
-                { backgroundColor: getWebStatusColor(item.status) + "20" },
+                {
+                  backgroundColor:
+                    getWebStatusColor(u.application_status) + "20",
+                },
               ]}
             >
               <Text
                 style={[
                   itemStyles.statusText,
-                  { color: getWebStatusColor(item.status) },
+                  { color: getWebStatusColor(u.application_status) },
                 ]}
               >
-                {item.status}
+                {u.application_status_display || u.application_status}
               </Text>
             </View>
           </View>
@@ -450,24 +446,16 @@ const ClientListScreen = () => {
                 size={14}
                 color={theme.colors.textSecondary}
               />
-              <Text style={itemStyles.contactText}>{item.email}</Text>
+              <Text style={itemStyles.contactText}>{u.email}</Text>
             </View>
-            {item.phone && (
+            {u.mobile_number && (
               <View style={itemStyles.contactRow}>
                 <Icon
                   name="call-outline"
                   size={14}
                   color={theme.colors.textSecondary}
                 />
-                <Text style={itemStyles.contactText}>{item.phone}</Text>
-              </View>
-            )}
-            {item.netWorth && (
-              <View style={itemStyles.netWorthRow}>
-                <Text style={itemStyles.label}>Net Worth</Text>
-                <Text style={itemStyles.value}>
-                  {formatNetWorth(item.netWorth)}
-                </Text>
+                <Text style={itemStyles.contactText}>{u.mobile_number}</Text>
               </View>
             )}
           </View>
@@ -559,7 +547,7 @@ const ClientListScreen = () => {
       fontWeight: "600",
     },
     input: {
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.effects.cardBorder,
       borderRadius: 12,
@@ -683,7 +671,7 @@ const ClientListScreen = () => {
       <FlatList
         data={filteredClients}
         renderItem={renderClientItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
         refreshing={refreshing}
         onRefresh={handleRefresh}
@@ -750,7 +738,7 @@ const ClientListScreen = () => {
           </View>
 
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {availableServices.map((service) => {
+            {availableServices.map((service: any) => {
               const isSelected = tempFilters.services.includes(service.id);
               return (
                 <TouchableOpacity
@@ -796,7 +784,7 @@ const ClientListScreen = () => {
                     ]}
                     numberOfLines={1}
                   >
-                    {service.name}
+                    {service.label}
                   </Text>
                 </TouchableOpacity>
               );
@@ -973,14 +961,29 @@ const ClientListScreen = () => {
           />
         </View>
 
-        <ThemeDropdown
-          label="License"
-          options={availableLicenses.map((l) => ({ label: l, value: l }))}
-          selectedValue={newClient.license}
-          onValueChange={(value) =>
-            setNewClient({ ...newClient, license: value })
+        <ThemeMultiSelect
+          label="Licenses"
+          options={availableLicenses}
+          selectedValues={newClient.licenses}
+          onValuesChange={(values) =>
+            setNewClient({ ...newClient, licenses: values })
           }
         />
+
+        {user?.feature_licenses?.includes("REFERRAL_PROGRAM") &&
+          availableServices.length > 0 && (
+            <ThemeMultiSelect
+              label="Select Services"
+              options={availableServices.map((s: any) => ({
+                label: s.label,
+                value: s.value,
+              }))}
+              selectedValues={newClient.services}
+              onValuesChange={(values) =>
+                setNewClient({ ...newClient, services: values })
+              }
+            />
+          )}
 
         {clientType === "non-individual" && (
           <View style={styles.inputGroup}>

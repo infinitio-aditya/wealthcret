@@ -12,7 +12,7 @@ export interface ProspectRequest{
   email: string;
   individual: boolean;
   company?: string;
-  services?: string[];
+  services?: any[];
   licenses?: string[];
 }
 

@@ -8,7 +8,6 @@ import {
   setUser as setUserRedux,
   logout as logoutRedux,
 } from "../store/slices/authSlice";
-import { mapCustomUserToUser } from "../utils/userUtils";
 
 type AuthContextType = {
   user: CustomUser | null;
@@ -29,10 +28,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const dispatch = useDispatch();
 
   const login = (userData: CustomUser) => {
-    const mappedUser = mapCustomUserToUser(userData);
     setUser(userData);
     setIsLoggedIn(true);
-    dispatch(setUserRedux(mappedUser));
+    dispatch(setUserRedux(userData));
     if (userData.theme) {
       setTheme(userData.theme);
     }
@@ -58,11 +56,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         setLoading(true);
         const result = await triggerGetUser().unwrap();
-        const mappedUser = mapCustomUserToUser(result);
 
         setUser(result);
         setIsLoggedIn(true);
-        dispatch(setUserRedux(mappedUser));
+        dispatch(setUserRedux(result));
 
         if (result.theme) {
           setTheme(result.theme);

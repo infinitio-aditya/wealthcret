@@ -29,6 +29,7 @@ import { Payout } from "../../../types";
 import Icon1 from "react-native-vector-icons/Ionicons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
+import { ORG_TYPE_AD } from "../../../types/backend/constants";
 
 type NavigationProp = StackNavigationProp<PayoutStackParamList, "Payout">;
 type PayoutEditRouteProp = RouteProp<PayoutStackParamList, "PayoutEdit">;
@@ -96,7 +97,7 @@ const PayoutScreen = () => {
   const fetchPayouts = async () => {
     setLoading(true);
     try {
-      if (user?.user_type === 0) {
+      if (user?.organization?.org_type === ORG_TYPE_AD) {
         const response = await getAdminPayouts({
           page: 1,
           page_size: 100,
@@ -380,7 +381,7 @@ const PayoutScreen = () => {
       <View style={styles.header}>
         <View style={[styles.row, { marginBottom: 8 }]}>
           <Text style={styles.title}>Payout Management</Text>
-          {user?.user_type === 0 && (
+          {user?.organization?.org_type === ORG_TYPE_AD && (
             <View style={styles.headerButtons}>
               <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
                 <Icon1

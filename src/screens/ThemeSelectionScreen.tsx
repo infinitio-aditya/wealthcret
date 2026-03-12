@@ -17,6 +17,8 @@ import { themes } from "../theme/themes";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 
+import { ORG_TYPE_CL } from "../types/backend/constants";
+
 const ThemeSelectionScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation();
@@ -144,7 +146,7 @@ const ThemeSelectionScreen = () => {
     },
   });
 
-  if (user?.user_type === 3) {
+  if (user?.organization?.org_type === ORG_TYPE_CL) {
     return (
       <View
         style={[
